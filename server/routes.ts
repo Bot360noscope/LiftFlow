@@ -1,8 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "node:http";
 import { db } from "./db";
-import { profiles, programs, clients, prs, notifications, messages, users } from "../shared/schema";
-import { eq, desc, and, or, inArray, ilike } from "drizzle-orm";
+import { profiles, programs, clients, prs, notifications, messages, users, videoUploads } from "../shared/schema";
+import { eq, desc, and, or, inArray, ilike, lt, isNull, isNotNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import multer from "multer";
 import path from "path";
@@ -458,10 +458,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // === VIDEO UPLOAD ===
-  app.post("/api/upload-video", upload.single("video"), (req, res) => {
+  app.post("/api/upload-video", upload.single("video"), async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ error: "No file uploaded" });
       const videoUrl = `/api/videos/${req.file.filename}`;
+      const { programId, exerciseId, uploadedBy, coachId } = req.body;
+      if (programId && exerciseId && uploadedBy && coachId) {
+        await db.insert(videoUploads).values({
+          id: randomUUID(),
+          filename: req.file.filename,
+          programId,
+          exerciseId,
+          uploadedBy,
+          coachId,
+        });
+      }
       res.json({ videoUrl });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -470,6 +481,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const filePath = path.join(uploadsDir, req.params.filename);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Not found" });
     res.sendFile(filePath);
+  });
+
+  app.post("/api/videos/:filename/viewed", async (req, res) => {
+    try {
+      const { filename } = req.params;
+      const records = await db.update(videoUploads)
+        .set({ coachViewedAt: new Date() })
+        .where(and(eq(videoUploads.filename, filename), isNull(videoUploads.coachViewedAt)))
+        .returning();
+      res.json({ updated: records.length > 0 });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // === SEED DEMO DATA ===
