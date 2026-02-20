@@ -416,6 +416,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         senderRole,
         text: msgText,
       }).returning();
+
+      const targetProfileId = senderRole === 'coach' ? clientProfileId : coachId;
+      let senderName = 'Someone';
+      if (senderRole === 'coach') {
+        const [coachProfile] = await db.select().from(profiles).where(eq(profiles.id, coachId));
+        senderName = coachProfile?.name || 'Coach';
+      } else {
+        const [clientProfile] = await db.select().from(profiles).where(eq(profiles.id, clientProfileId));
+        senderName = clientProfile?.name || 'Client';
+      }
+
+      await db.insert(notifications).values({
+        id: randomUUID(),
+        profileId: targetProfileId,
+        type: 'chat',
+        title: `Message from ${senderName}`,
+        message: msgText.length > 80 ? msgText.slice(0, 80) + '...' : msgText,
+        programId: '',
+        programTitle: '',
+        exerciseName: '',
+        fromRole: senderRole,
+      });
+
       res.json(msg);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -555,6 +578,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ]);
 
       res.json({ profileId: coachId, message: 'Demo data seeded' });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // === ACCOUNT DELETION ===
+  app.post("/api/account/delete", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: "Not authenticated" });
+
+      const decoded = verifyToken(authHeader.slice(7));
+      if (!decoded) return res.status(401).json({ error: "Invalid token" });
+
+      const { confirmation } = req.body;
+      if (confirmation !== 'DELETE') return res.status(400).json({ error: "Must confirm with DELETE" });
+
+      const profileId = decoded.profileId;
+
+      const coachClients = await db.select().from(clients).where(eq(clients.coachId, profileId));
+      const clientRecords = await db.select().from(clients).where(eq(clients.clientProfileId, profileId));
+      const allClientIds = [...coachClients.map(c => c.id), ...clientRecords.map(c => c.id)];
+
+      if (allClientIds.length > 0) {
+        await db.delete(programs).where(inArray(programs.clientId, allClientIds));
+      }
+      await db.delete(programs).where(eq(programs.coachId, profileId));
+      await db.delete(messages).where(eq(messages.coachId, profileId));
+      await db.delete(messages).where(eq(messages.clientProfileId, profileId));
+      await db.delete(notifications).where(eq(notifications.profileId, profileId));
+      await db.delete(prs).where(eq(prs.profileId, profileId));
+      await db.delete(clients).where(eq(clients.coachId, profileId));
+      await db.delete(clients).where(eq(clients.clientProfileId, profileId));
+      await db.delete(users).where(eq(users.id, decoded.userId));
+      await db.delete(profiles).where(eq(profiles.id, profileId));
+
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // === DELETE SINGLE NOTIFICATION ===
+  app.delete("/api/notifications/:id", async (req, res) => {
+    try {
+      await db.delete(notifications).where(eq(notifications.id, req.params.id));
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // === DELETE NOTIFICATIONS BY PROGRAM ===
+  app.delete("/api/notifications/by-program/:programId", async (req, res) => {
+    try {
+      const profileId = req.query.profileId as string;
+      if (!profileId) return res.status(400).json({ error: "profileId required" });
+      await db.delete(notifications).where(
+        and(eq(notifications.profileId, profileId), eq(notifications.programId, req.params.programId))
+      );
+      res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 

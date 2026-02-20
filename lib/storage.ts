@@ -64,7 +64,7 @@ export interface ClientInfo {
 
 export interface AppNotification {
   id: string;
-  type: 'video' | 'notes' | 'comment' | 'completion';
+  type: 'video' | 'notes' | 'comment' | 'completion' | 'chat';
   title: string;
   message: string;
   programId: string;
@@ -346,6 +346,15 @@ export async function clearAllNotifications(): Promise<void> {
   await apiDelete(`/api/notifications?profileId=${profile.id}`);
 }
 
+export async function deleteNotification(id: string): Promise<void> {
+  await apiDelete(`/api/notifications/${id}`);
+}
+
+export async function deleteNotificationsByProgram(programId: string): Promise<void> {
+  const profile = await getProfile();
+  await apiDelete(`/api/notifications/by-program/${programId}?profileId=${profile.id}`);
+}
+
 export async function getUnreadNotificationCount(): Promise<number> {
   const notifications = await getNotifications();
   return notifications.filter(n => !n.read).length;
@@ -417,6 +426,12 @@ export async function login(email: string, password: string): Promise<{ token: s
 }
 
 export async function logout(): Promise<void> {
+  await clearAuthToken();
+  await AsyncStorage.removeItem(PROFILE_ID_KEY);
+}
+
+export async function deleteAccount(confirmation: string): Promise<void> {
+  await apiPost('/api/account/delete', { confirmation });
   await clearAuthToken();
   await AsyncStorage.removeItem(PROFILE_ID_KEY);
 }

@@ -7,9 +7,10 @@ import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { confirmAction, showAlert } from "@/lib/confirm";
-import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, seedDemoData, type UserProfile } from "@/lib/storage";
+import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, seedDemoData, deleteAccount, type UserProfile } from "@/lib/storage";
 import { useAuth } from "@/lib/auth-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Modal } from "react-native";
 
 function CoachCodeCard({ coachCode, onReset }: { coachCode: string; onReset: () => void }) {
   const [revealed, setRevealed] = useState(false);
@@ -52,6 +53,9 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [stats, setStats] = useState({ prs: 0, programs: 0, clients: 0 });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const loadData = useCallback(async () => {
     const [p, prs, progs, cl] = await Promise.all([getProfile(), getPRs(), getPrograms(), getClients()]);
@@ -100,17 +104,18 @@ export default function ProfileScreen() {
     loadData();
   };
 
-  const handleClearData = () => {
-    confirmAction(
-      "Clear All Data",
-      "This will delete all your programs, PRs, and settings. This cannot be undone.",
-      async () => {
-        await AsyncStorage.clear();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        router.replace('/role-select');
-      },
-      "Clear Everything"
-    );
+  const handleDeleteAccount = async () => {
+    if (deleteInput !== 'DELETE') return;
+    setDeleting(true);
+    try {
+      await deleteAccount('DELETE');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setShowDeleteModal(false);
+      await authLogout();
+    } catch (e: any) {
+      showAlert('Error', e.message || 'Failed to delete account');
+    }
+    setDeleting(false);
   };
 
   const isCoach = profile.role === 'coach';
@@ -247,14 +252,14 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={18} color={Colors.colors.textMuted} />
           </Pressable>
 
-          <Pressable style={[styles.settingItem, styles.dangerItem]} onPress={handleClearData}>
+          <Pressable style={[styles.settingItem, styles.dangerItem]} onPress={() => { setDeleteInput(''); setShowDeleteModal(true); }}>
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: Colors.colors.dangerLight }]}>
                 <Ionicons name="trash" size={18} color={Colors.colors.danger} />
               </View>
               <View>
-                <Text style={[styles.settingLabel, { color: Colors.colors.danger }]}>Clear All Data</Text>
-                <Text style={styles.settingValue}>Delete all programs, PRs, and settings</Text>
+                <Text style={[styles.settingLabel, { color: Colors.colors.danger }]}>Delete Account</Text>
+                <Text style={styles.settingValue}>Permanently delete your account and all data</Text>
               </View>
             </View>
           </Pressable>
@@ -282,6 +287,40 @@ export default function ProfileScreen() {
 
         <Text style={styles.version}>LiftFlow v1.0.0</Text>
       </ScrollView>
+
+      <Modal visible={showDeleteModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Ionicons name="warning" size={40} color={Colors.colors.danger} />
+            <Text style={styles.modalTitle}>Delete Account</Text>
+            <Text style={styles.modalMessage}>
+              This will permanently delete your account, all programs, clients, messages, PRs, and all associated data. This action cannot be undone.
+            </Text>
+            <Text style={styles.modalPrompt}>Type DELETE to confirm:</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={deleteInput}
+              onChangeText={setDeleteInput}
+              placeholder="Type DELETE"
+              placeholderTextColor={Colors.colors.textMuted}
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setShowDeleteModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalDeleteBtn, deleteInput !== 'DELETE' && styles.modalDeleteBtnDisabled]}
+                onPress={handleDeleteAccount}
+                disabled={deleteInput !== 'DELETE' || deleting}
+              >
+                <Text style={styles.modalDeleteText}>{deleting ? 'Deleting...' : 'Delete Forever'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -358,4 +397,32 @@ const styles = StyleSheet.create({
   },
   logoutText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.danger },
   version: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, textAlign: 'center', marginTop: 30 },
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: 24,
+  },
+  modalCard: {
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 20, padding: 28,
+    width: '100%', maxWidth: 360, alignItems: 'center', gap: 12,
+    borderWidth: 1, borderColor: Colors.colors.border,
+  },
+  modalTitle: { fontFamily: 'Rubik_700Bold', fontSize: 22, color: Colors.colors.danger },
+  modalMessage: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+  modalPrompt: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: Colors.colors.text, marginTop: 8 },
+  modalInput: {
+    fontFamily: 'Rubik_600SemiBold', fontSize: 18, color: Colors.colors.danger, textAlign: 'center',
+    backgroundColor: Colors.colors.surface, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12,
+    width: '100%', borderWidth: 1, borderColor: Colors.colors.border, letterSpacing: 4,
+  },
+  modalButtons: { flexDirection: 'row', gap: 12, marginTop: 8, width: '100%' },
+  modalCancelBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 12,
+    backgroundColor: Colors.colors.surfaceLight,
+  },
+  modalCancelText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.text },
+  modalDeleteBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 12,
+    backgroundColor: Colors.colors.danger,
+  },
+  modalDeleteBtnDisabled: { opacity: 0.4 },
+  modalDeleteText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: '#fff' },
 });
