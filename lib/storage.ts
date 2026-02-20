@@ -75,6 +75,15 @@ export interface AppNotification {
   read: boolean;
 }
 
+export interface ChatMessage {
+  id: string;
+  coachId: string;
+  clientProfileId: string;
+  senderRole: 'coach' | 'client';
+  text: string;
+  createdAt: string;
+}
+
 const PROFILE_ID_KEY = 'liftflow_profile_id';
 
 export function generateCode(): string {
@@ -345,6 +354,47 @@ export async function getUnreadNotificationCount(): Promise<number> {
 export async function seedDemoData(): Promise<void> {
   const result = await apiPost<{ profileId: string }>('/api/seed-demo');
   await setProfileId(result.profileId);
+}
+
+export async function getMessages(coachId: string, clientProfileId: string): Promise<ChatMessage[]> {
+  const data = await apiGet<any[]>(`/api/messages?coachId=${coachId}&clientProfileId=${clientProfileId}`);
+  return data.map(m => ({
+    id: m.id,
+    coachId: m.coachId || m.coach_id,
+    clientProfileId: m.clientProfileId || m.client_profile_id,
+    senderRole: (m.senderRole || m.sender_role) as 'coach' | 'client',
+    text: m.text,
+    createdAt: m.createdAt || m.created_at,
+  }));
+}
+
+export async function sendMessage(coachId: string, clientProfileId: string, text: string): Promise<ChatMessage> {
+  const profile = await getProfile();
+  const msg = await apiPost<any>('/api/messages', {
+    coachId,
+    clientProfileId,
+    senderRole: profile.role,
+    text,
+  });
+  return {
+    id: msg.id,
+    coachId: msg.coachId || msg.coach_id,
+    clientProfileId: msg.clientProfileId || msg.client_profile_id,
+    senderRole: (msg.senderRole || msg.sender_role) as 'coach' | 'client',
+    text: msg.text,
+    createdAt: msg.createdAt || msg.created_at,
+  };
+}
+
+export async function searchClients(query: string): Promise<ClientInfo[]> {
+  const profile = await getProfile();
+  const data = await apiGet<any[]>(`/api/clients/search?coachId=${profile.id}&q=${encodeURIComponent(query)}`);
+  return data.map(c => ({
+    id: c.id,
+    name: c.name,
+    joinedAt: c.joinedAt || c.joined_at,
+    clientProfileId: c.clientProfileId || c.client_profile_id,
+  }));
 }
 
 export function createSampleProgram(coachId: string): Omit<Program, 'id' | 'createdAt' | 'shareCode'> {

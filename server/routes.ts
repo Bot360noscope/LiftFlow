@@ -1,8 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { db } from "./db";
-import { profiles, programs, clients, prs, notifications } from "../shared/schema";
-import { eq, desc, and, or, inArray } from "drizzle-orm";
+import { profiles, programs, clients, prs, notifications, messages } from "../shared/schema";
+import { eq, desc, and, or, inArray, ilike } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import multer from "multer";
 import path from "path";
@@ -297,6 +297,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // === MESSAGES (Chat) ===
+  app.get("/api/messages", async (req, res) => {
+    try {
+      const { coachId, clientProfileId } = req.query;
+      if (!coachId || !clientProfileId) return res.status(400).json({ error: "coachId and clientProfileId required" });
+      const result = await db.select().from(messages)
+        .where(and(eq(messages.coachId, coachId as string), eq(messages.clientProfileId, clientProfileId as string)))
+        .orderBy(messages.createdAt);
+      res.json(result);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/messages", async (req, res) => {
+    try {
+      const { coachId, clientProfileId, senderRole, text: msgText } = req.body;
+      const [msg] = await db.insert(messages).values({
+        id: randomUUID(),
+        coachId,
+        clientProfileId,
+        senderRole,
+        text: msgText,
+      }).returning();
+      res.json(msg);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // === CLIENT SEARCH ===
+  app.get("/api/clients/search", async (req, res) => {
+    try {
+      const { coachId, q } = req.query;
+      if (!coachId) return res.status(400).json({ error: "coachId required" });
+      let result = await db.select().from(clients).where(eq(clients.coachId, coachId as string)).orderBy(desc(clients.joinedAt));
+      if (q && typeof q === 'string' && q.trim()) {
+        const query = q.trim().toLowerCase();
+        result = result.filter(c => c.name.toLowerCase().includes(query));
+      }
+      res.json(result);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // === VIDEO UPLOAD ===
   app.post("/api/upload-video", upload.single("video"), (req, res) => {
     try {
@@ -398,6 +438,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { id: randomUUID(), profileId: coachId, type: 'video', title: 'Form Check Video', message: 'Sarah uploaded a video for Bench Press', programId: sarahProg.id, programTitle: sarahProg.title, exerciseName: 'Bench Press', fromRole: 'client' },
         { id: randomUUID(), profileId: coachId, type: 'notes', title: 'New Client Notes', message: 'Sarah added notes on Deadlift', programId: sarahProg.id, programTitle: sarahProg.title, exerciseName: 'Deadlift', fromRole: 'client' },
         { id: randomUUID(), profileId: coachId, type: 'completion', title: 'Exercise Completed', message: 'Alex completed Bench Press', programId: alexProg.id, programTitle: alexProg.title, exerciseName: 'Bench Press', fromRole: 'client', read: true },
+        { id: randomUUID(), profileId: client1ProfileId, type: 'comment', title: 'New Coach Feedback', message: 'Coach commented on Back Squat: "Great job"', programId: sarahProg.id, programTitle: sarahProg.title, exerciseName: 'Back Squat', fromRole: 'coach' },
+        { id: randomUUID(), profileId: client1ProfileId, type: 'comment', title: 'New Coach Feedback', message: 'Coach commented on Bench Press: "Tuck elbows more"', programId: sarahProg.id, programTitle: sarahProg.title, exerciseName: 'Bench Press', fromRole: 'coach' },
+        { id: randomUUID(), profileId: client2ProfileId, type: 'comment', title: 'New Coach Feedback', message: 'Coach commented on Bench Press: "Good tempo"', programId: alexProg.id, programTitle: alexProg.title, exerciseName: 'Bench Press', fromRole: 'coach' },
+      ]);
+
+      await db.insert(messages).values([
+        { id: randomUUID(), coachId, clientProfileId: client1ProfileId, senderRole: 'coach', text: 'Hey Sarah! Great work on your squat PR this week. Keep pushing!' },
+        { id: randomUUID(), coachId, clientProfileId: client1ProfileId, senderRole: 'client', text: 'Thanks Coach! My form felt solid. Should I go heavier next week?' },
+        { id: randomUUID(), coachId, clientProfileId: client1ProfileId, senderRole: 'coach', text: 'Yes, try adding 2.5kg. Focus on bracing at the bottom.' },
+        { id: randomUUID(), coachId, clientProfileId: client2ProfileId, senderRole: 'coach', text: 'Alex, I noticed your deadlift notes mention lower back soreness. Let\'s talk about your setup.' },
+        { id: randomUUID(), coachId, clientProfileId: client2ProfileId, senderRole: 'client', text: 'Yeah it was bothering me. Maybe I need to work on my hip hinge?' },
       ]);
 
       await db.insert(prs).values([

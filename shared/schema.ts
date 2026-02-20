@@ -57,11 +57,21 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const messages = pgTable("messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  coachId: varchar("coach_id").notNull(),
+  clientProfileId: varchar("client_profile_id").notNull(),
+  senderRole: text("sender_role").notNull(),
+  text: text("text").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertProfileSchema = createInsertSchema(profiles);
 export const insertProgramSchema = createInsertSchema(programs);
 export const insertClientSchema = createInsertSchema(clients);
 export const insertPRSchema = createInsertSchema(prs);
 export const insertNotificationSchema = createInsertSchema(notifications);
+export const insertMessageSchema = createInsertSchema(messages);
 
 export type Profile = typeof profiles.$inferSelect;
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
@@ -73,6 +83,8 @@ export type PR = typeof prs.$inferSelect;
 export type InsertPR = z.infer<typeof insertPRSchema>;
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
 
 export type User = { id: string; username: string; password: string };
 export type InsertUser = { username: string; password: string };

@@ -10,7 +10,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import * as Crypto from "expo-crypto";
-import { getProgram, updateProgram, getProfile, addNotification, type Program, type Exercise, type WorkoutWeek, type WorkoutDay } from "@/lib/storage";
+import { getProgram, updateProgram, getProfile, getClients, addNotification, type Program, type Exercise, type WorkoutWeek, type WorkoutDay } from "@/lib/storage";
 import { uploadVideo, getVideoUrl } from "@/lib/api";
 
 function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
@@ -408,6 +408,15 @@ export default function ProgramDetailScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     if (oldProgram) {
+      let targetProfileId: string | undefined;
+      if (!isCoach) {
+        targetProfileId = program.coachId;
+      } else if (program.clientId) {
+        const allClients = await getClients();
+        const clientRecord = allClients.find(c => c.id === program.clientId);
+        targetProfileId = clientRecord?.clientProfileId;
+      }
+
       for (const week of program.weeks) {
         for (const day of week.days) {
           for (const ex of day.exercises) {
@@ -419,6 +428,7 @@ export default function ProgramDetailScreen() {
             if (!isCoach) {
               if (ex.clientNotes && ex.clientNotes !== oldEx.clientNotes) {
                 addNotification({
+                  targetProfileId,
                   type: 'notes',
                   title: 'New Client Notes',
                   message: `Notes added on ${ex.name}: "${ex.clientNotes.slice(0, 60)}"`,
@@ -430,6 +440,7 @@ export default function ProgramDetailScreen() {
               }
               if (ex.videoUrl && ex.videoUrl !== oldEx.videoUrl) {
                 addNotification({
+                  targetProfileId,
                   type: 'video',
                   title: 'Form Check Video',
                   message: `Video uploaded for ${ex.name}`,
@@ -441,6 +452,7 @@ export default function ProgramDetailScreen() {
               }
               if (ex.isCompleted && !oldEx.isCompleted) {
                 addNotification({
+                  targetProfileId,
                   type: 'completion',
                   title: 'Exercise Completed',
                   message: `${ex.name} marked as completed`,
@@ -453,6 +465,7 @@ export default function ProgramDetailScreen() {
             } else {
               if (ex.coachComment && ex.coachComment !== oldEx.coachComment) {
                 addNotification({
+                  targetProfileId,
                   type: 'comment',
                   title: 'New Coach Feedback',
                   message: `Coach commented on ${ex.name}: "${ex.coachComment.slice(0, 60)}"`,
