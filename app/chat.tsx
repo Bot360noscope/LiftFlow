@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
-import { getProfile, getMessages, sendMessage, getClients, type ChatMessage, type UserProfile } from "@/lib/storage";
+import { getProfile, getMessages, sendMessage, getMyCoach, type ChatMessage, type UserProfile } from "@/lib/storage";
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
@@ -17,43 +17,51 @@ export default function ChatScreen() {
   const [coachId, setCoachId] = useState('');
   const [clientProfileId, setClientProfileId] = useState('');
   const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     (async () => {
-      const prof = await getProfile();
-      setProfile(prof);
+      try {
+        const prof = await getProfile();
+        setProfile(prof);
 
-      let resolvedCoachId = '';
-      let resolvedClientProfileId = '';
+        let resolvedCoachId = '';
+        let resolvedClientProfileId = '';
 
-      if (prof.role === 'coach') {
-        resolvedCoachId = prof.id;
-        resolvedClientProfileId = params.clientProfileId || '';
-        setChatPartnerName(params.clientName || 'Client');
-      } else {
-        const allClients = await getClients();
-        if (allClients.length > 0) {
-          const clientRecord = allClients[0];
-          resolvedCoachId = params.coachId || (clientRecord as any).coachId || (clientRecord as any).coach_id || '';
+        if (prof.role === 'coach') {
+          resolvedCoachId = prof.id;
+          resolvedClientProfileId = params.clientProfileId || '';
+          setChatPartnerName(params.clientName || 'Client');
+        } else {
           resolvedClientProfileId = prof.id;
+          const coachInfo = await getMyCoach();
+          if (coachInfo) {
+            resolvedCoachId = coachInfo.coachId;
+            setChatPartnerName(coachInfo.coachName);
+          }
         }
-      }
 
-      setCoachId(resolvedCoachId);
-      setClientProfileId(resolvedClientProfileId);
+        setCoachId(resolvedCoachId);
+        setClientProfileId(resolvedClientProfileId);
 
-      if (resolvedCoachId && resolvedClientProfileId) {
-        const msgs = await getMessages(resolvedCoachId, resolvedClientProfileId);
-        setMessages(msgs);
+        if (resolvedCoachId && resolvedClientProfileId) {
+          const msgs = await getMessages(resolvedCoachId, resolvedClientProfileId);
+          setMessages(msgs);
+        }
+      } catch (e) {
+        console.warn('Chat init error:', e);
       }
+      setLoading(false);
     })();
   }, []);
 
   const loadMessages = useCallback(async () => {
     if (!coachId || !clientProfileId) return;
-    const msgs = await getMessages(coachId, clientProfileId);
-    setMessages(msgs);
+    try {
+      const msgs = await getMessages(coachId, clientProfileId);
+      setMessages(msgs);
+    } catch (e) {}
   }, [coachId, clientProfileId]);
 
   useEffect(() => {
@@ -80,6 +88,7 @@ export default function ChatScreen() {
 
   const isCoach = profile?.role === 'coach';
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
+  const noCoach = !loading && !coachId && !isCoach;
 
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isMe = item.senderRole === profile?.role;
@@ -117,42 +126,55 @@ export default function ChatScreen() {
         <View style={{ width: 32 }} />
       </View>
 
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
-        contentContainerStyle={[styles.messagesList, { paddingBottom: 12 }]}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-        ListEmptyComponent={
-          <View style={styles.emptyChat}>
-            <Ionicons name="chatbubbles-outline" size={40} color={Colors.colors.textMuted} />
-            <Text style={styles.emptyChatText}>No messages yet</Text>
-            <Text style={styles.emptyChatSub}>Start the conversation!</Text>
-          </View>
-        }
-      />
+      {noCoach ? (
+        <View style={styles.emptyChat}>
+          <Ionicons name="people-outline" size={40} color={Colors.colors.textMuted} />
+          <Text style={styles.emptyChatText}>No coach connected</Text>
+          <Text style={styles.emptyChatSub}>Join a coach first to start chatting</Text>
+          <Pressable style={styles.joinBtn} onPress={() => router.push('/join-coach')}>
+            <Text style={styles.joinBtnText}>Join Coach</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <>
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            renderItem={renderMessage}
+            contentContainerStyle={[styles.messagesList, { paddingBottom: 12 }]}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+            ListEmptyComponent={
+              <View style={styles.emptyChat}>
+                <Ionicons name="chatbubbles-outline" size={40} color={Colors.colors.textMuted} />
+                <Text style={styles.emptyChatText}>No messages yet</Text>
+                <Text style={styles.emptyChatSub}>Start the conversation!</Text>
+              </View>
+            }
+          />
 
-      <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 12) }]}>
-        <TextInput
-          style={styles.textInput}
-          placeholder="Type a message..."
-          placeholderTextColor={Colors.colors.textMuted}
-          value={input}
-          onChangeText={setInput}
-          multiline
-          maxLength={1000}
-          onSubmitEditing={handleSend}
-          blurOnSubmit={false}
-        />
-        <Pressable
-          style={[styles.sendBtn, (!input.trim() || sending) && styles.sendBtnDisabled]}
-          onPress={handleSend}
-          disabled={!input.trim() || sending}
-        >
-          <Ionicons name="send" size={18} color={input.trim() && !sending ? '#fff' : Colors.colors.textMuted} />
-        </Pressable>
-      </View>
+          <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 12) }]}>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Type a message..."
+              placeholderTextColor={Colors.colors.textMuted}
+              value={input}
+              onChangeText={setInput}
+              multiline
+              maxLength={1000}
+              onSubmitEditing={handleSend}
+              blurOnSubmit={false}
+            />
+            <Pressable
+              style={[styles.sendBtn, (!input.trim() || sending) && styles.sendBtnDisabled]}
+              onPress={handleSend}
+              disabled={!input.trim() || sending}
+            >
+              <Ionicons name="send" size={18} color={input.trim() && !sending ? '#fff' : Colors.colors.textMuted} />
+            </Pressable>
+          </View>
+        </>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -191,9 +213,13 @@ const styles = StyleSheet.create({
   messageTextMe: { color: '#fff' },
   messageTime: { fontFamily: 'Rubik_400Regular', fontSize: 10, color: Colors.colors.textMuted, marginTop: 4, textAlign: 'right' },
   messageTimeMe: { color: 'rgba(255,255,255,0.7)' },
-  emptyChat: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 8 },
+  emptyChat: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 8 },
   emptyChatText: { fontFamily: 'Rubik_600SemiBold', fontSize: 16, color: Colors.colors.textSecondary },
   emptyChatSub: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted },
+  joinBtn: {
+    backgroundColor: Colors.colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, marginTop: 8,
+  },
+  joinBtnText: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: '#fff' },
   inputRow: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 8,
     paddingHorizontal: 16, paddingTop: 10,

@@ -386,6 +386,13 @@ export async function sendMessage(coachId: string, clientProfileId: string, text
   };
 }
 
+export async function getMyCoach(): Promise<{ coachId: string; coachName: string } | null> {
+  const profile = await getProfile();
+  const data = await apiGet<any>(`/api/my-coach?clientProfileId=${profile.id}`);
+  if (!data) return null;
+  return { coachId: data.coachId || data.coach_id, coachName: data.coachName || data.coach_name || 'Coach' };
+}
+
 export async function searchClients(query: string): Promise<ClientInfo[]> {
   const profile = await getProfile();
   const data = await apiGet<any[]>(`/api/clients/search?coachId=${profile.id}&q=${encodeURIComponent(query)}`);

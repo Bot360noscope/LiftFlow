@@ -181,6 +181,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  app.get("/api/my-coach", async (req, res) => {
+    try {
+      const clientProfileId = req.query.clientProfileId as string;
+      if (!clientProfileId) return res.status(400).json({ error: "clientProfileId required" });
+      const result = await db.select().from(clients).where(eq(clients.clientProfileId, clientProfileId));
+      if (result.length === 0) return res.json(null);
+      const coachRecord = result[0];
+      const coachProfile = await db.select().from(profiles).where(eq(profiles.id, coachRecord.coachId));
+      res.json({
+        coachId: coachRecord.coachId,
+        coachName: coachProfile.length > 0 ? coachProfile[0].name : 'Coach',
+        clientRecordId: coachRecord.id,
+      });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.delete("/api/clients/:id", async (req, res) => {
     try {
       await db.delete(clients).where(eq(clients.id, req.params.id));
