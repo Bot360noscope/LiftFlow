@@ -79,7 +79,7 @@ export default function JoinCoachScreen() {
         <Animated.View entering={FadeInDown.delay(400).duration(400)}>
           <View style={styles.infoBox}>
             <Ionicons name="information-circle" size={18} color={Colors.colors.textSecondary} />
-            <Text style={styles.infoText}>Once connected, your coach can assign training programs to you. You'll be able to log your workouts, upload form check videos, and add notes for your coach to review.</Text>
+            <Text style={styles.infoText}>Once connected, your coach can assign training programs to you. You'll be able to log your workouts, record videos, and add notes for your coach to review.</Text>
           </View>
         </Animated.View>
       </View>

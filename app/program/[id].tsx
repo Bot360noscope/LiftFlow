@@ -63,6 +63,7 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete }: {
         style={styles.exerciseHeader}
         onPress={() => setExpanded(!expanded)}
         onLongPress={() => {
+          if (!isCoach) return;
           Alert.alert("Delete Exercise", `Remove "${exercise.name || 'this exercise'}"?`, [
             { text: "Cancel", style: "cancel" },
             { text: "Delete", style: "destructive", onPress: onDelete },
@@ -108,26 +109,38 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete }: {
       {expanded && (
         <View style={styles.exerciseExpanded}>
           <Text style={styles.fieldLabel}>Exercise Name</Text>
-          <TextInput
-            style={styles.fieldInput}
-            value={name}
-            onChangeText={setName}
-            onBlur={saveChanges}
-            placeholder="e.g., Squat"
-            placeholderTextColor={Colors.colors.textMuted}
-          />
+          {isCoach ? (
+            <TextInput
+              style={styles.fieldInput}
+              value={name}
+              onChangeText={setName}
+              onBlur={saveChanges}
+              placeholder="e.g., Squat"
+              placeholderTextColor={Colors.colors.textMuted}
+            />
+          ) : (
+            <View style={[styles.fieldInput, styles.readOnlyField]}>
+              <Text style={styles.readOnlyText}>{name || 'No exercise name'}</Text>
+            </View>
+          )}
 
           <View style={styles.fieldRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Sets x Reps</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={repsSets}
-                onChangeText={setRepsSets}
-                onBlur={saveChanges}
-                placeholder="e.g., 5x5"
-                placeholderTextColor={Colors.colors.textMuted}
-              />
+              {isCoach ? (
+                <TextInput
+                  style={styles.fieldInput}
+                  value={repsSets}
+                  onChangeText={setRepsSets}
+                  onBlur={saveChanges}
+                  placeholder="e.g., 5x5"
+                  placeholderTextColor={Colors.colors.textMuted}
+                />
+              ) : (
+                <View style={[styles.fieldInput, styles.readOnlyField]}>
+                  <Text style={styles.readOnlyText}>{repsSets || '-'}</Text>
+                </View>
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Weight</Text>
@@ -142,15 +155,21 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete }: {
             </View>
             <View style={{ width: 70 }}>
               <Text style={styles.fieldLabel}>RPE</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={rpe}
-                onChangeText={setRpe}
-                onBlur={saveChanges}
-                placeholder="7"
-                placeholderTextColor={Colors.colors.textMuted}
-                keyboardType="decimal-pad"
-              />
+              {isCoach ? (
+                <TextInput
+                  style={styles.fieldInput}
+                  value={rpe}
+                  onChangeText={setRpe}
+                  onBlur={saveChanges}
+                  placeholder="7"
+                  placeholderTextColor={Colors.colors.textMuted}
+                  keyboardType="decimal-pad"
+                />
+              ) : (
+                <View style={[styles.fieldInput, styles.readOnlyField]}>
+                  <Text style={styles.readOnlyText}>{rpe || '-'}</Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -217,15 +236,15 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete }: {
           )}
 
           {!isCoach && (
-            <Pressable style={styles.videoBtn} onPress={() => Alert.alert("Video", "Video recording will be available for form checks")}>
+            <Pressable style={styles.videoBtn} onPress={() => Alert.alert("Video", "Video recording will be available soon")}>
               <Ionicons name="videocam-outline" size={18} color={Colors.colors.primary} />
-              <Text style={styles.videoBtnText}>Record Form Check Video</Text>
+              <Text style={styles.videoBtnText}>Record Video</Text>
             </Pressable>
           )}
           {isCoach && !!exercise.videoUrl && (
-            <Pressable style={styles.videoBtn} onPress={() => Alert.alert("Video", "View form check video")}>
+            <Pressable style={styles.videoBtn} onPress={() => Alert.alert("Video", "View client's video")}>
               <Ionicons name="play-circle-outline" size={18} color={Colors.colors.primary} />
-              <Text style={styles.videoBtnText}>View Form Check Video</Text>
+              <Text style={styles.videoBtnText}>View Video</Text>
             </Pressable>
           )}
         </View>
@@ -515,10 +534,12 @@ export default function ProgramDetailScreen() {
           ))
         )}
 
-        <Pressable style={styles.addExerciseBtn} onPress={addExercise}>
-          <Ionicons name="add" size={16} color={Colors.colors.primary} />
-          <Text style={styles.addExerciseText}>Add Exercise</Text>
-        </Pressable>
+        {isCoach && (
+          <Pressable style={styles.addExerciseBtn} onPress={addExercise}>
+            <Ionicons name="add" size={16} color={Colors.colors.primary} />
+            <Text style={styles.addExerciseText}>Add Exercise</Text>
+          </Pressable>
+        )}
       </ScrollView>
 
       {hasChanges && (
