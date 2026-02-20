@@ -5,16 +5,32 @@ import { useCallback, useState, useEffect, useMemo } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import { Video, ResizeMode } from "expo-av";
+import { useVideoPlayer, VideoView } from "expo-video";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import * as Crypto from "expo-crypto";
 import { getProgram, updateProgram, getProfile, addNotification, type Program, type Exercise, type WorkoutWeek, type WorkoutDay } from "@/lib/storage";
 import { uploadVideo, getVideoUrl } from "@/lib/api";
 
+function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
+  const url = getVideoUrl(videoUrl);
+  const player = useVideoPlayer(url, player => {
+    player.loop = false;
+  });
+
+  return (
+    <VideoView
+      style={styles.videoPlayer}
+      player={player}
+      allowsFullscreen
+      allowsPictureInPicture={false}
+      contentFit="contain"
+    />
+  );
+}
+
 function VideoPlayerInline({ videoUrl }: { videoUrl: string }) {
   const [showPlayer, setShowPlayer] = useState(false);
-  const url = getVideoUrl(videoUrl);
 
   if (!showPlayer) {
     return (
@@ -36,13 +52,7 @@ function VideoPlayerInline({ videoUrl }: { videoUrl: string }) {
           <Ionicons name="close-circle" size={24} color={Colors.colors.textMuted} />
         </Pressable>
       </View>
-      <Video
-        source={{ uri: url }}
-        style={styles.videoPlayer}
-        useNativeControls
-        resizeMode={ResizeMode.CONTAIN}
-        shouldPlay
-      />
+      <VideoPlayerView videoUrl={videoUrl} />
     </View>
   );
 }
