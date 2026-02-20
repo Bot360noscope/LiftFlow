@@ -5,6 +5,7 @@ import { useCallback, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import * as WebBrowser from "expo-web-browser";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import NetworkError from "@/components/NetworkError";
@@ -357,6 +358,31 @@ export default function ProfileScreen() {
           </Pressable>
         </Animated.View>
 
+        <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.legalSection}>
+          <Pressable
+            style={styles.legalLink}
+            onPress={() => {
+              const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
+              WebBrowser.openBrowserAsync(`${base}/privacy`);
+            }}
+          >
+            <Ionicons name="shield-checkmark-outline" size={18} color={Colors.colors.textMuted} />
+            <Text style={styles.legalLinkText}>Privacy Policy</Text>
+            <Ionicons name="open-outline" size={14} color={Colors.colors.textMuted} />
+          </Pressable>
+          <Pressable
+            style={styles.legalLink}
+            onPress={() => {
+              const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
+              WebBrowser.openBrowserAsync(`${base}/terms`);
+            }}
+          >
+            <Ionicons name="document-text-outline" size={18} color={Colors.colors.textMuted} />
+            <Text style={styles.legalLinkText}>Terms of Service</Text>
+            <Ionicons name="open-outline" size={14} color={Colors.colors.textMuted} />
+          </Pressable>
+        </Animated.View>
+
         <Text style={styles.version}>LiftFlow v1.0.0</Text>
       </ScrollView>
 
@@ -477,6 +503,12 @@ const styles = StyleSheet.create({
     marginTop: 24, borderWidth: 1, borderColor: 'rgba(255, 59, 48, 0.2)',
   },
   logoutText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.danger },
+  legalSection: { marginTop: 20, gap: 6 },
+  legalLink: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 16,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, borderWidth: 1, borderColor: Colors.colors.border,
+  },
+  legalLinkText: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textSecondary, flex: 1 },
   version: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, textAlign: 'center', marginTop: 30 },
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: 24,
