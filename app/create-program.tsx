@@ -6,7 +6,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as Crypto from "expo-crypto";
 import Colors from "@/constants/colors";
-import { addProgram, createSampleProgram, getProfile, type Exercise, type WorkoutWeek, type WorkoutDay } from "@/lib/storage";
+import { addProgram, getProfile, type Exercise, type WorkoutWeek, type WorkoutDay } from "@/lib/storage";
 
 export default function CreateProgramScreen() {
   const insets = useSafeAreaInsets();
@@ -73,19 +73,6 @@ export default function CreateProgramScreen() {
     }
   }, [title, description, weeks, daysPerWeek, exercisesPerDay, coachId]);
 
-  const handleQuickStart = useCallback(async () => {
-    setSaving(true);
-    try {
-      const sample = createSampleProgram(coachId);
-      await addProgram(sample);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.back();
-    } catch (err: any) {
-      Alert.alert("Error", "Failed to create program. Please try again.");
-      setSaving(false);
-    }
-  }, [coachId]);
-
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   return (
@@ -99,27 +86,6 @@ export default function CreateProgramScreen() {
       </View>
 
       <ScrollView style={styles.scrollContent} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
-        <Pressable
-          style={({ pressed }) => [styles.quickStartCard, pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] }]}
-          onPress={handleQuickStart}
-          disabled={saving}
-        >
-          <View style={styles.quickStartIcon}>
-            <Ionicons name="flash" size={22} color={Colors.colors.accent} />
-          </View>
-          <View style={styles.quickStartInfo}>
-            <Text style={styles.quickStartTitle}>Quick Start Template</Text>
-            <Text style={styles.quickStartDesc}>4-week strength program with exercises, 3 days/wk - ready to customize</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.colors.textMuted} />
-        </Pressable>
-
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or create custom</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
         <Text style={styles.label}>Program Name</Text>
         <TextInput
           style={styles.input}
@@ -204,17 +170,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16 },
   headerTitle: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text },
   scrollContent: { paddingHorizontal: 20 },
-  quickStartCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.colors.backgroundCard,
-    borderRadius: 16, padding: 16, borderWidth: 1, borderColor: Colors.colors.accent, gap: 12,
-  },
-  quickStartIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,140,66,0.12)', alignItems: 'center', justifyContent: 'center' },
-  quickStartInfo: { flex: 1 },
-  quickStartTitle: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.text, marginBottom: 2 },
-  quickStartDesc: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textSecondary },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 24, gap: 12 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.colors.border },
-  dividerText: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted },
   label: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: Colors.colors.textSecondary, marginBottom: 8, marginTop: 16 },
   input: {
     fontFamily: 'Rubik_400Regular', fontSize: 15, color: Colors.colors.text,

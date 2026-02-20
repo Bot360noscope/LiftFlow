@@ -315,25 +315,23 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
-            {clients.length > 2 && (
-              <View style={styles.searchBar}>
-                <Ionicons name="search" size={16} color={Colors.colors.textMuted} />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Search clients..."
-                  placeholderTextColor={Colors.colors.textMuted}
-                  value={clientSearch}
-                  onChangeText={setClientSearch}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                {clientSearch.length > 0 && (
-                  <Pressable onPress={() => setClientSearch('')} hitSlop={8}>
-                    <Ionicons name="close-circle" size={16} color={Colors.colors.textMuted} />
-                  </Pressable>
-                )}
-              </View>
-            )}
+            <View style={styles.searchBar}>
+              <Ionicons name="search" size={16} color={Colors.colors.textMuted} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search clients..."
+                placeholderTextColor={Colors.colors.textMuted}
+                value={clientSearch}
+                onChangeText={setClientSearch}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {clientSearch.length > 0 && (
+                <Pressable onPress={() => setClientSearch('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color={Colors.colors.textMuted} />
+                </Pressable>
+              )}
+            </View>
 
             {clients.length === 0 ? (
               <View style={styles.emptyCard}>
