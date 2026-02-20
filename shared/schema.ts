@@ -74,6 +74,17 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const videoUploads = pgTable("video_uploads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  filename: text("filename").notNull(),
+  programId: varchar("program_id").notNull(),
+  exerciseId: varchar("exercise_id").notNull(),
+  uploadedBy: varchar("uploaded_by").notNull(),
+  coachId: varchar("coach_id").notNull(),
+  coachViewedAt: timestamp("coach_viewed_at"),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+});
+
 export const insertProfileSchema = createInsertSchema(profiles);
 export const insertProgramSchema = createInsertSchema(programs);
 export const insertClientSchema = createInsertSchema(clients);
@@ -81,6 +92,7 @@ export const insertPRSchema = createInsertSchema(prs);
 export const insertNotificationSchema = createInsertSchema(notifications);
 export const insertMessageSchema = createInsertSchema(messages);
 export const insertUserSchema = createInsertSchema(users);
+export const insertVideoUploadSchema = createInsertSchema(videoUploads);
 
 export type Profile = typeof profiles.$inferSelect;
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
@@ -96,3 +108,5 @@ export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type UserAccount = typeof users.$inferSelect;
 export type InsertUserAccount = z.infer<typeof insertUserSchema>;
+export type VideoUpload = typeof videoUploads.$inferSelect;
+export type InsertVideoUpload = z.infer<typeof insertVideoUploadSchema>;
