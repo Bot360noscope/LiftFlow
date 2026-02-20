@@ -165,12 +165,21 @@ export function getAvatarUrl(path: string): string {
 
 export async function uploadAvatar(profileId: string, uri: string): Promise<string> {
   const formData = new FormData();
-  const ext = uri.split('.').pop() || 'jpg';
-  formData.append('avatar', {
-    uri,
-    name: `avatar.${ext}`,
-    type: `image/${ext === 'png' ? 'png' : 'jpeg'}`,
-  } as any);
+  const ext = uri.split('.').pop()?.split('?')[0] || 'jpg';
+  const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+
+  if (Platform.OS === 'web') {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    formData.append('avatar', blob, `avatar.${ext}`);
+  } else {
+    formData.append('avatar', {
+      uri,
+      name: `avatar.${ext}`,
+      type: mimeType,
+    } as any);
+  }
+
   formData.append('profileId', profileId);
   const token = await getAuthToken();
   const res = await fetch(`${BASE}/api/upload-avatar`, {
@@ -178,7 +187,10 @@ export async function uploadAvatar(profileId: string, uri: string): Promise<stri
     headers: token ? { 'Authorization': `Bearer ${token}` } : {},
     body: formData,
   });
-  if (!res.ok) throw new Error('Upload failed');
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || 'Upload failed');
+  }
   const data = await res.json();
   return data.avatarUrl;
 }

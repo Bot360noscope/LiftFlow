@@ -68,7 +68,7 @@ export default function ProfileScreen() {
 
   const handlePickAvatar = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
@@ -79,8 +79,9 @@ export default function ProfileScreen() {
       const avatarUrl = await uploadAvatar(profile.id, result.assets[0].uri);
       setProfile({ ...profile, avatarUrl });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      showAlert('Error', 'Failed to upload photo');
+    } catch (err: any) {
+      console.error('Avatar upload error:', err);
+      showAlert('Error', err?.message || 'Failed to upload photo');
     } finally {
       setAvatarUploading(false);
     }
