@@ -5,7 +5,7 @@ export interface CellData {
   cellId: string;
   exerciseName: string;
   weight: string;
-  prescription: string;
+  repsSets: string;
   rpe: string;
   videoUrl: string;
   isCompleted: boolean;
@@ -155,7 +155,7 @@ export function getEmptyCell(rowIdx: number, weekNum: number, dayNum: number): C
     cellId: `${rowIdx}-${weekNum}-${dayNum}`,
     exerciseName: '',
     weight: '',
-    prescription: '',
+    repsSets: '',
     rpe: '',
     videoUrl: '',
     isCompleted: false,
@@ -186,7 +186,7 @@ export function createSampleProgram(coachId: string): Omit<Program, 'id' | 'crea
           cellId: key,
           exerciseName: exerciseTemplates[row].name,
           weight: '',
-          prescription: exerciseTemplates[row].rx,
+          repsSets: exerciseTemplates[row].rx,
           rpe: '7',
           videoUrl: '',
           isCompleted: false,

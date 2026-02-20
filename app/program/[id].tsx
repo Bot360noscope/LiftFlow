@@ -13,7 +13,7 @@ const CELL_WIDTH = 110;
 const LABEL_COL_WIDTH = 90;
 
 function SpreadsheetCell({ cell, onPress, isCoach }: { cell: CellData; onPress: () => void; isCoach: boolean }) {
-  const hasContent = cell.exerciseName || cell.prescription || cell.weight;
+  const hasContent = cell.exerciseName || cell.repsSets || cell.weight;
   const hasComment = cell.coachComment || cell.clientNotes;
   const hasVideo = !!cell.videoUrl;
 
@@ -29,8 +29,8 @@ function SpreadsheetCell({ cell, onPress, isCoach }: { cell: CellData; onPress: 
       {hasContent ? (
         <>
           <Text style={styles.cellExName} numberOfLines={1}>{cell.exerciseName}</Text>
-          {!!cell.prescription && (
-            <Text style={styles.cellRx} numberOfLines={1}>{cell.prescription}</Text>
+          {!!cell.repsSets && (
+            <Text style={styles.cellRx} numberOfLines={1}>{cell.repsSets}</Text>
           )}
           {!!cell.weight && (
             <Text style={styles.cellWeight} numberOfLines={1}>{cell.weight}</Text>
@@ -274,7 +274,7 @@ function CellEditor({ program, row, week, day, isCoach, onUpdate, onClose, inset
   const cell = program.cells[key] || getEmptyCell(row, week, day);
 
   const [exerciseName, setExerciseName] = useState(cell.exerciseName);
-  const [prescription, setPrescription] = useState(cell.prescription);
+  const [repsSets, setRepsSets] = useState(cell.repsSets);
   const [weight, setWeight] = useState(cell.weight);
   const [rpe, setRpe] = useState(cell.rpe);
   const [clientNotes, setClientNotes] = useState(cell.clientNotes);
@@ -284,7 +284,7 @@ function CellEditor({ program, row, week, day, isCoach, onUpdate, onClose, inset
   const handleSave = () => {
     onUpdate({
       exerciseName,
-      prescription,
+      repsSets,
       weight,
       rpe,
       clientNotes,
@@ -320,11 +320,11 @@ function CellEditor({ program, row, week, day, isCoach, onUpdate, onClose, inset
 
           <View style={styles.editorRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.editorLabel}>Prescription</Text>
+              <Text style={styles.editorLabel}>Reps/Sets</Text>
               <TextInput
                 style={styles.editorInput}
-                value={prescription}
-                onChangeText={setPrescription}
+                value={repsSets}
+                onChangeText={setRepsSets}
                 placeholder="e.g., 5x5, 3x10"
                 placeholderTextColor={Colors.colors.textMuted}
               />
@@ -352,22 +352,30 @@ function CellEditor({ program, row, week, day, isCoach, onUpdate, onClose, inset
             </View>
           </View>
 
-          <Pressable
-            style={[styles.completionToggle, isCompleted && styles.completionToggleActive]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setIsCompleted(!isCompleted);
-            }}
-          >
-            <Ionicons
-              name={isCompleted ? "checkmark-circle" : "ellipse-outline"}
-              size={22}
-              color={isCompleted ? Colors.colors.success : Colors.colors.textMuted}
-            />
-            <Text style={[styles.completionText, isCompleted && { color: Colors.colors.success }]}>
-              {isCompleted ? 'Completed' : 'Mark as completed'}
-            </Text>
-          </Pressable>
+          {!isCoach && (
+            <Pressable
+              style={[styles.completionToggle, isCompleted && styles.completionToggleActive]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setIsCompleted(!isCompleted);
+              }}
+            >
+              <Ionicons
+                name={isCompleted ? "checkmark-circle" : "ellipse-outline"}
+                size={22}
+                color={isCompleted ? Colors.colors.success : Colors.colors.textMuted}
+              />
+              <Text style={[styles.completionText, isCompleted && { color: Colors.colors.success }]}>
+                {isCompleted ? 'Completed' : 'Mark as completed'}
+              </Text>
+            </Pressable>
+          )}
+          {isCoach && cell.isCompleted && (
+            <View style={[styles.completionToggle, styles.completionToggleActive]}>
+              <Ionicons name="checkmark-circle" size={22} color={Colors.colors.success} />
+              <Text style={[styles.completionText, { color: Colors.colors.success }]}>Client completed this</Text>
+            </View>
+          )}
 
           <Text style={styles.editorLabel}>
             <Ionicons name="chatbubble-outline" size={12} color={Colors.colors.textSecondary} /> Client Notes
@@ -396,12 +404,14 @@ function CellEditor({ program, row, week, day, isCoach, onUpdate, onClose, inset
             editable={isCoach}
           />
 
-          <Pressable style={styles.videoBtn} onPress={() => Alert.alert("Video", "Video recording will be available for form checks")}>
-            <Ionicons name="videocam-outline" size={18} color={Colors.colors.primary} />
-            <Text style={styles.videoBtnText}>
-              {cell.videoUrl ? 'View Form Check Video' : 'Record Form Check Video'}
-            </Text>
-          </Pressable>
+          {(!isCoach || cell.videoUrl) && (
+            <Pressable style={styles.videoBtn} onPress={() => Alert.alert("Video", "Video recording will be available for form checks")}>
+              <Ionicons name="videocam-outline" size={18} color={Colors.colors.primary} />
+              <Text style={styles.videoBtnText}>
+                {cell.videoUrl ? 'View Form Check Video' : 'Record Form Check Video'}
+              </Text>
+            </Pressable>
+          )}
         </ScrollView>
       </Animated.View>
     </View>

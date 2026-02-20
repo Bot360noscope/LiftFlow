@@ -159,7 +159,7 @@ export default function CreateProgramScreen() {
 
         <View style={styles.infoBox}>
           <Ionicons name="information-circle" size={18} color={Colors.colors.textSecondary} />
-          <Text style={styles.infoText}>This creates a {weeks}W x {daysPerWeek}D grid with {rows} exercise rows. Each cell can hold exercise name, prescription, weight, RPE, notes, and video.</Text>
+          <Text style={styles.infoText}>This creates a {weeks}W x {daysPerWeek}D grid with {rows} exercise rows. Each cell can hold exercise name, reps/sets, weight, RPE, notes, and video.</Text>
         </View>
 
         <Pressable
