@@ -4,9 +4,13 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import { ActivityIndicator, View } from "react-native";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { StatusBar } from "expo-status-bar";
+import { AuthProvider, useAuth } from "@/lib/auth-context";
+import AuthScreen from "./auth";
+import Colors from "@/constants/colors";
 import {
   useFonts,
   Rubik_400Regular,
@@ -20,7 +24,6 @@ SplashScreen.preventAutoHideAsync();
 function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerBackTitle: "Back", headerShown: false }}>
-      <Stack.Screen name="role-select" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="program/[id]" options={{ headerShown: false, presentation: "card" }} />
       <Stack.Screen name="add-pr" options={{ headerShown: false, presentation: "modal" }} />
@@ -30,6 +33,24 @@ function RootLayoutNav() {
       <Stack.Screen name="chat" options={{ headerShown: false, presentation: "card" }} />
     </Stack>
   );
+}
+
+function AppContent() {
+  const { isLoggedIn, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: Colors.colors.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={Colors.colors.primary} />
+      </View>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return <AuthScreen />;
+  }
+
+  return <RootLayoutNav />;
 }
 
 export default function RootLayout() {
@@ -54,7 +75,9 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
           <KeyboardProvider>
             <StatusBar style="light" />
-            <RootLayoutNav />
+            <AuthProvider>
+              <AppContent />
+            </AuthProvider>
           </KeyboardProvider>
         </GestureHandlerRootView>
       </QueryClientProvider>

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
-import { apiGet, apiPost, apiPut, apiDelete } from './api';
+import { apiGet, apiPost, apiPut, apiDelete, setAuthToken, clearAuthToken, getAuthToken } from './api';
 
 export interface LiftPR {
   id: string;
@@ -384,6 +384,46 @@ export async function sendMessage(coachId: string, clientProfileId: string, text
     text: msg.text,
     createdAt: msg.createdAt || msg.created_at,
   };
+}
+
+export async function register(email: string, password: string, name: string, role: 'coach' | 'client'): Promise<{ token: string; profile: UserProfile }> {
+  const data = await apiPost<any>('/api/auth/register', { email, password, name, role });
+  await setAuthToken(data.token);
+  const prof = data.profile;
+  const profile: UserProfile = {
+    id: prof.id,
+    name: prof.name,
+    role: prof.role as 'coach' | 'client',
+    weightUnit: (prof.weightUnit || prof.weight_unit) as 'kg' | 'lbs',
+    coachCode: prof.coachCode || prof.coach_code,
+  };
+  await setProfileId(profile.id);
+  return { token: data.token, profile };
+}
+
+export async function login(email: string, password: string): Promise<{ token: string; profile: UserProfile }> {
+  const data = await apiPost<any>('/api/auth/login', { email, password });
+  await setAuthToken(data.token);
+  const prof = data.profile;
+  const profile: UserProfile = {
+    id: prof.id,
+    name: prof.name,
+    role: prof.role as 'coach' | 'client',
+    weightUnit: (prof.weightUnit || prof.weight_unit) as 'kg' | 'lbs',
+    coachCode: prof.coachCode || prof.coach_code,
+  };
+  await setProfileId(profile.id);
+  return { token: data.token, profile };
+}
+
+export async function logout(): Promise<void> {
+  await clearAuthToken();
+  await AsyncStorage.removeItem(PROFILE_ID_KEY);
+}
+
+export async function isAuthenticated(): Promise<boolean> {
+  const token = await getAuthToken();
+  return !!token;
 }
 
 export async function getMyCoach(): Promise<{ coachId: string; coachName: string } | null> {

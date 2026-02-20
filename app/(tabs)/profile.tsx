@@ -8,6 +8,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { confirmAction, showAlert } from "@/lib/confirm";
 import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, seedDemoData, type UserProfile } from "@/lib/storage";
+import { useAuth } from "@/lib/auth-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 function CoachCodeCard({ coachCode, onReset }: { coachCode: string; onReset: () => void }) {
@@ -46,6 +47,7 @@ function CoachCodeCard({ coachCode, onReset }: { coachCode: string; onReset: () 
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const { logout: authLogout } = useAuth();
   const [profile, setProfile] = useState<UserProfile>({ id: '', name: '', role: 'coach', weightUnit: 'kg', coachCode: '' });
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState('');
@@ -258,6 +260,26 @@ export default function ProfileScreen() {
           </Pressable>
         </Animated.View>
 
+        <Animated.View entering={FadeInDown.delay(350).duration(400)}>
+          <Pressable
+            style={styles.logoutBtn}
+            onPress={() => {
+              confirmAction(
+                "Sign Out",
+                "Are you sure you want to sign out?",
+                async () => {
+                  await authLogout();
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                },
+                "Sign Out"
+              );
+            }}
+          >
+            <Ionicons name="log-out-outline" size={20} color={Colors.colors.danger} />
+            <Text style={styles.logoutText}>Sign Out</Text>
+          </Pressable>
+        </Animated.View>
+
         <Text style={styles.version}>LiftFlow v1.0.0</Text>
       </ScrollView>
     </View>
@@ -329,5 +351,11 @@ const styles = StyleSheet.create({
   settingIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   settingLabel: { fontFamily: 'Rubik_500Medium', fontSize: 15, color: Colors.colors.text },
   settingValue: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, marginTop: 1 },
+  logoutBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 16,
+    marginTop: 24, borderWidth: 1, borderColor: 'rgba(255, 59, 48, 0.2)',
+  },
+  logoutText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.danger },
   version: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, textAlign: 'center', marginTop: 30 },
 });

@@ -1,4 +1,7 @@
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const AUTH_TOKEN_KEY = 'liftflow_auth_token';
 
 function getBaseUrl(): string {
   if (Platform.OS === 'web') {
@@ -15,8 +18,31 @@ function getBaseUrl(): string {
 
 const BASE = getBaseUrl();
 
+export async function getAuthToken(): Promise<string | null> {
+  return AsyncStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+export async function setAuthToken(token: string): Promise<void> {
+  await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);
+}
+
+export async function clearAuthToken(): Promise<void> {
+  await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const token = await getAuthToken();
+  if (token) {
+    return { 'Authorization': `Bearer ${token}` };
+  }
+  return {};
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`);
+  const authHeaders = await getAuthHeaders();
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { ...authHeaders },
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || res.statusText);
@@ -25,9 +51,10 @@ export async function apiGet<T>(path: string): Promise<T> {
 }
 
 export async function apiPost<T>(path: string, body?: any): Promise<T> {
+  const authHeaders = await getAuthHeaders();
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
@@ -38,9 +65,10 @@ export async function apiPost<T>(path: string, body?: any): Promise<T> {
 }
 
 export async function apiPut<T>(path: string, body?: any): Promise<T> {
+  const authHeaders = await getAuthHeaders();
   const res = await fetch(`${BASE}${path}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
@@ -51,7 +79,11 @@ export async function apiPut<T>(path: string, body?: any): Promise<T> {
 }
 
 export async function apiDelete(path: string): Promise<void> {
-  const res = await fetch(`${BASE}${path}`, { method: 'DELETE' });
+  const authHeaders = await getAuthHeaders();
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders },
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || res.statusText);
@@ -60,6 +92,7 @@ export async function apiDelete(path: string): Promise<void> {
 
 export async function uploadVideo(uri: string): Promise<string> {
   const formData = new FormData();
+  const authHeaders = await getAuthHeaders();
 
   if (Platform.OS === 'web') {
     const response = await fetch(uri);
@@ -75,6 +108,7 @@ export async function uploadVideo(uri: string): Promise<string> {
 
   const res = await fetch(`${BASE}/api/upload-video`, {
     method: 'POST',
+    headers: { ...authHeaders },
     body: formData,
   });
 

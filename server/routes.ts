@@ -1,12 +1,26 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "node:http";
 import { db } from "./db";
-import { profiles, programs, clients, prs, notifications, messages } from "../shared/schema";
+import { profiles, programs, clients, prs, notifications, messages, users } from "../shared/schema";
 import { eq, desc, and, or, inArray, ilike } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.SESSION_SECRET || 'liftflow-dev-secret';
+
+function generateToken(userId: string, profileId: string): string {
+  return jwt.sign({ userId, profileId }, JWT_SECRET, { expiresIn: '30d' });
+}
+
+function verifyToken(token: string): { userId: string; profileId: string } | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as { userId: string; profileId: string };
+  } catch { return null; }
+}
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -30,6 +44,73 @@ function generateCode(): string {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+
+  // === AUTH ===
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { email, password, name, role } = req.body;
+      if (!email || !password) return res.status(400).json({ error: "Email and password required" });
+      if (password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
+
+      const existing = await db.select().from(users).where(eq(users.email, email.toLowerCase().trim()));
+      if (existing.length > 0) return res.status(409).json({ error: "Email already registered" });
+
+      const profileId = randomUUID();
+      const [profile] = await db.insert(profiles).values({
+        id: profileId,
+        name: name || '',
+        role: role || 'client',
+        weightUnit: 'kg',
+        coachCode: generateCode(),
+      }).returning();
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      const userId = randomUUID();
+      await db.insert(users).values({
+        id: userId,
+        email: email.toLowerCase().trim(),
+        passwordHash,
+        profileId,
+      });
+
+      const token = generateToken(userId, profileId);
+      res.json({ token, profile });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) return res.status(400).json({ error: "Email and password required" });
+
+      const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase().trim()));
+      if (!user) return res.status(401).json({ error: "Invalid email or password" });
+
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) return res.status(401).json({ error: "Invalid email or password" });
+
+      const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.profileId));
+      if (!profile) return res.status(500).json({ error: "Profile not found" });
+
+      const token = generateToken(user.id, user.profileId);
+      res.json({ token, profile });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: "Not authenticated" });
+
+      const decoded = verifyToken(authHeader.slice(7));
+      if (!decoded) return res.status(401).json({ error: "Invalid token" });
+
+      const [profile] = await db.select().from(profiles).where(eq(profiles.id, decoded.profileId));
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+      res.json({ profile });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
 
   // === PROFILES ===
   app.post("/api/profiles", async (req, res) => {
