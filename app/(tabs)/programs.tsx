@@ -70,10 +70,17 @@ export default function ProgramsScreen() {
               ? 'Create a program and share it with clients'
               : 'Ask your coach for a program share code to get started'}
           </Text>
-          <Pressable style={styles.createBtn} onPress={() => router.push('/create-program')}>
-            <Ionicons name="add-circle" size={18} color="#fff" />
-            <Text style={styles.createBtnText}>Create Program</Text>
-          </Pressable>
+          {role === 'coach' ? (
+            <Pressable style={styles.createBtn} onPress={() => router.push('/create-program')}>
+              <Ionicons name="add-circle" size={18} color="#fff" />
+              <Text style={styles.createBtnText}>Create Program</Text>
+            </Pressable>
+          ) : (
+            <Pressable style={styles.createBtn} onPress={() => router.push('/join-coach')}>
+              <Ionicons name="people" size={18} color="#fff" />
+              <Text style={styles.createBtnText}>Join Coach</Text>
+            </Pressable>
+          )}
         </View>
       ) : (
         programs.map((prog, idx) => {

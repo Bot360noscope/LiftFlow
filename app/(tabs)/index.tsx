@@ -367,13 +367,14 @@ export default function HomeScreen() {
 
             {recentPrograms.length === 0 ? (
               <View style={styles.emptyCard}>
-                <Ionicons name="document-text-outline" size={32} color={Colors.colors.textMuted} />
+                <Ionicons name="people-outline" size={32} color={Colors.colors.textMuted} />
                 <Text style={styles.emptyText}>No programs assigned yet</Text>
+                <Text style={styles.emptySubText}>Enter your coach's code to get started</Text>
                 <Pressable
                   style={styles.emptyBtn}
-                  onPress={() => router.push('/create-program')}
+                  onPress={() => router.push('/join-coach')}
                 >
-                  <Text style={styles.emptyBtnText}>Create Training Plan</Text>
+                  <Text style={styles.emptyBtnText}>Join Coach</Text>
                 </Pressable>
               </View>
             ) : (
@@ -399,10 +400,10 @@ export default function HomeScreen() {
               <View style={styles.actionsGrid}>
                 <Pressable
                   style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
-                  onPress={() => router.push('/create-program')}
+                  onPress={() => router.push('/join-coach')}
                 >
-                  <Ionicons name="grid-outline" size={22} color={Colors.colors.primary} />
-                  <Text style={styles.actionText}>New Plan</Text>
+                  <Ionicons name="people-outline" size={22} color={Colors.colors.primary} />
+                  <Text style={styles.actionText}>Join Coach</Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
