@@ -103,7 +103,13 @@ export async function deletePR(id: string): Promise<void> {
 
 export async function getPrograms(): Promise<Program[]> {
   const data = await AsyncStorage.getItem(KEYS.PROGRAMS);
-  return data ? JSON.parse(data) : [];
+  if (!data) return [];
+  const parsed = JSON.parse(data);
+  const valid = parsed.filter((p: any) => p.cells && typeof p.cells === 'object');
+  if (valid.length !== parsed.length) {
+    await AsyncStorage.setItem(KEYS.PROGRAMS, JSON.stringify(valid));
+  }
+  return valid;
 }
 
 export async function getProgram(id: string): Promise<Program | null> {

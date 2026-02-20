@@ -21,8 +21,9 @@ function StatCard({ icon, label, value, color }: { icon: string; label: string; 
 }
 
 function ProgramCard({ program, role }: { program: Program; role: string }) {
-  const totalCells = Object.keys(program.cells).length;
-  const completedCells = Object.values(program.cells).filter(c => c.isCompleted).length;
+  const cells = program.cells || {};
+  const totalCells = Object.keys(cells).length;
+  const completedCells = Object.values(cells).filter(c => c.isCompleted).length;
   const progress = totalCells > 0 ? Math.round((completedCells / totalCells) * 100) : 0;
 
   return (
