@@ -236,6 +236,78 @@ export async function getUnreadNotificationCount(): Promise<number> {
   return notifications.filter(n => !n.read).length;
 }
 
+export async function seedDemoData(): Promise<void> {
+  const coachId = Crypto.randomUUID();
+  const client1Id = Crypto.randomUUID();
+  const client2Id = Crypto.randomUUID();
+  const client3Id = Crypto.randomUUID();
+
+  function ex(name: string, repsSets: string, weight: string, rpe: string, completed = false, clientNotes = '', coachComment = '', videoUrl = ''): Exercise {
+    return { id: Crypto.randomUUID(), name, weight, repsSets, rpe, isCompleted: completed, notes: '', clientNotes, coachComment, videoUrl };
+  }
+
+  function makeProg(title: string, desc: string, clientId: string | null, dpw: number, wks: number, dayTemplates: Exercise[][]): Program {
+    const weeks: WorkoutWeek[] = [];
+    for (let w = 1; w <= wks; w++) {
+      const days: WorkoutDay[] = [];
+      for (let d = 1; d <= dpw; d++) {
+        const tpl = dayTemplates[(d - 1) % dayTemplates.length];
+        days.push({ dayNumber: d, exercises: tpl.map(e => ({ ...e, id: Crypto.randomUUID() })) });
+      }
+      weeks.push({ weekNumber: w, days });
+    }
+    return { id: Crypto.randomUUID(), title, description: desc, weeks, createdAt: new Date().toISOString(), daysPerWeek: dpw, shareCode: generateCode(), coachId, clientId, status: 'active' };
+  }
+
+  const sarahProg = makeProg('Strength Block A', '8-week progressive overload for Sarah', client1Id, 4, 8, [
+    [ex('Back Squat','5x5','80','8',true,'Felt strong, depth good','Great job, try 82.5 next week'), ex('Romanian Deadlift','3x10','60','7',true,'Slight hamstring tightness'), ex('Leg Press','4x12','120','7',true), ex('Walking Lunges','3x12 each','16','6')],
+    [ex('Bench Press','5x5','50','8',true,'Elbow flare on last 2 reps','Tuck elbows more, good form','https://example.com/vid1'), ex('Incline DB Press','4x8','18','7',true), ex('Cable Flyes','3x15','10','6'), ex('Tricep Pushdown','3x12','20','7')],
+    [ex('Deadlift','3x5','100','9',true,'PR attempt - got all reps!','Incredible pull!','https://example.com/vid2'), ex('Pull-ups','4x6','BW','8',true), ex('Barbell Row','4x8','50','7'), ex('Face Pulls','3x15','12','5')],
+    [ex('Overhead Press','4x6','35','8'), ex('Lateral Raises','4x12','8','7'), ex('Rear Delt Flyes','3x15','6','6'), ex('Barbell Curl','3x10','20','6')],
+  ]);
+
+  const alexProg = makeProg('Hypertrophy Phase 1', '6-week muscle building for Alex', client2Id, 3, 6, [
+    [ex('Squat','4x8','70','7',true,'Knees feel better this week'), ex('Leg Curl','3x12','35','7',true), ex('Leg Extension','3x12','40','7',true), ex('Calf Raise','4x15','60','6')],
+    [ex('Bench Press','4x8','65','7',true,'','Good tempo, keep it up'), ex('DB Row','4x10','28','7',true), ex('Dips','3x10','BW+10','8'), ex('Cable Curl','3x12','15','6')],
+    [ex('Sumo Deadlift','3x6','110','8',false,'Lower back sore from work, skipped'), ex('Lat Pulldown','4x10','55','7'), ex('Seated OHP','3x10','25','7'), ex('Hammer Curls','3x10','14','6')],
+  ]);
+
+  const selfProg = makeProg('My Own Training', 'Coach Mike personal offseason', client3Id, 5, 4, [
+    [ex('Competition Squat','5x3','140','8',true), ex('Pause Squat','3x3','110','7',true), ex('Belt Squat','3x10','80','6',true)],
+    [ex('Competition Bench','5x3','110','8',true,'Good speed off chest'), ex('Close Grip Bench','3x6','90','7',true), ex('DB Flye','3x12','20','6')],
+    [ex('Competition Deadlift','3x3','180','9',true,'','','https://example.com/vid3'), ex('Block Pull','3x3','200','7',true), ex('Barbell Row','4x8','80','7')],
+    [ex('OHP','4x6','70','7'), ex('Weighted Pull-ups','4x6','BW+20','8'), ex('Lateral Raises','4x15','12','6')],
+    [ex('Front Squat','3x5','100','7'), ex('Good Morning','3x8','60','6'), ex('Ab Wheel','3x12','BW','6')],
+  ]);
+
+  const profile: UserProfile = { id: coachId, name: 'Coach Mike', role: 'coach', weightUnit: 'kg', coachCode: 'LIFT42' };
+  const clients: ClientInfo[] = [
+    { id: client1Id, name: 'Sarah J.', joinedAt: new Date(Date.now() - 30 * 86400000).toISOString() },
+    { id: client2Id, name: 'Alex T.', joinedAt: new Date(Date.now() - 14 * 86400000).toISOString() },
+    { id: client3Id, name: 'Coach Mike', joinedAt: new Date(Date.now() - 7 * 86400000).toISOString() },
+  ];
+  const notifications: AppNotification[] = [
+    { id: Crypto.randomUUID(), type: 'video', title: 'Form Check Video', message: 'Sarah uploaded a video for Bench Press', programId: sarahProg.id, programTitle: sarahProg.title, exerciseName: 'Bench Press', fromRole: 'client', createdAt: new Date(Date.now() - 2 * 3600000).toISOString(), read: false },
+    { id: Crypto.randomUUID(), type: 'notes', title: 'New Client Notes', message: 'Sarah added notes on Deadlift: "PR attempt - got all reps!"', programId: sarahProg.id, programTitle: sarahProg.title, exerciseName: 'Deadlift', fromRole: 'client', createdAt: new Date(Date.now() - 4 * 3600000).toISOString(), read: false },
+    { id: Crypto.randomUUID(), type: 'completion', title: 'Exercise Completed', message: 'Alex completed Bench Press', programId: alexProg.id, programTitle: alexProg.title, exerciseName: 'Bench Press', fromRole: 'client', createdAt: new Date(Date.now() - 8 * 3600000).toISOString(), read: true },
+    { id: Crypto.randomUUID(), type: 'notes', title: 'New Client Notes', message: 'Alex added notes: "Lower back was sore from work"', programId: alexProg.id, programTitle: alexProg.title, exerciseName: 'Sumo Deadlift', fromRole: 'client', createdAt: new Date(Date.now() - 24 * 3600000).toISOString(), read: true },
+    { id: Crypto.randomUUID(), type: 'video', title: 'Form Check Video', message: 'Sarah uploaded a video for Deadlift', programId: sarahProg.id, programTitle: sarahProg.title, exerciseName: 'Deadlift', fromRole: 'client', createdAt: new Date(Date.now() - 48 * 3600000).toISOString(), read: true },
+  ];
+  const prs: LiftPR[] = [
+    { id: Crypto.randomUUID(), liftType: 'squat', weight: 145, unit: 'kg', date: new Date(Date.now() - 7 * 86400000).toISOString(), notes: 'Comp squat PR' },
+    { id: Crypto.randomUUID(), liftType: 'bench', weight: 115, unit: 'kg', date: new Date(Date.now() - 14 * 86400000).toISOString(), notes: '' },
+    { id: Crypto.randomUUID(), liftType: 'deadlift', weight: 185, unit: 'kg', date: new Date(Date.now() - 3 * 86400000).toISOString(), notes: 'Conventional' },
+  ];
+
+  await AsyncStorage.multiSet([
+    [KEYS.PROFILE, JSON.stringify(profile)],
+    [KEYS.CLIENTS, JSON.stringify(clients)],
+    [KEYS.PROGRAMS, JSON.stringify([sarahProg, alexProg, selfProg])],
+    [KEYS.NOTIFICATIONS, JSON.stringify(notifications)],
+    [KEYS.PRs, JSON.stringify(prs)],
+  ]);
+}
+
 export function createSampleProgram(coachId: string): Omit<Program, 'id' | 'createdAt' | 'shareCode'> {
   const exercises = [
     { name: 'Squat', repsSets: '5x5', weight: '', rpe: '7' },

@@ -6,7 +6,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
-import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, type UserProfile } from "@/lib/storage";
+import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, seedDemoData, type UserProfile } from "@/lib/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function ProfileScreen() {
@@ -213,6 +213,24 @@ export default function ProfileScreen() {
 
         <Animated.View entering={FadeInDown.delay(300).duration(400)}>
           <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Data</Text>
+
+          <Pressable style={styles.settingItem} onPress={async () => {
+            await seedDemoData();
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            loadData();
+            Alert.alert("Demo Data Loaded", "Coach Mike with 3 clients (Sarah, Alex, and yourself) has been set up. Each client has their own program with exercise data, notes, and videos.");
+          }}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: 'rgba(52, 199, 89, 0.12)' }]}>
+                <Ionicons name="flask" size={18} color={Colors.colors.success} />
+              </View>
+              <View>
+                <Text style={styles.settingLabel}>Load Demo Data</Text>
+                <Text style={styles.settingValue}>Set up coach with clients and programs</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.colors.textMuted} />
+          </Pressable>
 
           <Pressable style={[styles.settingItem, styles.dangerItem]} onPress={handleClearData}>
             <View style={styles.settingLeft}>
