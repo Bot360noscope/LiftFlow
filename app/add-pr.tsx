@@ -1,11 +1,11 @@
 import { StyleSheet, Text, View, Pressable, Platform, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
-import { addPR, getProfile, type LiftPR } from "@/lib/storage";
+import { addPR, getProfile } from "@/lib/storage";
 
 type LiftType = 'squat' | 'deadlift' | 'bench';
 
@@ -23,9 +23,9 @@ export default function AddPRScreen() {
   const [unit, setUnit] = useState<'kg' | 'lbs'>('kg');
   const [saving, setSaving] = useState(false);
 
-  useState(() => {
+  useEffect(() => {
     getProfile().then(p => setUnit(p.weightUnit));
-  });
+  }, []);
 
   const handleSave = useCallback(async () => {
     const weightNum = parseFloat(weight);
@@ -53,16 +53,8 @@ export default function AddPRScreen() {
           <Ionicons name="close" size={28} color={Colors.colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Log PR</Text>
-        <Pressable
-          onPress={handleSave}
-          hitSlop={8}
-          disabled={!weight || saving}
-        >
-          <Ionicons
-            name="checkmark-circle"
-            size={28}
-            color={weight && !saving ? Colors.colors.primary : Colors.colors.textMuted}
-          />
+        <Pressable onPress={handleSave} hitSlop={8} disabled={!weight || saving}>
+          <Ionicons name="checkmark-circle" size={28} color={weight && !saving ? Colors.colors.primary : Colors.colors.textMuted} />
         </Pressable>
       </View>
 
@@ -72,19 +64,11 @@ export default function AddPRScreen() {
           {LIFT_OPTIONS.map(opt => (
             <Pressable
               key={opt.type}
-              style={[
-                styles.liftOption,
-                selectedLift === opt.type && { borderColor: opt.color, backgroundColor: `${opt.color}15` },
-              ]}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setSelectedLift(opt.type);
-              }}
+              style={[styles.liftOption, selectedLift === opt.type && { borderColor: opt.color, backgroundColor: `${opt.color}15` }]}
+              onPress={() => { Haptics.selectionAsync(); setSelectedLift(opt.type); }}
             >
               <Ionicons name={opt.icon as any} size={22} color={selectedLift === opt.type ? opt.color : Colors.colors.textMuted} />
-              <Text style={[styles.liftOptionText, selectedLift === opt.type && { color: opt.color }]}>
-                {opt.label}
-              </Text>
+              <Text style={[styles.liftOptionText, selectedLift === opt.type && { color: opt.color }]}>{opt.label}</Text>
             </Pressable>
           ))}
         </View>
@@ -100,13 +84,7 @@ export default function AddPRScreen() {
             keyboardType="decimal-pad"
             autoFocus
           />
-          <Pressable
-            style={styles.unitToggle}
-            onPress={() => {
-              Haptics.selectionAsync();
-              setUnit(u => u === 'kg' ? 'lbs' : 'kg');
-            }}
-          >
+          <Pressable style={styles.unitToggle} onPress={() => { Haptics.selectionAsync(); setUnit(u => u === 'kg' ? 'lbs' : 'kg'); }}>
             <Text style={styles.unitText}>{unit}</Text>
           </Pressable>
         </View>
@@ -123,18 +101,12 @@ export default function AddPRScreen() {
         />
 
         <Pressable
-          style={[
-            styles.saveButton,
-            { backgroundColor: selectedColor },
-            (!weight || saving) && styles.saveButtonDisabled,
-          ]}
+          style={[styles.saveButton, { backgroundColor: selectedColor }, (!weight || saving) && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={!weight || saving}
         >
           <Ionicons name="trophy" size={20} color="#fff" />
-          <Text style={styles.saveButtonText}>
-            {saving ? 'Saving...' : 'Save PR'}
-          </Text>
+          <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save PR'}</Text>
         </Pressable>
       </View>
     </View>
@@ -142,108 +114,37 @@ export default function AddPRScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  headerTitle: {
-    fontFamily: 'Rubik_700Bold',
-    fontSize: 20,
-    color: Colors.colors.text,
-  },
-  content: {
-    paddingHorizontal: 20,
-  },
-  label: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 14,
-    color: Colors.colors.textSecondary,
-    marginBottom: 10,
-    marginTop: 20,
-  },
-  liftRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
+  container: { flex: 1, backgroundColor: Colors.colors.background },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16 },
+  headerTitle: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text },
+  content: { paddingHorizontal: 20 },
+  label: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: Colors.colors.textSecondary, marginBottom: 10, marginTop: 20 },
+  liftRow: { flexDirection: 'row', gap: 10 },
   liftOption: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 16,
-    borderRadius: 14,
-    backgroundColor: Colors.colors.backgroundCard,
-    borderWidth: 2,
-    borderColor: Colors.colors.border,
+    flex: 1, alignItems: 'center', gap: 6, paddingVertical: 16, borderRadius: 14,
+    backgroundColor: Colors.colors.backgroundCard, borderWidth: 2, borderColor: Colors.colors.border,
   },
-  liftOptionText: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 13,
-    color: Colors.colors.textMuted,
-  },
-  weightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
+  liftOptionText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.textMuted },
+  weightRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   weightInput: {
-    flex: 1,
-    fontFamily: 'Rubik_700Bold',
-    fontSize: 36,
-    color: Colors.colors.text,
-    backgroundColor: Colors.colors.backgroundCard,
-    borderRadius: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderWidth: 1,
-    borderColor: Colors.colors.border,
+    flex: 1, fontFamily: 'Rubik_700Bold', fontSize: 36, color: Colors.colors.text,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, paddingHorizontal: 20, paddingVertical: 16,
+    borderWidth: 1, borderColor: Colors.colors.border,
   },
   unitToggle: {
-    backgroundColor: Colors.colors.backgroundCard,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.colors.border,
+    backgroundColor: Colors.colors.backgroundCard, paddingHorizontal: 20, paddingVertical: 18,
+    borderRadius: 14, borderWidth: 1, borderColor: Colors.colors.border,
   },
-  unitText: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 18,
-    color: Colors.colors.primary,
-  },
+  unitText: { fontFamily: 'Rubik_600SemiBold', fontSize: 18, color: Colors.colors.primary },
   notesInput: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
-    color: Colors.colors.text,
-    backgroundColor: Colors.colors.backgroundCard,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    minHeight: 80,
-    borderWidth: 1,
-    borderColor: Colors.colors.border,
+    fontFamily: 'Rubik_400Regular', fontSize: 15, color: Colors.colors.text,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
+    minHeight: 80, borderWidth: 1, borderColor: Colors.colors.border,
   },
   saveButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: 14,
-    marginTop: 30,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 16, borderRadius: 14, marginTop: 30,
   },
-  saveButtonDisabled: {
-    opacity: 0.5,
-  },
-  saveButtonText: {
-    fontFamily: 'Rubik_700Bold',
-    fontSize: 16,
-    color: '#fff',
-  },
+  saveButtonDisabled: { opacity: 0.5 },
+  saveButtonText: { fontFamily: 'Rubik_700Bold', fontSize: 16, color: '#fff' },
 });

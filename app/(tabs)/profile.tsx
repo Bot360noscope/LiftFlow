@@ -11,7 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const [profile, setProfile] = useState<UserProfile>({ name: '', role: 'client', weightUnit: 'kg' });
+  const [profile, setProfile] = useState<UserProfile>({ id: '', name: '', role: 'coach', weightUnit: 'kg', coachCode: '' });
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [stats, setStats] = useState({ prs: 0, programs: 0 });
@@ -109,6 +109,12 @@ export default function ProfileScreen() {
           <View style={styles.roleBadge}>
             <Text style={styles.roleText}>{profile.role === 'coach' ? 'Coach' : 'Athlete'}</Text>
           </View>
+          {profile.role === 'coach' && !!profile.coachCode && (
+            <View style={styles.coachCodeSection}>
+              <Text style={styles.coachCodeLabel}>Coach Code</Text>
+              <Text style={styles.coachCodeValue}>{profile.coachCode}</Text>
+            </View>
+          )}
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.statsRow}>
@@ -322,6 +328,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.colors.textMuted,
     marginTop: 1,
+  },
+  coachCodeSection: {
+    marginTop: 12,
+    alignItems: 'center',
+    gap: 4,
+  },
+  coachCodeLabel: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 11,
+    color: Colors.colors.textMuted,
+  },
+  coachCodeValue: {
+    fontFamily: 'Rubik_700Bold',
+    fontSize: 20,
+    color: Colors.colors.primary,
+    letterSpacing: 3,
   },
   version: {
     fontFamily: 'Rubik_400Regular',

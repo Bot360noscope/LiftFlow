@@ -1,278 +1,185 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Alert, RefreshControl } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useState } from "react";
+import { useState, useCallback } from "react";
 import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
-import { getPrograms, deleteProgram, type Program } from "@/lib/storage";
-
-function ProgramCard({ program, index, onDelete }: { program: Program; index: number; onDelete: () => void }) {
-  const totalExercises = program.weeks.reduce((total, week) =>
-    total + week.days.reduce((dayTotal, day) => dayTotal + day.exercises.length, 0), 0);
-  const completedExercises = program.weeks.reduce((total, week) =>
-    total + week.days.reduce((dayTotal, day) => dayTotal + day.exercises.filter(e => e.isCompleted).length, 0), 0);
-  const progress = totalExercises > 0 ? completedExercises / totalExercises : 0;
-
-  const currentWeek = program.weeks.findIndex(week =>
-    week.days.some(day => day.exercises.some(e => !e.isCompleted))
-  );
-
-  return (
-    <Animated.View entering={FadeInDown.delay(index * 80).duration(400)}>
-      <Pressable
-        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          router.push({ pathname: "/program/[id]", params: { id: program.id } });
-        }}
-        onLongPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          Alert.alert("Delete Program", `Delete "${program.title}"?`, [
-            { text: "Cancel", style: "cancel" },
-            { text: "Delete", style: "destructive", onPress: onDelete },
-          ]);
-        }}
-      >
-        <View style={styles.cardTop}>
-          <View style={styles.cardIconContainer}>
-            <Ionicons name="barbell" size={22} color={Colors.colors.primary} />
-          </View>
-          <View style={styles.cardInfo}>
-            <Text style={styles.cardTitle}>{program.title}</Text>
-            <Text style={styles.cardDescription}>{program.description}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.colors.textMuted} />
-        </View>
-
-        <View style={styles.cardStats}>
-          <View style={styles.statItem}>
-            <Ionicons name="calendar-outline" size={14} color={Colors.colors.textSecondary} />
-            <Text style={styles.statText}>{program.weeks.length} weeks</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Ionicons name="repeat-outline" size={14} color={Colors.colors.textSecondary} />
-            <Text style={styles.statText}>{program.daysPerWeek} days/wk</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Ionicons name="checkmark-circle-outline" size={14} color={Colors.colors.success} />
-            <Text style={styles.statText}>{completedExercises}/{totalExercises}</Text>
-          </View>
-        </View>
-
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: `${progress * 100}%` }]} />
-          </View>
-          <Text style={styles.progressText}>
-            {currentWeek >= 0 ? `Week ${currentWeek + 1}` : 'Completed'} - {Math.round(progress * 100)}%
-          </Text>
-        </View>
-      </Pressable>
-    </Animated.View>
-  );
-}
+import { getPrograms, deleteProgram, getProfile, type Program } from "@/lib/storage";
 
 export default function ProgramsScreen() {
   const insets = useSafeAreaInsets();
   const [programs, setPrograms] = useState<Program[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
+  const [role, setRole] = useState<string>('coach');
 
   const loadData = useCallback(async () => {
-    const data = await getPrograms();
-    setPrograms(data);
+    const [progs, profile] = await Promise.all([getPrograms(), getProfile()]);
+    setPrograms(progs);
+    setRole(profile.role);
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
-  }, [loadData]);
-
-  const handleDelete = useCallback(async (id: string) => {
-    await deleteProgram(id);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    loadData();
-  }, [loadData]);
+  const handleDelete = (id: string, title: string) => {
+    Alert.alert("Delete Program", `Delete "${title}"? This cannot be undone.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete", style: "destructive",
+        onPress: async () => {
+          await deleteProgram(id);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          loadData();
+        },
+      },
+    ]);
+  };
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
+  const webBottomInset = Platform.OS === 'web' ? 84 : 0;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Programs</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[
+        styles.scrollContent,
+        { paddingTop: insets.top + webTopInset + 16, paddingBottom: insets.bottom + webBottomInset + 20 },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.headerRow}>
+        <Text style={styles.pageTitle}>Programs</Text>
         <Pressable
+          style={styles.newBtn}
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            router.push("/create-program");
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push('/create-program');
           }}
-          hitSlop={8}
         >
-          <Ionicons name="add-circle" size={28} color={Colors.colors.primary} />
+          <Ionicons name="add" size={18} color="#fff" />
+          <Text style={styles.newBtnText}>New</Text>
         </Pressable>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.colors.primary} />}
-      >
-        {programs.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="clipboard-outline" size={48} color={Colors.colors.textMuted} />
-            <Text style={styles.emptyTitle}>No programs yet</Text>
-            <Text style={styles.emptyText}>Create your first workout program to start tracking</Text>
-            <Pressable
-              style={({ pressed }) => [styles.createButton, pressed && { opacity: 0.8 }]}
-              onPress={() => router.push("/create-program")}
-            >
-              <Ionicons name="add" size={20} color="#fff" />
-              <Text style={styles.createButtonText}>Create Program</Text>
-            </Pressable>
-          </View>
-        ) : (
-          programs.map((program, idx) => (
-            <ProgramCard
-              key={program.id}
-              program={program}
-              index={idx}
-              onDelete={() => handleDelete(program.id)}
-            />
-          ))
-        )}
-      </ScrollView>
-    </View>
+      {programs.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="grid-outline" size={48} color={Colors.colors.textMuted} />
+          <Text style={styles.emptyTitle}>No programs yet</Text>
+          <Text style={styles.emptyDesc}>
+            {role === 'coach'
+              ? 'Create a program with the spreadsheet builder and share it with clients'
+              : 'Ask your coach for a program share code to get started'}
+          </Text>
+          <Pressable style={styles.createBtn} onPress={() => router.push('/create-program')}>
+            <Ionicons name="add-circle" size={18} color="#fff" />
+            <Text style={styles.createBtnText}>Create Program</Text>
+          </Pressable>
+        </View>
+      ) : (
+        programs.map((prog, idx) => {
+          const totalCells = Object.keys(prog.cells).length;
+          const completedCells = Object.values(prog.cells).filter(c => c.isCompleted).length;
+          const progress = totalCells > 0 ? Math.round((completedCells / totalCells) * 100) : 0;
+          const hasComments = Object.values(prog.cells).some(c => c.coachComment);
+          const hasVideos = Object.values(prog.cells).some(c => c.videoUrl);
+
+          return (
+            <Animated.View key={prog.id} entering={FadeInDown.delay(idx * 60).duration(300)}>
+              <Pressable
+                style={({ pressed }) => [styles.programCard, pressed && { opacity: 0.85 }]}
+                onPress={() => router.push(`/program/${prog.id}`)}
+                onLongPress={() => handleDelete(prog.id, prog.title)}
+              >
+                <View style={styles.cardTop}>
+                  <View style={styles.cardTitleRow}>
+                    <View style={[styles.statusDot, { backgroundColor: prog.status === 'active' ? Colors.colors.success : Colors.colors.warning }]} />
+                    <Text style={styles.cardTitle} numberOfLines={1}>{prog.title}</Text>
+                  </View>
+                  <View style={styles.shareCodeBadge}>
+                    <Ionicons name="share-outline" size={12} color={Colors.colors.textSecondary} />
+                    <Text style={styles.shareCodeText}>{prog.shareCode}</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.cardDesc} numberOfLines={2}>{prog.description}</Text>
+
+                <View style={styles.cardStats}>
+                  <View style={styles.cardStat}>
+                    <Ionicons name="calendar-outline" size={14} color={Colors.colors.textSecondary} />
+                    <Text style={styles.cardStatText}>{prog.totalWeeks} weeks</Text>
+                  </View>
+                  <View style={styles.cardStat}>
+                    <Ionicons name="today-outline" size={14} color={Colors.colors.textSecondary} />
+                    <Text style={styles.cardStatText}>{prog.daysPerWeek} days/wk</Text>
+                  </View>
+                  <View style={styles.cardStat}>
+                    <Ionicons name="list-outline" size={14} color={Colors.colors.textSecondary} />
+                    <Text style={styles.cardStatText}>{prog.rowCount} exercises</Text>
+                  </View>
+                  {hasComments && (
+                    <View style={styles.cardStat}>
+                      <Ionicons name="chatbubble" size={12} color={Colors.colors.accent} />
+                    </View>
+                  )}
+                  {hasVideos && (
+                    <View style={styles.cardStat}>
+                      <Ionicons name="videocam" size={12} color={Colors.colors.primary} />
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.progressRow}>
+                  <View style={styles.progressBarBg}>
+                    <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+                  </View>
+                  <Text style={styles.progressText}>{progress}%</Text>
+                </View>
+              </Pressable>
+            </Animated.View>
+          );
+        })
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.colors.background,
+  container: { flex: 1, backgroundColor: Colors.colors.background },
+  scrollContent: { paddingHorizontal: 20 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  pageTitle: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.text },
+  newBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: Colors.colors.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+  newBtnText: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: '#fff' },
+  emptyState: { alignItems: 'center', paddingVertical: 50, gap: 12 },
+  emptyTitle: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.text },
+  emptyDesc: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, textAlign: 'center', paddingHorizontal: 30 },
+  createBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: Colors.colors.primary, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10, marginTop: 8,
   },
-  headerTitle: {
-    fontFamily: 'Rubik_700Bold',
-    fontSize: 28,
-    color: Colors.colors.text,
+  createBtnText: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: '#fff' },
+  programCard: {
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 16,
+    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 12,
   },
-  scrollContent: {
-    paddingHorizontal: 20,
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  cardTitle: { fontFamily: 'Rubik_700Bold', fontSize: 16, color: Colors.colors.text, flex: 1 },
+  shareCodeBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: Colors.colors.surfaceLight, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
   },
-  card: {
-    backgroundColor: Colors.colors.backgroundCard,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: Colors.colors.border,
-  },
-  cardPressed: {
-    backgroundColor: Colors.colors.backgroundCardHover,
-    transform: [{ scale: 0.98 }],
-  },
-  cardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  cardIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(232, 81, 47, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  cardInfo: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 17,
-    color: Colors.colors.text,
-    marginBottom: 2,
-  },
-  cardDescription: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    color: Colors.colors.textSecondary,
-  },
-  cardStats: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 14,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statText: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    color: Colors.colors.textSecondary,
-  },
-  progressContainer: {
-    gap: 6,
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: Colors.colors.surfaceLight,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: Colors.colors.primary,
-    borderRadius: 3,
-  },
-  progressText: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 11,
-    color: Colors.colors.textMuted,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-    gap: 10,
-  },
-  emptyTitle: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 18,
-    color: Colors.colors.textSecondary,
-    marginTop: 4,
-  },
-  emptyText: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 14,
-    color: Colors.colors.textMuted,
-    textAlign: 'center',
-    paddingHorizontal: 30,
-  },
-  createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginTop: 10,
-  },
-  createButtonText: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 14,
-    color: '#fff',
-  },
+  shareCodeText: { fontFamily: 'Rubik_500Medium', fontSize: 10, color: Colors.colors.textSecondary, letterSpacing: 1 },
+  cardDesc: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, marginTop: 6 },
+  cardStats: { flexDirection: 'row', gap: 12, marginTop: 12, flexWrap: 'wrap' },
+  cardStat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  cardStatText: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textSecondary },
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
+  progressBarBg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.colors.surfaceLight, overflow: 'hidden' },
+  progressBarFill: { height: '100%', borderRadius: 2, backgroundColor: Colors.colors.primary },
+  progressText: { fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: Colors.colors.textSecondary, width: 32, textAlign: 'right' },
 });

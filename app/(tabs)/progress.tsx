@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Alert, RefreshControl } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState, useMemo } from "react";
@@ -6,369 +6,200 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
-import { getPRs, deletePR, getBestPR, type LiftPR } from "@/lib/storage";
+import { getPRs, deletePR, getProfile, getBestPR, type LiftPR } from "@/lib/storage";
 
-type LiftType = 'squat' | 'deadlift' | 'bench';
-const LIFT_COLORS: Record<LiftType, string> = {
+const LIFT_COLORS: Record<string, string> = {
   squat: Colors.colors.squat,
   deadlift: Colors.colors.deadlift,
   bench: Colors.colors.bench,
 };
-const LIFT_LABELS: Record<LiftType, string> = {
+
+const LIFT_LABELS: Record<string, string> = {
   squat: 'Squat',
   deadlift: 'Deadlift',
-  bench: 'Bench',
+  bench: 'Bench Press',
 };
-
-function MiniChart({ data, color, maxWeight }: { data: LiftPR[]; color: string; maxWeight: number }) {
-  if (data.length < 2) return null;
-  const sorted = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  const points = sorted.map((pr, i) => ({
-    x: (i / (sorted.length - 1)) * 100,
-    y: 100 - (pr.weight / (maxWeight * 1.1)) * 100,
-  }));
-
-  return (
-    <View style={styles.chartContainer}>
-      {points.map((point, i) => (
-        <View
-          key={i}
-          style={[
-            styles.chartDot,
-            {
-              left: `${point.x}%`,
-              top: `${point.y}%`,
-              backgroundColor: color,
-            },
-          ]}
-        />
-      ))}
-      {points.length > 1 && points.map((point, i) => {
-        if (i === 0) return null;
-        const prev = points[i - 1];
-        const dx = point.x - prev.x;
-        const dy = point.y - prev.y;
-        const length = Math.sqrt(dx * dx + dy * dy);
-        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-        return (
-          <View
-            key={`line-${i}`}
-            style={[
-              styles.chartLine,
-              {
-                left: `${prev.x}%`,
-                top: `${prev.y}%`,
-                width: `${length}%`,
-                transform: [{ rotate: `${angle}deg` }],
-                backgroundColor: color,
-              },
-            ]}
-          />
-        );
-      })}
-    </View>
-  );
-}
-
-function PRBestCard({ liftType, bestPR, totalEntries, allPRs, delay }: { liftType: LiftType; bestPR: LiftPR | null; totalEntries: number; allPRs: LiftPR[]; delay: number }) {
-  const color = LIFT_COLORS[liftType];
-  const liftData = allPRs.filter(p => p.liftType === liftType);
-  const maxWeight = liftData.length > 0 ? Math.max(...liftData.map(p => p.weight)) : 0;
-
-  return (
-    <Animated.View entering={FadeInDown.delay(delay).duration(400)} style={[styles.bestCard, { borderTopColor: color, borderTopWidth: 3 }]}>
-      <View style={styles.bestCardHeader}>
-        <Text style={[styles.bestCardLift, { color }]}>{LIFT_LABELS[liftType]}</Text>
-        <Text style={styles.bestCardEntries}>{totalEntries} entries</Text>
-      </View>
-      {bestPR ? (
-        <>
-          <Text style={styles.bestCardWeight}>{bestPR.weight}<Text style={styles.bestCardUnit}> {bestPR.unit}</Text></Text>
-          <MiniChart data={liftData} color={color} maxWeight={maxWeight} />
-        </>
-      ) : (
-        <Text style={styles.bestCardEmpty}>No data</Text>
-      )}
-    </Animated.View>
-  );
-}
-
-function PRListItem({ pr, onDelete }: { pr: LiftPR; onDelete: () => void }) {
-  const color = LIFT_COLORS[pr.liftType];
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.listItem, pressed && { opacity: 0.7 }]}
-      onLongPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        Alert.alert("Delete PR", `Delete this ${LIFT_LABELS[pr.liftType]} PR?`, [
-          { text: "Cancel", style: "cancel" },
-          { text: "Delete", style: "destructive", onPress: onDelete },
-        ]);
-      }}
-    >
-      <View style={[styles.listItemDot, { backgroundColor: color }]} />
-      <View style={styles.listItemInfo}>
-        <Text style={styles.listItemLift}>{LIFT_LABELS[pr.liftType]}</Text>
-        <Text style={styles.listItemDate}>{new Date(pr.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
-      </View>
-      <Text style={styles.listItemWeight}>{pr.weight} <Text style={styles.listItemUnit}>{pr.unit}</Text></Text>
-    </Pressable>
-  );
-}
 
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const [prs, setPRs] = useState<LiftPR[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<LiftType | 'all'>('all');
+  const [unit, setUnit] = useState<'kg' | 'lbs'>('kg');
 
   const loadData = useCallback(async () => {
-    const data = await getPRs();
-    setPRs(data);
+    const [prData, profile] = await Promise.all([getPRs(), getProfile()]);
+    setPRs(prData);
+    setUnit(profile.weightUnit);
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
-  }, [loadData]);
+  const bestSquat = getBestPR(prs, 'squat');
+  const bestDeadlift = getBestPR(prs, 'deadlift');
+  const bestBench = getBestPR(prs, 'bench');
 
-  const handleDelete = useCallback(async (id: string) => {
-    await deletePR(id);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    loadData();
-  }, [loadData]);
+  const total = (bestSquat?.weight || 0) + (bestDeadlift?.weight || 0) + (bestBench?.weight || 0);
 
-  const filteredPRs = useMemo(() => {
-    const filtered = filter === 'all' ? prs : prs.filter(p => p.liftType === filter);
-    return [...filtered].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [prs, filter]);
+  const sortedPRs = useMemo(() =>
+    [...prs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+  [prs]);
+
+  const handleDelete = (pr: LiftPR) => {
+    Alert.alert("Delete PR", `Remove ${LIFT_LABELS[pr.liftType]} ${pr.weight}${pr.unit}?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete", style: "destructive",
+        onPress: async () => {
+          await deletePR(pr.id);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          loadData();
+        },
+      },
+    ]);
+  };
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
+  const webBottomInset = Platform.OS === 'web' ? 84 : 0;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Progress</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[
+        styles.scrollContent,
+        { paddingTop: insets.top + webTopInset + 16, paddingBottom: insets.bottom + webBottomInset + 20 },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.headerRow}>
+        <Text style={styles.pageTitle}>Progress</Text>
         <Pressable
+          style={styles.addBtn}
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            router.push("/add-pr");
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push('/add-pr');
           }}
-          hitSlop={8}
         >
-          <Ionicons name="add-circle" size={28} color={Colors.colors.primary} />
+          <Ionicons name="add" size={18} color="#fff" />
+          <Text style={styles.addBtnText}>Log PR</Text>
         </Pressable>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.colors.primary} />}
-      >
-        <View style={styles.bestCards}>
-          <PRBestCard liftType="squat" bestPR={getBestPR(prs, 'squat')} totalEntries={prs.filter(p => p.liftType === 'squat').length} allPRs={prs} delay={0} />
-          <PRBestCard liftType="deadlift" bestPR={getBestPR(prs, 'deadlift')} totalEntries={prs.filter(p => p.liftType === 'deadlift').length} allPRs={prs} delay={80} />
-          <PRBestCard liftType="bench" bestPR={getBestPR(prs, 'bench')} totalEntries={prs.filter(p => p.liftType === 'bench').length} allPRs={prs} delay={160} />
-        </View>
-
-        <View style={styles.filterRow}>
-          {(['all', 'squat', 'deadlift', 'bench'] as const).map(f => (
-            <Pressable
-              key={f}
-              style={[styles.filterChip, filter === f && styles.filterChipActive]}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setFilter(f);
-              }}
-            >
-              <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
-                {f === 'all' ? 'All' : LIFT_LABELS[f]}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Text style={styles.sectionTitle}>History</Text>
-        {filteredPRs.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="analytics-outline" size={40} color={Colors.colors.textMuted} />
-            <Text style={styles.emptyTitle}>No PRs recorded</Text>
-            <Text style={styles.emptyText}>Start logging your personal records</Text>
+      {total > 0 && (
+        <Animated.View entering={FadeInDown.duration(400)}>
+          <View style={styles.totalCard}>
+            <Text style={styles.totalLabel}>Estimated Total</Text>
+            <Text style={styles.totalValue}>{total}<Text style={styles.totalUnit}> {unit}</Text></Text>
+            <View style={styles.totalBreakdown}>
+              {bestSquat && (
+                <View style={styles.breakdownItem}>
+                  <View style={[styles.breakdownDot, { backgroundColor: Colors.colors.squat }]} />
+                  <Text style={styles.breakdownText}>S: {bestSquat.weight}</Text>
+                </View>
+              )}
+              {bestBench && (
+                <View style={styles.breakdownItem}>
+                  <View style={[styles.breakdownDot, { backgroundColor: Colors.colors.bench }]} />
+                  <Text style={styles.breakdownText}>B: {bestBench.weight}</Text>
+                </View>
+              )}
+              {bestDeadlift && (
+                <View style={styles.breakdownItem}>
+                  <View style={[styles.breakdownDot, { backgroundColor: Colors.colors.deadlift }]} />
+                  <Text style={styles.breakdownText}>D: {bestDeadlift.weight}</Text>
+                </View>
+              )}
+            </View>
           </View>
-        ) : (
-          filteredPRs.map(pr => (
-            <PRListItem key={pr.id} pr={pr} onDelete={() => handleDelete(pr.id)} />
-          ))
-        )}
-      </ScrollView>
-    </View>
+        </Animated.View>
+      )}
+
+      <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+        <View style={styles.bestLiftsRow}>
+          {(['squat', 'bench', 'deadlift'] as const).map(lift => {
+            const best = getBestPR(prs, lift);
+            return (
+              <View key={lift} style={[styles.bestLiftCard, { borderLeftColor: LIFT_COLORS[lift] }]}>
+                <Text style={[styles.bestLiftLabel, { color: LIFT_COLORS[lift] }]}>{LIFT_LABELS[lift]}</Text>
+                <Text style={styles.bestLiftValue}>{best ? best.weight : '-'}</Text>
+                <Text style={styles.bestLiftUnit}>{best ? best.unit : unit}</Text>
+              </View>
+            );
+          })}
+        </View>
+      </Animated.View>
+
+      <Text style={styles.sectionTitle}>PR History</Text>
+
+      {sortedPRs.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="trophy-outline" size={40} color={Colors.colors.textMuted} />
+          <Text style={styles.emptyText}>No PRs logged yet</Text>
+          <Text style={styles.emptyDesc}>Track your squat, bench, and deadlift personal records</Text>
+        </View>
+      ) : (
+        sortedPRs.map((pr, idx) => (
+          <Animated.View key={pr.id} entering={FadeInDown.delay(idx * 40).duration(300)}>
+            <Pressable
+              style={({ pressed }) => [styles.prRow, pressed && { opacity: 0.8 }]}
+              onLongPress={() => handleDelete(pr)}
+            >
+              <View style={[styles.prDot, { backgroundColor: LIFT_COLORS[pr.liftType] }]} />
+              <View style={styles.prInfo}>
+                <Text style={styles.prLiftName}>{LIFT_LABELS[pr.liftType]}</Text>
+                <Text style={styles.prDate}>{new Date(pr.date).toLocaleDateString()}</Text>
+                {!!pr.notes && <Text style={styles.prNotes} numberOfLines={1}>{pr.notes}</Text>}
+              </View>
+              <Text style={styles.prWeight}>{pr.weight}<Text style={styles.prUnit}> {pr.unit}</Text></Text>
+            </Pressable>
+          </Animated.View>
+        ))
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.colors.background,
+  container: { flex: 1, backgroundColor: Colors.colors.background },
+  scrollContent: { paddingHorizontal: 20 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  pageTitle: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.text },
+  addBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: Colors.colors.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+  addBtnText: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: '#fff' },
+  totalCard: {
+    alignItems: 'center', backgroundColor: Colors.colors.backgroundCard, borderRadius: 16,
+    padding: 24, borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 16,
   },
-  headerTitle: {
-    fontFamily: 'Rubik_700Bold',
-    fontSize: 28,
-    color: Colors.colors.text,
+  totalLabel: { fontFamily: 'Rubik_500Medium', fontSize: 12, color: Colors.colors.textMuted },
+  totalValue: { fontFamily: 'Rubik_700Bold', fontSize: 40, color: Colors.colors.text, marginTop: 4 },
+  totalUnit: { fontFamily: 'Rubik_400Regular', fontSize: 16, color: Colors.colors.textSecondary },
+  totalBreakdown: { flexDirection: 'row', gap: 16, marginTop: 12 },
+  breakdownItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  breakdownDot: { width: 8, height: 8, borderRadius: 4 },
+  breakdownText: { fontFamily: 'Rubik_500Medium', fontSize: 12, color: Colors.colors.textSecondary },
+  bestLiftsRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  bestLiftCard: {
+    flex: 1, alignItems: 'center', backgroundColor: Colors.colors.backgroundCard,
+    borderRadius: 12, paddingVertical: 14, borderLeftWidth: 3,
   },
-  scrollContent: {
-    paddingHorizontal: 20,
+  bestLiftLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 11 },
+  bestLiftValue: { fontFamily: 'Rubik_700Bold', fontSize: 24, color: Colors.colors.text, marginTop: 4 },
+  bestLiftUnit: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted },
+  sectionTitle: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.text, marginBottom: 12 },
+  emptyState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
+  emptyText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.text },
+  emptyDesc: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted },
+  prRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 8,
   },
-  bestCards: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 20,
-  },
-  bestCard: {
-    flex: 1,
-    backgroundColor: Colors.colors.backgroundCard,
-    borderRadius: 14,
-    padding: 14,
-  },
-  bestCardHeader: {
-    marginBottom: 8,
-  },
-  bestCardLift: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 13,
-  },
-  bestCardEntries: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 10,
-    color: Colors.colors.textMuted,
-    marginTop: 1,
-  },
-  bestCardWeight: {
-    fontFamily: 'Rubik_700Bold',
-    fontSize: 20,
-    color: Colors.colors.text,
-  },
-  bestCardUnit: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    color: Colors.colors.textMuted,
-  },
-  bestCardEmpty: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    color: Colors.colors.textMuted,
-  },
-  chartContainer: {
-    height: 40,
-    marginTop: 8,
-    position: 'relative',
-  },
-  chartDot: {
-    position: 'absolute',
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginLeft: -3,
-    marginTop: -3,
-  },
-  chartLine: {
-    position: 'absolute',
-    height: 2,
-    opacity: 0.5,
-    transformOrigin: 'left center',
-  },
-  filterRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 20,
-  },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.colors.backgroundCard,
-    borderWidth: 1,
-    borderColor: Colors.colors.border,
-  },
-  filterChipActive: {
-    backgroundColor: Colors.colors.primary,
-    borderColor: Colors.colors.primary,
-  },
-  filterText: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 13,
-    color: Colors.colors.textSecondary,
-  },
-  filterTextActive: {
-    color: '#fff',
-  },
-  sectionTitle: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 18,
-    color: Colors.colors.text,
-    marginBottom: 12,
-  },
-  listItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.colors.backgroundCard,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
-  },
-  listItemDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 12,
-  },
-  listItemInfo: {
-    flex: 1,
-  },
-  listItemLift: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 15,
-    color: Colors.colors.text,
-  },
-  listItemDate: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    color: Colors.colors.textMuted,
-    marginTop: 1,
-  },
-  listItemWeight: {
-    fontFamily: 'Rubik_700Bold',
-    fontSize: 18,
-    color: Colors.colors.text,
-  },
-  listItemUnit: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    color: Colors.colors.textMuted,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    gap: 8,
-  },
-  emptyTitle: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 16,
-    color: Colors.colors.textSecondary,
-  },
-  emptyText: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    color: Colors.colors.textMuted,
-    textAlign: 'center',
-  },
+  prDot: { width: 10, height: 10, borderRadius: 5 },
+  prInfo: { flex: 1 },
+  prLiftName: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: Colors.colors.text },
+  prDate: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted, marginTop: 1 },
+  prNotes: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textSecondary, marginTop: 2 },
+  prWeight: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.text },
+  prUnit: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted },
 });
