@@ -1,16 +1,24 @@
 import { Platform } from "react-native";
 
 function getBaseUrl(): string {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN || '';
+  if (Platform.OS === 'web') {
+    const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
+    if (apiUrl) return apiUrl;
 
+    if (typeof window !== 'undefined' && window.location) {
+      const origin = window.location.origin;
+      if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        return origin.replace(/:\d+$/, ':5000');
+      }
+      return origin;
+    }
+    return 'http://localhost:5000';
+  }
+
+  const domain = process.env.EXPO_PUBLIC_DOMAIN || '';
   if (domain) {
     const cleaned = domain.replace(/:\d+$/, '');
     return `https://${cleaned}`;
-  }
-  if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined' && window.location) {
-      return window.location.origin.replace(':8081', ':5000');
-    }
   }
   return 'http://localhost:5000';
 }
