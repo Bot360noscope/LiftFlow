@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { db } from "./db";
 import { profiles, programs, clients, prs, notifications } from "../shared/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, or, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import multer from "multer";
 import path from "path";
@@ -93,12 +93,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const profile = await db.select().from(profiles).where(eq(profiles.id, profileId));
       if (!profile.length) return res.status(404).json({ error: "Profile not found" });
 
-      let result;
-      if (profile[0].role === 'coach') {
-        result = await db.select().from(programs).where(eq(programs.coachId, profileId)).orderBy(desc(programs.createdAt));
-      } else {
-        result = await db.select().from(programs).where(eq(programs.clientId, profileId)).orderBy(desc(programs.createdAt));
+      const clientRecords = await db.select().from(clients).where(eq(clients.clientProfileId, profileId));
+      const clientRecordIds = clientRecords.map(c => c.id);
+
+      const conditions = [eq(programs.coachId, profileId)];
+      if (clientRecordIds.length > 0) {
+        conditions.push(inArray(programs.clientId, clientRecordIds));
       }
+
+      const result = await db.select().from(programs).where(or(...conditions)).orderBy(desc(programs.createdAt));
       res.json(result);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
