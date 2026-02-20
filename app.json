@@ -15,7 +15,13 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.liftflow"
+      "bundleIdentifier": "com.liftflow",
+      "infoPlist": {
+        "NSCameraUsageDescription": "LiftFlow needs access to your camera to record form check videos for your coach to review.",
+        "NSMicrophoneUsageDescription": "LiftFlow needs microphone access to record audio with your form check videos.",
+        "NSPhotoLibraryUsageDescription": "LiftFlow needs access to your photo library to upload a profile picture.",
+        "NSPhotoLibraryAddUsageDescription": "LiftFlow needs permission to save photos to your library."
+      }
     },
     "android": {
       "package": "com.liftflow",
@@ -37,7 +43,14 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "LiftFlow needs access to your camera to record form check videos for your coach to review.",
+          "photosPermission": "LiftFlow needs access to your photo library to upload a profile picture."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
