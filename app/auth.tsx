@@ -1,8 +1,9 @@
-import { StyleSheet, Text, View, Pressable, Platform, TextInput, KeyboardAvoidingView, ScrollView, ActivityIndicator, Linking } from "react-native";
+import { StyleSheet, Text, View, Pressable, Platform, TextInput, KeyboardAvoidingView, ScrollView, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import * as Haptics from "expo-haptics";
+import * as WebBrowser from "expo-web-browser";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 
@@ -171,13 +172,13 @@ export default function AuthScreen() {
             <Text style={styles.legalText}>
               By continuing, you agree to our{' '}
               <Text style={styles.legalLink} onPress={() => {
-                const base = Platform.OS === 'web' ? '' : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
-                Linking.openURL(`${base}/terms`);
+                const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
+                WebBrowser.openBrowserAsync(`${base}/terms`);
               }}>Terms of Service</Text>
               {' '}and{' '}
               <Text style={styles.legalLink} onPress={() => {
-                const base = Platform.OS === 'web' ? '' : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
-                Linking.openURL(`${base}/privacy`);
+                const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
+                WebBrowser.openBrowserAsync(`${base}/privacy`);
               }}>Privacy Policy</Text>
             </Text>
           </View>
