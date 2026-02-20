@@ -270,6 +270,15 @@ export async function getClients(): Promise<ClientInfo[]> {
   }));
 }
 
+export async function joinCoach(code: string): Promise<{ coach: { id: string; name: string }; client: any }> {
+  const profile = await getProfile();
+  return apiPost('/api/join-coach', {
+    code,
+    clientProfileId: profile.id,
+    clientName: profile.name || 'Client',
+  });
+}
+
 export async function addClient(client: Omit<ClientInfo, 'joinedAt'>): Promise<void> {
   const profile = await getProfile();
   await apiPost('/api/clients', {

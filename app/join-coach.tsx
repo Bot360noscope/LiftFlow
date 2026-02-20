@@ -6,6 +6,7 @@ import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
+import { joinCoach } from "@/lib/storage";
 
 export default function JoinCoachScreen() {
   const insets = useSafeAreaInsets();
@@ -20,13 +21,24 @@ export default function JoinCoachScreen() {
       return;
     }
     setJoining(true);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(
-      "Connected!",
-      `You've joined with coach code ${trimmed}. Your coach will now be able to assign programs to you.`,
-      [{ text: "OK", onPress: () => router.back() }]
-    );
-    setJoining(false);
+    try {
+      const result = await joinCoach(trimmed);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        "Connected!",
+        `You've joined coach ${result.coach.name || 'your coach'}. They can now assign training programs to you.`,
+        [{ text: "OK", onPress: () => router.back() }]
+      );
+    } catch (err: any) {
+      const msg = err?.message || '';
+      if (msg.includes('404') || msg.includes('Invalid')) {
+        Alert.alert("Invalid Code", "No coach found with that code. Please check and try again.");
+      } else {
+        Alert.alert("Error", "Could not connect to coach. Please try again.");
+      }
+    } finally {
+      setJoining(false);
+    }
   };
 
   return (
