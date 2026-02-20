@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, ActivityIndicator } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback, useRef } from "react";
@@ -9,6 +9,7 @@ import Colors from "@/constants/colors";
 import {
   getProfile, getPrograms, getPRs, getBestPR, getClients, getNotifications,
   clearAllNotifications, deleteNotification,
+  getCachedProfile, getCachedPrograms, getCachedPRs, getCachedClients, getCachedNotifications,
   type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification,
 } from "@/lib/storage";
 
@@ -187,11 +188,11 @@ function HomeCoachCodeCard({ coachCode }: { coachCode: string }) {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [programs, setPrograms] = useState<Program[]>([]);
-  const [prs, setPRs] = useState<LiftPR[]>([]);
-  const [clients, setClients] = useState<ClientInfo[]>([]);
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(getCachedProfile());
+  const [programs, setPrograms] = useState<Program[]>(getCachedPrograms());
+  const [prs, setPRs] = useState<LiftPR[]>(getCachedPRs());
+  const [clients, setClients] = useState<ClientInfo[]>(getCachedClients());
+  const [notifications, setNotifications] = useState<AppNotification[]>(getCachedNotifications());
   const [clientSearch, setClientSearch] = useState('');
 
   const loadData = useCallback(async () => {

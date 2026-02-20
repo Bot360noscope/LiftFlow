@@ -7,7 +7,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
-import { getPRs, deletePR, getProfile, getBestPR, getPrograms, getClients, type LiftPR, type Program, type ClientInfo } from "@/lib/storage";
+import { getPRs, deletePR, getProfile, getBestPR, getPrograms, getClients, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, type LiftPR, type Program, type ClientInfo } from "@/lib/storage";
 
 const LIFT_COLORS: Record<string, string> = {
   squat: Colors.colors.squat,
@@ -90,11 +90,11 @@ function ClientProgressCard({ client, programs, delay }: { client: ClientInfo; p
 
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
-  const [prs, setPRs] = useState<LiftPR[]>([]);
-  const [unit, setUnit] = useState<'kg' | 'lbs'>('kg');
-  const [isCoach, setIsCoach] = useState(false);
-  const [programs, setPrograms] = useState<Program[]>([]);
-  const [clients, setClients] = useState<ClientInfo[]>([]);
+  const [prs, setPRs] = useState<LiftPR[]>(getCachedPRs());
+  const [unit, setUnit] = useState<'kg' | 'lbs'>((getCachedProfile()?.weightUnit as 'kg' | 'lbs') || 'kg');
+  const [isCoach, setIsCoach] = useState(getCachedProfile()?.role === 'coach');
+  const [programs, setPrograms] = useState<Program[]>(getCachedPrograms());
+  const [clients, setClients] = useState<ClientInfo[]>(getCachedClients());
 
   const loadData = useCallback(async () => {
     const [prData, profile, progs, cl] = await Promise.all([getPRs(), getProfile(), getPrograms(), getClients()]);

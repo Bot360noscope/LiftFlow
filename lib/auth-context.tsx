@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { isAuthenticated, login as storageLogin, register as storageRegister, logout as storageLogout, getProfile, type UserProfile } from './storage';
+import { isAuthenticated, login as storageLogin, register as storageRegister, logout as storageLogout, getProfile, getPrograms, getPRs, getClients, getNotifications, type UserProfile } from './storage';
 
 interface AuthState {
   isLoggedIn: boolean;
@@ -26,6 +26,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
+  const prefetchData = useCallback(async () => {
+    await Promise.all([
+      getPrograms().catch(() => []),
+      getPRs().catch(() => []),
+      getClients().catch(() => []),
+      getNotifications().catch(() => []),
+    ]);
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
@@ -34,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const prof = await getProfile();
           setProfile(prof);
           setIsLoggedIn(true);
+          prefetchData();
         }
       } catch {
         setIsLoggedIn(false);
@@ -46,12 +56,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await storageLogin(email, password);
     setProfile(result.profile);
     setIsLoggedIn(true);
+    prefetchData();
   }, []);
 
   const register = useCallback(async (email: string, password: string, name: string, role: 'coach' | 'client') => {
     const result = await storageRegister(email, password, name, role);
     setProfile(result.profile);
     setIsLoggedIn(true);
+    prefetchData();
   }, []);
 
   const logout = useCallback(async () => {

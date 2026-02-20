@@ -7,12 +7,12 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
-import { getPrograms, deleteProgram, getProfile, type Program } from "@/lib/storage";
+import { getPrograms, deleteProgram, getProfile, getCachedPrograms, getCachedProfile, type Program } from "@/lib/storage";
 
 export default function ProgramsScreen() {
   const insets = useSafeAreaInsets();
-  const [programs, setPrograms] = useState<Program[]>([]);
-  const [role, setRole] = useState<string>('coach');
+  const [programs, setPrograms] = useState<Program[]>(getCachedPrograms());
+  const [role, setRole] = useState<string>(getCachedProfile()?.role || 'coach');
 
   const loadData = useCallback(async () => {
     const [progs, profile] = await Promise.all([getPrograms(), getProfile()]);

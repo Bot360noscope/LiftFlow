@@ -7,7 +7,7 @@ import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { confirmAction, showAlert } from "@/lib/confirm";
-import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, seedDemoData, deleteAccount, type UserProfile } from "@/lib/storage";
+import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, seedDemoData, deleteAccount, getCachedProfile, getCachedPRs, getCachedPrograms, getCachedClients, type UserProfile } from "@/lib/storage";
 import { useAuth } from "@/lib/auth-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Modal } from "react-native";
@@ -49,10 +49,11 @@ function CoachCodeCard({ coachCode, onReset }: { coachCode: string; onReset: () 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { logout: authLogout } = useAuth();
-  const [profile, setProfile] = useState<UserProfile>({ id: '', name: '', role: 'coach', weightUnit: 'kg', coachCode: '' });
+  const cached = getCachedProfile();
+  const [profile, setProfile] = useState<UserProfile>(cached || { id: '', name: '', role: 'coach', weightUnit: 'kg', coachCode: '' });
   const [editing, setEditing] = useState(false);
-  const [nameInput, setNameInput] = useState('');
-  const [stats, setStats] = useState({ prs: 0, programs: 0, clients: 0 });
+  const [nameInput, setNameInput] = useState(cached?.name || '');
+  const [stats, setStats] = useState({ prs: getCachedPRs().length, programs: getCachedPrograms().length, clients: getCachedClients().length });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
