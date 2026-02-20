@@ -1,14 +1,14 @@
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import {
   getProfile, getPrograms, getPRs, getBestPR, getClients, getNotifications,
-  markNotificationRead, clearAllNotifications,
+  clearAllNotifications, deleteNotification,
   type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification,
 } from "@/lib/storage";
 
@@ -68,7 +68,7 @@ function ClientCard({ client, programs }: { client: ClientInfo; programs: Progra
               router.push({ pathname: '/chat', params: { clientId: client.id, clientName: client.name, clientProfileId: client.clientProfileId || '' } });
             }}
           >
-            <Ionicons name="chatbubbles-outline" size={18} color={Colors.colors.primary} />
+            <Ionicons name="chatbubbles-outline" size={24} color={Colors.colors.primary} />
           </Pressable>
         </View>
       </View>
@@ -119,21 +119,27 @@ function ProgramCard({ program }: { program: Program }) {
   );
 }
 
-function NotificationItem({ notification, onRead }: { notification: AppNotification; onRead: (id: string) => void }) {
+function NotificationItem({ notification, onDelete }: { notification: AppNotification; onDelete: (id: string) => void }) {
   const icon = notification.type === 'video' ? 'videocam' :
     notification.type === 'notes' ? 'chatbubble' :
-    notification.type === 'comment' ? 'school' : 'checkmark-circle';
+    notification.type === 'comment' ? 'school' :
+    notification.type === 'chat' ? 'chatbubbles' : 'checkmark-circle';
   const color = notification.type === 'video' ? Colors.colors.primary :
     notification.type === 'notes' ? Colors.colors.accent :
-    notification.type === 'comment' ? Colors.colors.accent : Colors.colors.success;
+    notification.type === 'comment' ? Colors.colors.accent :
+    notification.type === 'chat' ? Colors.colors.primary : Colors.colors.success;
 
   return (
     <Pressable
       style={[styles.notifItem, !notification.read && styles.notifItemUnread]}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        if (!notification.read) onRead(notification.id);
-        router.push(`/program/${notification.programId}`);
+        onDelete(notification.id);
+        if (notification.type === 'chat') {
+          router.push('/chat');
+        } else if (notification.programId) {
+          router.push(`/program/${notification.programId}`);
+        }
       }}
     >
       <View style={[styles.notifIcon, { backgroundColor: `${color}15` }]}>
@@ -207,11 +213,24 @@ export default function HomeScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const handleReadNotification = async (id: string) => {
-    await markNotificationRead(id);
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  useFocusEffect(useCallback(() => {
+    loadData();
+    pollRef.current = setInterval(async () => {
+      try {
+        const notifs = await getNotifications();
+        setNotifications(notifs);
+      } catch (e) {}
+    }, 10000);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [loadData]));
+
+  const handleDeleteNotification = async (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    try { await deleteNotification(id); } catch (e) { console.warn('Failed to delete notification:', e); }
   };
 
   const handleClearAllNotifications = async () => {
@@ -228,7 +247,9 @@ export default function HomeScreen() {
   const activePrograms = programs.filter(p => p.status === 'active');
   const recentPrograms = programs.slice(0, 3);
   const unreadNotifs = notifications.filter(n => !n.read);
-  const clientNotifs = isCoach ? notifications.filter(n => n.fromRole === 'client') : notifications;
+  const clientNotifs = isCoach
+    ? notifications.filter(n => n.fromRole === 'client' && n.type !== 'completion')
+    : notifications;
   const recentNotifs = clientNotifs.slice(0, 5);
   const filteredClients = clientSearch.trim()
     ? clients.filter(c => c.name.toLowerCase().includes(clientSearch.trim().toLowerCase()))
@@ -357,7 +378,7 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
               {recentNotifs.map(n => (
-                <NotificationItem key={n.id} notification={n} onRead={handleReadNotification} />
+                <NotificationItem key={n.id} notification={n} onDelete={handleDeleteNotification} />
               ))}
             </Animated.View>
           )}
@@ -442,7 +463,7 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
               {recentNotifs.map(n => (
-                <NotificationItem key={n.id} notification={n} onRead={handleReadNotification} />
+                <NotificationItem key={n.id} notification={n} onDelete={handleDeleteNotification} />
               ))}
             </Animated.View>
           )}

@@ -66,7 +66,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (!coachId || !clientProfileId) return;
-    const interval = setInterval(loadMessages, 5000);
+    const interval = setInterval(loadMessages, 3000);
     return () => clearInterval(interval);
   }, [coachId, clientProfileId, loadMessages]);
 
