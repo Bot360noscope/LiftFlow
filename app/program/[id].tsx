@@ -5,11 +5,47 @@ import { useCallback, useState, useEffect, useMemo } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import { Video, ResizeMode } from "expo-av";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import * as Crypto from "expo-crypto";
 import { getProgram, updateProgram, getProfile, addNotification, type Program, type Exercise, type WorkoutWeek, type WorkoutDay } from "@/lib/storage";
 import { uploadVideo, getVideoUrl } from "@/lib/api";
+
+function VideoPlayerInline({ videoUrl }: { videoUrl: string }) {
+  const [showPlayer, setShowPlayer] = useState(false);
+  const url = getVideoUrl(videoUrl);
+
+  if (!showPlayer) {
+    return (
+      <Pressable
+        style={[styles.videoBtn, { borderColor: Colors.colors.success }]}
+        onPress={() => setShowPlayer(true)}
+      >
+        <Ionicons name="play-circle-outline" size={18} color={Colors.colors.success} />
+        <Text style={[styles.videoBtnText, { color: Colors.colors.success }]}>View Video</Text>
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={styles.videoPlayerContainer}>
+      <View style={styles.videoPlayerHeader}>
+        <Text style={styles.videoPlayerTitle}>Video Playback</Text>
+        <Pressable onPress={() => setShowPlayer(false)} hitSlop={8}>
+          <Ionicons name="close-circle" size={24} color={Colors.colors.textMuted} />
+        </Pressable>
+      </View>
+      <Video
+        source={{ uri: url }}
+        style={styles.videoPlayer}
+        useNativeControls
+        resizeMode={ResizeMode.CONTAIN}
+        shouldPlay
+      />
+    </View>
+  );
+}
 
 function VideoRecordButton({ exercise, onVideoRecorded }: { exercise: Exercise; onVideoRecorded: (url: string) => void }) {
   const [uploading, setUploading] = useState(false);
@@ -72,16 +108,7 @@ function VideoRecordButton({ exercise, onVideoRecorded }: { exercise: Exercise; 
         )}
       </Pressable>
       {hasVideo && (
-        <Pressable
-          style={[styles.videoBtn, { borderColor: Colors.colors.success }]}
-          onPress={() => {
-            const url = getVideoUrl(exercise.videoUrl);
-            Linking.openURL(url).catch(() => Alert.alert("Error", "Could not open video"));
-          }}
-        >
-          <Ionicons name="play-circle-outline" size={18} color={Colors.colors.success} />
-          <Text style={[styles.videoBtnText, { color: Colors.colors.success }]}>View Recorded Video</Text>
-        </Pressable>
+        <VideoPlayerInline videoUrl={exercise.videoUrl} />
       )}
     </View>
   );
@@ -339,13 +366,7 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExe
             />
           )}
           {isCoach && !!exercise.videoUrl && (
-            <Pressable style={styles.videoBtn} onPress={() => {
-              const url = getVideoUrl(exercise.videoUrl);
-              Linking.openURL(url).catch(() => Alert.alert("Error", "Could not open video"));
-            }}>
-              <Ionicons name="play-circle-outline" size={18} color={Colors.colors.primary} />
-              <Text style={styles.videoBtnText}>View Video</Text>
-            </Pressable>
+            <VideoPlayerInline videoUrl={exercise.videoUrl} />
           )}
         </View>
       )}
@@ -762,6 +783,16 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.colors.primary, borderRadius: 10, paddingVertical: 12, marginTop: 16,
   },
   videoBtnText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.primary },
+  videoPlayerContainer: {
+    marginTop: 16, borderRadius: 12, overflow: 'hidden',
+    backgroundColor: '#000', borderWidth: 1, borderColor: Colors.colors.border,
+  },
+  videoPlayerHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 12, paddingVertical: 8, backgroundColor: Colors.colors.backgroundCard,
+  },
+  videoPlayerTitle: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.text },
+  videoPlayer: { width: '100%', height: 220 },
   addExerciseBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
     paddingVertical: 14, marginTop: 8, borderWidth: 1, borderColor: Colors.colors.border,

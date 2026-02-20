@@ -9,6 +9,40 @@ import Colors from "@/constants/colors";
 import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, seedDemoData, type UserProfile } from "@/lib/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+function CoachCodeCard({ coachCode, onReset }: { coachCode: string; onReset: () => void }) {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <View style={styles.coachCodeCard}>
+      <View style={styles.coachCodeHeader}>
+        <View>
+          <Text style={styles.coachCodeLabel}>Coach Code</Text>
+          <Text style={styles.coachCodeSub}>Share with clients to connect</Text>
+        </View>
+        <Pressable style={styles.resetCodeBtn} onPress={onReset}>
+          <Ionicons name="refresh" size={16} color={Colors.colors.primary} />
+          <Text style={styles.resetCodeText}>Reset</Text>
+        </Pressable>
+      </View>
+      <Pressable
+        style={styles.coachCodeDisplay}
+        onPress={() => {
+          setRevealed(!revealed);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }}
+      >
+        {revealed ? (
+          <Text style={styles.coachCodeValue}>{coachCode}</Text>
+        ) : (
+          <View style={styles.coachCodeHidden}>
+            <Ionicons name="eye-outline" size={20} color={Colors.colors.textMuted} />
+            <Text style={styles.coachCodeHiddenText}>Tap to reveal</Text>
+          </View>
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<UserProfile>({ id: '', name: '', role: 'coach', weightUnit: 'kg', coachCode: '' });
@@ -133,21 +167,10 @@ export default function ProfileScreen() {
 
         {isCoach && (
           <Animated.View entering={FadeInDown.delay(80).duration(400)}>
-            <View style={styles.coachCodeCard}>
-              <View style={styles.coachCodeHeader}>
-                <View>
-                  <Text style={styles.coachCodeLabel}>Coach Code</Text>
-                  <Text style={styles.coachCodeSub}>Share with clients to connect</Text>
-                </View>
-                <Pressable style={styles.resetCodeBtn} onPress={handleResetCoachCode}>
-                  <Ionicons name="refresh" size={16} color={Colors.colors.primary} />
-                  <Text style={styles.resetCodeText}>Reset</Text>
-                </Pressable>
-              </View>
-              <View style={styles.coachCodeDisplay}>
-                <Text style={styles.coachCodeValue}>{profile.coachCode}</Text>
-              </View>
-            </View>
+            <CoachCodeCard
+              coachCode={profile.coachCode}
+              onReset={handleResetCoachCode}
+            />
           </Animated.View>
         )}
 
@@ -293,6 +316,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16, marginTop: 14, borderWidth: 1, borderColor: Colors.colors.border,
   },
   coachCodeValue: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.primary, letterSpacing: 4 },
+  coachCodeHidden: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  coachCodeHiddenText: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: Colors.colors.textMuted },
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
   statCard: {
     flex: 1, backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 18,

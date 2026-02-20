@@ -138,6 +138,37 @@ function NotificationItem({ notification, onRead }: { notification: AppNotificat
   );
 }
 
+function HomeCoachCodeCard({ coachCode }: { coachCode: string }) {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <View style={styles.coachCodeCard}>
+      <View style={styles.coachCodeLeft}>
+        <Text style={styles.coachCodeLabel}>Your Coach Code</Text>
+        <Text style={styles.coachCodeDesc}>Share this with clients to connect</Text>
+      </View>
+      <Pressable
+        style={styles.coachCodeBadge}
+        onPress={() => {
+          setRevealed(!revealed);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }}
+      >
+        {revealed ? (
+          <>
+            <Text style={styles.coachCodeValue}>{coachCode}</Text>
+            <Ionicons name="eye-off-outline" size={14} color={Colors.colors.primary} />
+          </>
+        ) : (
+          <>
+            <Ionicons name="eye-outline" size={14} color={Colors.colors.textMuted} />
+            <Text style={styles.coachCodeHiddenText}>Tap to reveal</Text>
+          </>
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -182,14 +213,15 @@ export default function HomeScreen() {
   const bestDeadlift = getBestPR(prs, 'deadlift');
   const bestBench = getBestPR(prs, 'bench');
 
+  const isCoach = profile?.role === 'coach';
   const activePrograms = programs.filter(p => p.status === 'active');
   const recentPrograms = programs.slice(0, 3);
   const unreadNotifs = notifications.filter(n => !n.read);
-  const recentNotifs = notifications.slice(0, 5);
+  const clientNotifs = isCoach ? notifications.filter(n => n.fromRole === 'client') : notifications;
+  const recentNotifs = clientNotifs.slice(0, 5);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 84 : 0;
-  const isCoach = profile?.role === 'coach';
 
   return (
     <ScrollView
@@ -222,19 +254,7 @@ export default function HomeScreen() {
 
       {isCoach && profile?.coachCode && (
         <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-          <View style={styles.coachCodeCard}>
-            <View style={styles.coachCodeLeft}>
-              <Text style={styles.coachCodeLabel}>Your Coach Code</Text>
-              <Text style={styles.coachCodeDesc}>Share this with clients to connect</Text>
-            </View>
-            <Pressable
-              style={styles.coachCodeBadge}
-              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-            >
-              <Text style={styles.coachCodeValue}>{profile.coachCode}</Text>
-              <Ionicons name="copy-outline" size={14} color={Colors.colors.primary} />
-            </Pressable>
-          </View>
+          <HomeCoachCodeCard coachCode={profile.coachCode} />
         </Animated.View>
       )}
 
@@ -496,6 +516,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(232,81,47,0.1)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
   },
   coachCodeValue: { fontFamily: 'Rubik_700Bold', fontSize: 16, color: Colors.colors.primary, letterSpacing: 2 },
+  coachCodeHiddenText: { fontFamily: 'Rubik_500Medium', fontSize: 12, color: Colors.colors.textMuted },
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   statCard: {
     flex: 1, alignItems: 'center', backgroundColor: Colors.colors.backgroundCard,
