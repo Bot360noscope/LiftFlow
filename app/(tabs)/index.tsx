@@ -20,7 +20,7 @@ function StatCard({ icon, label, value, color }: { icon: string; label: string; 
         <Ionicons name={icon as any} size={18} color={color} />
       </View>
       <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{label}</Text>
     </View>
   );
 }
@@ -257,11 +257,11 @@ export default function HomeScreen() {
     >
       <Animated.View entering={FadeInDown.duration(400)}>
         <View style={styles.greetingRow}>
-          <View>
-            <Text style={styles.greeting}>
+          <View style={styles.greetingLeft}>
+            <Text style={styles.greeting} numberOfLines={1}>
               {isCoach ? 'Dashboard' : 'My Training'}
             </Text>
-            <Text style={styles.greetingSub}>
+            <Text style={styles.greetingSub} numberOfLines={1}>
               {profile?.name ? `Welcome, ${profile.name}` : 'Welcome to LiftFlow'}
             </Text>
           </View>
@@ -474,7 +474,8 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.colors.background },
   scrollContent: { paddingHorizontal: 20 },
-  greetingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
+  greetingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, gap: 12 },
+  greetingLeft: { flex: 1 },
   greeting: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.text },
   greetingSub: { fontFamily: 'Rubik_400Regular', fontSize: 15, color: Colors.colors.textSecondary, marginTop: 4 },
   roleChip: {
@@ -483,11 +484,11 @@ const styles = StyleSheet.create({
   },
   roleChipText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.primary },
   coachCodeCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12,
     backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 16,
     borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 16,
   },
-  coachCodeLeft: {},
+  coachCodeLeft: { flex: 1 },
   coachCodeLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.text },
   coachCodeDesc: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 4 },
   coachCodeBadge: {
@@ -503,7 +504,7 @@ const styles = StyleSheet.create({
   },
   statIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   statValue: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text },
-  statLabel: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted },
+  statLabel: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, textAlign: 'center' },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12,

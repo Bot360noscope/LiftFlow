@@ -61,19 +61,19 @@ function ClientProgressCard({ client, programs, delay }: { client: ClientInfo; p
         <View style={styles.clientStatsRow}>
           <View style={styles.clientStatBox}>
             <Text style={styles.clientStatNum}>{clientPrograms.length}</Text>
-            <Text style={styles.clientStatLabel}>Programs</Text>
+            <Text style={styles.clientStatLabel} numberOfLines={1}>Programs</Text>
           </View>
           <View style={styles.clientStatBox}>
             <Text style={[styles.clientStatNum, { color: Colors.colors.success }]}>{completedEx}</Text>
-            <Text style={styles.clientStatLabel}>Completed</Text>
+            <Text style={styles.clientStatLabel} numberOfLines={1}>Done</Text>
           </View>
           <View style={styles.clientStatBox}>
             <Text style={[styles.clientStatNum, { color: Colors.colors.accent }]}>{notesCount}</Text>
-            <Text style={styles.clientStatLabel}>Notes</Text>
+            <Text style={styles.clientStatLabel} numberOfLines={1}>Notes</Text>
           </View>
           <View style={styles.clientStatBox}>
             <Text style={[styles.clientStatNum, { color: Colors.colors.primary }]}>{videosCount}</Text>
-            <Text style={styles.clientStatLabel}>Videos</Text>
+            <Text style={styles.clientStatLabel} numberOfLines={1}>Videos</Text>
           </View>
         </View>
 

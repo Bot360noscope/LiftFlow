@@ -210,9 +210,9 @@ export default function ProfileScreen() {
               <View style={[styles.settingIcon, { backgroundColor: 'rgba(232, 81, 47, 0.12)' }]}>
                 <Ionicons name={isCoach ? 'school' : 'fitness'} size={18} color={Colors.colors.primary} />
               </View>
-              <View>
-                <Text style={styles.settingLabel}>Role</Text>
-                <Text style={styles.settingValue}>{isCoach ? 'Coach' : 'Athlete'}</Text>
+              <View style={styles.settingTextWrap}>
+                <Text style={styles.settingLabel} numberOfLines={1}>Role</Text>
+                <Text style={styles.settingValue} numberOfLines={1}>{isCoach ? 'Coach' : 'Athlete'}</Text>
               </View>
             </View>
             <Ionicons name="swap-horizontal" size={20} color={Colors.colors.primary} />
@@ -223,9 +223,9 @@ export default function ProfileScreen() {
               <View style={[styles.settingIcon, { backgroundColor: 'rgba(255, 140, 66, 0.12)' }]}>
                 <Ionicons name="scale" size={18} color={Colors.colors.accent} />
               </View>
-              <View>
-                <Text style={styles.settingLabel}>Weight Unit</Text>
-                <Text style={styles.settingValue}>{profile.weightUnit === 'kg' ? 'Kilograms (kg)' : 'Pounds (lbs)'}</Text>
+              <View style={styles.settingTextWrap}>
+                <Text style={styles.settingLabel} numberOfLines={1}>Weight Unit</Text>
+                <Text style={styles.settingValue} numberOfLines={1}>{profile.weightUnit === 'kg' ? 'Kilograms (kg)' : 'Pounds (lbs)'}</Text>
               </View>
             </View>
             <Ionicons name="swap-horizontal" size={20} color={Colors.colors.textMuted} />
@@ -245,9 +245,9 @@ export default function ProfileScreen() {
               <View style={[styles.settingIcon, { backgroundColor: 'rgba(52, 199, 89, 0.12)' }]}>
                 <Ionicons name="flask" size={18} color={Colors.colors.success} />
               </View>
-              <View>
-                <Text style={styles.settingLabel}>Load Demo Data</Text>
-                <Text style={styles.settingValue}>Set up coach with clients and programs</Text>
+              <View style={styles.settingTextWrap}>
+                <Text style={styles.settingLabel} numberOfLines={1}>Load Demo Data</Text>
+                <Text style={styles.settingValue} numberOfLines={1}>Set up coach with clients and programs</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.colors.textMuted} />
@@ -258,9 +258,9 @@ export default function ProfileScreen() {
               <View style={[styles.settingIcon, { backgroundColor: Colors.colors.dangerLight }]}>
                 <Ionicons name="trash" size={18} color={Colors.colors.danger} />
               </View>
-              <View>
-                <Text style={[styles.settingLabel, { color: Colors.colors.danger }]}>Delete Account</Text>
-                <Text style={styles.settingValue}>Permanently delete your account and all data</Text>
+              <View style={styles.settingTextWrap}>
+                <Text style={[styles.settingLabel, { color: Colors.colors.danger }]} numberOfLines={1}>Delete Account</Text>
+                <Text style={styles.settingValue} numberOfLines={2}>Permanently delete your account and all data</Text>
               </View>
             </View>
           </Pressable>
@@ -387,8 +387,9 @@ const styles = StyleSheet.create({
     marginBottom: 8, borderWidth: 1, borderColor: Colors.colors.border,
   },
   dangerItem: { borderColor: 'rgba(255, 59, 48, 0.2)' },
-  settingLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  settingLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   settingIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  settingTextWrap: { flex: 1 },
   settingLabel: { fontFamily: 'Rubik_500Medium', fontSize: 15, color: Colors.colors.text },
   settingValue: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 1 },
   logoutBtn: {
