@@ -667,6 +667,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const profileId = decoded.profileId;
 
+      const profile = await db.select().from(profiles).where(eq(profiles.id, profileId)).then(r => r[0]);
+      if (profile?.avatarUrl) {
+        const avatarFilename = profile.avatarUrl.split('/').pop();
+        if (avatarFilename) {
+          const avatarPath = path.join(uploadsDir, avatarFilename);
+          if (fs.existsSync(avatarPath)) fs.unlinkSync(avatarPath);
+        }
+      }
+
+      const userVideos = await db.select().from(videoUploads).where(eq(videoUploads.uploadedBy, profileId));
+      const coachVideos = await db.select().from(videoUploads).where(eq(videoUploads.coachId, profileId));
+      for (const vid of [...userVideos, ...coachVideos]) {
+        const vidPath = path.join(uploadsDir, vid.filename);
+        if (fs.existsSync(vidPath)) fs.unlinkSync(vidPath);
+      }
+      if (userVideos.length > 0) {
+        await db.delete(videoUploads).where(eq(videoUploads.uploadedBy, profileId));
+      }
+      if (coachVideos.length > 0) {
+        await db.delete(videoUploads).where(eq(videoUploads.coachId, profileId));
+      }
+
       const coachClients = await db.select().from(clients).where(eq(clients.coachId, profileId));
       const clientRecords = await db.select().from(clients).where(eq(clients.clientProfileId, profileId));
       const allClientIds = [...coachClients.map(c => c.id), ...clientRecords.map(c => c.id)];
