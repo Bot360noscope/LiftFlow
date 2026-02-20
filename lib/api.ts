@@ -1,12 +1,12 @@
 import { Platform } from "react-native";
-import Constants from "expo-constants";
 
 function getBaseUrl(): string {
-  const domain = Constants.expoConfig?.extra?.EXPO_PUBLIC_DOMAIN
-    || process.env.EXPO_PUBLIC_DOMAIN
-    || '';
+  const domain = process.env.EXPO_PUBLIC_DOMAIN || '';
 
-  if (domain) return `https://${domain}`;
+  if (domain) {
+    const cleaned = domain.replace(/:\d+$/, '');
+    return `https://${cleaned}`;
+  }
   if (Platform.OS === 'web') {
     if (typeof window !== 'undefined' && window.location) {
       return window.location.origin.replace(':8081', ':5000');

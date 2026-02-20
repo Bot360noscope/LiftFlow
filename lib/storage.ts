@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
 import { apiGet, apiPost, apiPut, apiDelete } from './api';
 
 export interface LiftPR {
@@ -349,7 +350,6 @@ export function createSampleProgram(coachId: string): Omit<Program, 'id' | 'crea
     { name: 'Dips', repsSets: '3x10', weight: 'BW', rpe: '7' },
   ];
 
-  const crypto = require('expo-crypto');
   const weeks: WorkoutWeek[] = [];
   for (let w = 1; w <= 4; w++) {
     const days: WorkoutDay[] = [];
@@ -359,7 +359,7 @@ export function createSampleProgram(coachId: string): Omit<Program, 'id' | 'crea
       for (let e = 0; e < 3; e++) {
         const ex = exercises[(startIdx + e) % exercises.length];
         dayExercises.push({
-          id: crypto.randomUUID(),
+          id: Crypto.randomUUID(),
           name: ex.name,
           weight: ex.weight,
           repsSets: ex.repsSets,

@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, Pressable, Platform, TextInput, ScrollView } from "react-native";
+import { StyleSheet, Text, View, Pressable, Platform, TextInput, ScrollView, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback, useEffect } from "react";
@@ -55,25 +55,35 @@ export default function CreateProgramScreen() {
       programWeeks.push({ weekNumber: w, days });
     }
 
-    await addProgram({
-      title: title.trim(),
-      description: description.trim() || `${numWeeks}-week training program`,
-      weeks: programWeeks,
-      daysPerWeek: numDays,
-      coachId,
-      clientId: clientId || null,
-      status: 'active',
-    });
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.back();
+    try {
+      await addProgram({
+        title: title.trim(),
+        description: description.trim() || `${numWeeks}-week training program`,
+        weeks: programWeeks,
+        daysPerWeek: numDays,
+        coachId,
+        clientId: clientId || null,
+        status: 'active',
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.back();
+    } catch (err: any) {
+      Alert.alert("Error", "Failed to create program. Please try again.");
+      setSaving(false);
+    }
   }, [title, description, weeks, daysPerWeek, exercisesPerDay, coachId]);
 
   const handleQuickStart = useCallback(async () => {
     setSaving(true);
-    const sample = createSampleProgram(coachId);
-    await addProgram(sample);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.back();
+    try {
+      const sample = createSampleProgram(coachId);
+      await addProgram(sample);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.back();
+    } catch (err: any) {
+      Alert.alert("Error", "Failed to create program. Please try again.");
+      setSaving(false);
+    }
   }, [coachId]);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
