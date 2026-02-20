@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   pageTitle: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.text },
   newBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: Colors.colors.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
+    backgroundColor: Colors.colors.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
   },
   newBtnText: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: '#fff' },
   emptyState: { alignItems: 'center', paddingVertical: 50, gap: 12 },
@@ -170,11 +170,11 @@ const styles = StyleSheet.create({
   emptyDesc: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, textAlign: 'center', paddingHorizontal: 30 },
   createBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: Colors.colors.primary, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10, marginTop: 8,
+    backgroundColor: Colors.colors.primary, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, marginTop: 8,
   },
   createBtnText: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: '#fff' },
   programCard: {
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 16,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 16,
     borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 12,
   },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -183,15 +183,15 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: 'Rubik_700Bold', fontSize: 16, color: Colors.colors.text, flex: 1 },
   shareCodeBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: Colors.colors.surfaceLight, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
+    backgroundColor: Colors.colors.surfaceLight, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
   },
-  shareCodeText: { fontFamily: 'Rubik_500Medium', fontSize: 10, color: Colors.colors.textSecondary, letterSpacing: 1 },
-  cardDesc: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, marginTop: 6 },
+  shareCodeText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.textSecondary, letterSpacing: 1 },
+  cardDesc: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 6 },
   cardStats: { flexDirection: 'row', gap: 12, marginTop: 12, flexWrap: 'wrap' },
   cardStat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cardStatText: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textSecondary },
+  cardStatText: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textSecondary },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
   progressBarBg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.colors.surfaceLight, overflow: 'hidden' as const },
   progressBarFill: { height: '100%' as const, borderRadius: 2, backgroundColor: Colors.colors.primary },
-  progressText: { fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: Colors.colors.textSecondary, width: 32, textAlign: 'right' },
+  progressText: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: Colors.colors.textSecondary, width: 32, textAlign: 'right' },
 });
