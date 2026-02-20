@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Crypto from 'expo-crypto';
+import { apiGet, apiPost, apiPut, apiDelete } from './api';
 
 export interface LiftPR {
   id: string;
@@ -58,6 +58,7 @@ export interface ClientInfo {
   id: string;
   name: string;
   joinedAt: string;
+  clientProfileId?: string;
 }
 
 export interface AppNotification {
@@ -73,13 +74,7 @@ export interface AppNotification {
   read: boolean;
 }
 
-const KEYS = {
-  PRs: 'liftflow_prs',
-  PROGRAMS: 'liftflow_programs',
-  PROFILE: 'liftflow_profile',
-  CLIENTS: 'liftflow_clients',
-  NOTIFICATIONS: 'liftflow_notifications',
-};
+const PROFILE_ID_KEY = 'liftflow_profile_id';
 
 export function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -90,89 +85,171 @@ export function generateCode(): string {
   return code;
 }
 
-export async function getPRs(): Promise<LiftPR[]> {
-  const data = await AsyncStorage.getItem(KEYS.PRs);
-  return data ? JSON.parse(data) : [];
+async function getProfileId(): Promise<string | null> {
+  return AsyncStorage.getItem(PROFILE_ID_KEY);
 }
 
-export async function addPR(pr: Omit<LiftPR, 'id'>): Promise<LiftPR> {
-  const prs = await getPRs();
-  const newPR: LiftPR = { ...pr, id: Crypto.randomUUID() };
-  prs.push(newPR);
-  await AsyncStorage.setItem(KEYS.PRs, JSON.stringify(prs));
-  return newPR;
-}
-
-export async function deletePR(id: string): Promise<void> {
-  const prs = await getPRs();
-  const filtered = prs.filter(pr => pr.id !== id);
-  await AsyncStorage.setItem(KEYS.PRs, JSON.stringify(filtered));
-}
-
-export async function getPrograms(): Promise<Program[]> {
-  const data = await AsyncStorage.getItem(KEYS.PROGRAMS);
-  if (!data) return [];
-  const parsed = JSON.parse(data);
-  return parsed.filter((p: any) => p.weeks && Array.isArray(p.weeks));
-}
-
-export async function getProgram(id: string): Promise<Program | null> {
-  const programs = await getPrograms();
-  return programs.find(p => p.id === id) || null;
-}
-
-export async function addProgram(program: Omit<Program, 'id' | 'createdAt' | 'shareCode'>): Promise<Program> {
-  const programs = await getPrograms();
-  const newProgram: Program = {
-    ...program,
-    id: Crypto.randomUUID(),
-    shareCode: generateCode(),
-    createdAt: new Date().toISOString(),
-  };
-  programs.push(newProgram);
-  await AsyncStorage.setItem(KEYS.PROGRAMS, JSON.stringify(programs));
-  return newProgram;
-}
-
-export async function updateProgram(program: Program): Promise<void> {
-  const programs = await getPrograms();
-  const idx = programs.findIndex(p => p.id === program.id);
-  if (idx !== -1) {
-    programs[idx] = program;
-    await AsyncStorage.setItem(KEYS.PROGRAMS, JSON.stringify(programs));
-  }
-}
-
-export async function deleteProgram(id: string): Promise<void> {
-  const programs = await getPrograms();
-  const filtered = programs.filter(p => p.id !== id);
-  await AsyncStorage.setItem(KEYS.PROGRAMS, JSON.stringify(filtered));
+async function setProfileId(id: string): Promise<void> {
+  await AsyncStorage.setItem(PROFILE_ID_KEY, id);
 }
 
 export async function getProfile(): Promise<UserProfile> {
-  const data = await AsyncStorage.getItem(KEYS.PROFILE);
-  if (data) return JSON.parse(data);
-  const defaultProfile: UserProfile = {
-    id: Crypto.randomUUID(),
+  const storedId = await getProfileId();
+  if (storedId) {
+    try {
+      const profile = await apiGet<any>(`/api/profiles/${storedId}`);
+      return {
+        id: profile.id,
+        name: profile.name,
+        role: profile.role as 'coach' | 'client',
+        weightUnit: (profile.weightUnit || profile.weight_unit) as 'kg' | 'lbs',
+        coachCode: profile.coachCode || profile.coach_code,
+      };
+    } catch {
+    }
+  }
+  const profile = await apiPost<any>('/api/profiles', {
     name: '',
     role: 'client',
     weightUnit: 'kg',
-    coachCode: generateCode(),
+  });
+  await setProfileId(profile.id);
+  return {
+    id: profile.id,
+    name: profile.name,
+    role: profile.role as 'coach' | 'client',
+    weightUnit: (profile.weightUnit || profile.weight_unit) as 'kg' | 'lbs',
+    coachCode: profile.coachCode || profile.coach_code,
   };
-  await AsyncStorage.setItem(KEYS.PROFILE, JSON.stringify(defaultProfile));
-  return defaultProfile;
 }
 
 export async function saveProfile(profile: UserProfile): Promise<void> {
-  await AsyncStorage.setItem(KEYS.PROFILE, JSON.stringify(profile));
+  await setProfileId(profile.id);
+  await apiPut(`/api/profiles/${profile.id}`, {
+    name: profile.name,
+    role: profile.role,
+    weightUnit: profile.weightUnit,
+    coachCode: profile.coachCode,
+  });
 }
 
 export async function resetCoachCode(): Promise<string> {
   const profile = await getProfile();
-  const newCode = generateCode();
-  profile.coachCode = newCode;
-  await saveProfile(profile);
-  return newCode;
+  const result = await apiPost<{ coachCode: string }>(`/api/profiles/${profile.id}/reset-code`);
+  return result.coachCode || (result as any).coach_code;
+}
+
+export async function getPrograms(): Promise<Program[]> {
+  const profile = await getProfile();
+  const data = await apiGet<any[]>(`/api/programs?profileId=${profile.id}`);
+  return data.map(p => ({
+    id: p.id,
+    title: p.title,
+    description: p.description,
+    weeks: p.weeks as WorkoutWeek[],
+    createdAt: p.createdAt || p.created_at,
+    daysPerWeek: p.daysPerWeek || p.days_per_week,
+    shareCode: p.shareCode || p.share_code,
+    coachId: p.coachId || p.coach_id,
+    clientId: p.clientId || p.client_id || null,
+    status: (p.status || 'active') as 'draft' | 'active' | 'completed',
+  }));
+}
+
+export async function getProgram(id: string): Promise<Program | null> {
+  try {
+    const p = await apiGet<any>(`/api/programs/${id}`);
+    return {
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      weeks: p.weeks as WorkoutWeek[],
+      createdAt: p.createdAt || p.created_at,
+      daysPerWeek: p.daysPerWeek || p.days_per_week,
+      shareCode: p.shareCode || p.share_code,
+      coachId: p.coachId || p.coach_id,
+      clientId: p.clientId || p.client_id || null,
+      status: (p.status || 'active') as 'draft' | 'active' | 'completed',
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function addProgram(program: Omit<Program, 'id' | 'createdAt' | 'shareCode'>): Promise<Program> {
+  const p = await apiPost<any>('/api/programs', {
+    title: program.title,
+    description: program.description,
+    weeks: program.weeks,
+    daysPerWeek: program.daysPerWeek,
+    coachId: program.coachId,
+    clientId: program.clientId,
+    status: program.status,
+  });
+  return {
+    id: p.id,
+    title: p.title,
+    description: p.description,
+    weeks: p.weeks as WorkoutWeek[],
+    createdAt: p.createdAt || p.created_at,
+    daysPerWeek: p.daysPerWeek || p.days_per_week,
+    shareCode: p.shareCode || p.share_code,
+    coachId: p.coachId || p.coach_id,
+    clientId: p.clientId || p.client_id || null,
+    status: (p.status || 'active') as 'draft' | 'active' | 'completed',
+  };
+}
+
+export async function updateProgram(program: Program): Promise<void> {
+  await apiPut(`/api/programs/${program.id}`, {
+    title: program.title,
+    description: program.description,
+    weeks: program.weeks,
+    daysPerWeek: program.daysPerWeek,
+    clientId: program.clientId,
+    status: program.status,
+  });
+}
+
+export async function deleteProgram(id: string): Promise<void> {
+  await apiDelete(`/api/programs/${id}`);
+}
+
+export async function getPRs(): Promise<LiftPR[]> {
+  const profile = await getProfile();
+  const data = await apiGet<any[]>(`/api/prs?profileId=${profile.id}`);
+  return data.map(p => ({
+    id: p.id,
+    liftType: (p.liftType || p.lift_type) as 'squat' | 'deadlift' | 'bench',
+    weight: p.weight,
+    unit: p.unit as 'kg' | 'lbs',
+    date: p.date,
+    notes: p.notes,
+  }));
+}
+
+export async function addPR(pr: Omit<LiftPR, 'id'>): Promise<LiftPR> {
+  const profile = await getProfile();
+  const result = await apiPost<any>('/api/prs', {
+    profileId: profile.id,
+    liftType: pr.liftType,
+    weight: pr.weight,
+    unit: pr.unit,
+    date: pr.date,
+    notes: pr.notes,
+  });
+  return {
+    id: result.id,
+    liftType: (result.liftType || result.lift_type) as 'squat' | 'deadlift' | 'bench',
+    weight: result.weight,
+    unit: result.unit as 'kg' | 'lbs',
+    date: result.date,
+    notes: result.notes,
+  };
+}
+
+export async function deletePR(id: string): Promise<void> {
+  await apiDelete(`/api/prs/${id}`);
 }
 
 export function getBestPR(prs: LiftPR[], liftType: string): LiftPR | null {
@@ -182,57 +259,72 @@ export function getBestPR(prs: LiftPR[], liftType: string): LiftPR | null {
 }
 
 export async function getClients(): Promise<ClientInfo[]> {
-  const data = await AsyncStorage.getItem(KEYS.CLIENTS);
-  return data ? JSON.parse(data) : [];
+  const profile = await getProfile();
+  const data = await apiGet<any[]>(`/api/clients?coachId=${profile.id}`);
+  return data.map(c => ({
+    id: c.id,
+    name: c.name,
+    joinedAt: c.joinedAt || c.joined_at,
+    clientProfileId: c.clientProfileId || c.client_profile_id,
+  }));
 }
 
 export async function addClient(client: Omit<ClientInfo, 'joinedAt'>): Promise<void> {
-  const clients = await getClients();
-  if (clients.some(c => c.id === client.id)) return;
-  clients.push({ ...client, joinedAt: new Date().toISOString() });
-  await AsyncStorage.setItem(KEYS.CLIENTS, JSON.stringify(clients));
+  const profile = await getProfile();
+  await apiPost('/api/clients', {
+    coachId: profile.id,
+    clientProfileId: client.clientProfileId || client.id,
+    name: client.name,
+  });
 }
 
 export async function removeClient(id: string): Promise<void> {
-  const clients = await getClients();
-  const filtered = clients.filter(c => c.id !== id);
-  await AsyncStorage.setItem(KEYS.CLIENTS, JSON.stringify(filtered));
+  await apiDelete(`/api/clients/${id}`);
 }
 
 export async function getNotifications(): Promise<AppNotification[]> {
-  const data = await AsyncStorage.getItem(KEYS.NOTIFICATIONS);
-  return data ? JSON.parse(data) : [];
+  const profile = await getProfile();
+  const data = await apiGet<any[]>(`/api/notifications?profileId=${profile.id}`);
+  return data.map(n => ({
+    id: n.id,
+    type: n.type as AppNotification['type'],
+    title: n.title,
+    message: n.message,
+    programId: n.programId || n.program_id,
+    programTitle: n.programTitle || n.program_title,
+    exerciseName: n.exerciseName || n.exercise_name,
+    fromRole: (n.fromRole || n.from_role) as 'coach' | 'client',
+    createdAt: n.createdAt || n.created_at,
+    read: n.read,
+  }));
 }
 
-export async function addNotification(notification: Omit<AppNotification, 'id' | 'createdAt' | 'read'>): Promise<void> {
-  const notifications = await getNotifications();
-  notifications.unshift({
-    ...notification,
-    id: Crypto.randomUUID(),
-    createdAt: new Date().toISOString(),
-    read: false,
+export async function addNotification(notification: Omit<AppNotification, 'id' | 'createdAt' | 'read'> & { targetProfileId?: string }): Promise<void> {
+  const profile = await getProfile();
+  await apiPost('/api/notifications', {
+    profileId: notification.targetProfileId || profile.id,
+    type: notification.type,
+    title: notification.title,
+    message: notification.message,
+    programId: notification.programId,
+    programTitle: notification.programTitle,
+    exerciseName: notification.exerciseName,
+    fromRole: notification.fromRole,
   });
-  if (notifications.length > 50) notifications.length = 50;
-  await AsyncStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(notifications));
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  const notifications = await getNotifications();
-  const n = notifications.find(n => n.id === id);
-  if (n) {
-    n.read = true;
-    await AsyncStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(notifications));
-  }
+  await apiPut(`/api/notifications/${id}/read`);
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  const notifications = await getNotifications();
-  notifications.forEach(n => n.read = true);
-  await AsyncStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(notifications));
+  const profile = await getProfile();
+  await apiPut(`/api/notifications/read-all?profileId=${profile.id}`);
 }
 
 export async function clearAllNotifications(): Promise<void> {
-  await AsyncStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify([]));
+  const profile = await getProfile();
+  await apiDelete(`/api/notifications?profileId=${profile.id}`);
 }
 
 export async function getUnreadNotificationCount(): Promise<number> {
@@ -241,75 +333,8 @@ export async function getUnreadNotificationCount(): Promise<number> {
 }
 
 export async function seedDemoData(): Promise<void> {
-  const coachId = Crypto.randomUUID();
-  const client1Id = Crypto.randomUUID();
-  const client2Id = Crypto.randomUUID();
-  const client3Id = Crypto.randomUUID();
-
-  function ex(name: string, repsSets: string, weight: string, rpe: string, completed = false, clientNotes = '', coachComment = '', videoUrl = ''): Exercise {
-    return { id: Crypto.randomUUID(), name, weight, repsSets, rpe, isCompleted: completed, notes: '', clientNotes, coachComment, videoUrl };
-  }
-
-  function makeProg(title: string, desc: string, clientId: string | null, dpw: number, wks: number, dayTemplates: Exercise[][]): Program {
-    const weeks: WorkoutWeek[] = [];
-    for (let w = 1; w <= wks; w++) {
-      const days: WorkoutDay[] = [];
-      for (let d = 1; d <= dpw; d++) {
-        const tpl = dayTemplates[(d - 1) % dayTemplates.length];
-        days.push({ dayNumber: d, exercises: tpl.map(e => ({ ...e, id: Crypto.randomUUID() })) });
-      }
-      weeks.push({ weekNumber: w, days });
-    }
-    return { id: Crypto.randomUUID(), title, description: desc, weeks, createdAt: new Date().toISOString(), daysPerWeek: dpw, shareCode: generateCode(), coachId, clientId, status: 'active' };
-  }
-
-  const sarahProg = makeProg('Strength Block A', '8-week progressive overload for Sarah', client1Id, 4, 8, [
-    [ex('Back Squat','5x5','80','8',true,'Felt strong, depth good','Great job, try 82.5 next week'), ex('Romanian Deadlift','3x10','60','7',true,'Slight hamstring tightness'), ex('Leg Press','4x12','120','7',true), ex('Walking Lunges','3x12 each','16','6')],
-    [ex('Bench Press','5x5','50','8',true,'Elbow flare on last 2 reps','Tuck elbows more, good form','https://example.com/vid1'), ex('Incline DB Press','4x8','18','7',true), ex('Cable Flyes','3x15','10','6'), ex('Tricep Pushdown','3x12','20','7')],
-    [ex('Deadlift','3x5','100','9',true,'PR attempt - got all reps!','Incredible pull!','https://example.com/vid2'), ex('Pull-ups','4x6','BW','8',true), ex('Barbell Row','4x8','50','7'), ex('Face Pulls','3x15','12','5')],
-    [ex('Overhead Press','4x6','35','8'), ex('Lateral Raises','4x12','8','7'), ex('Rear Delt Flyes','3x15','6','6'), ex('Barbell Curl','3x10','20','6')],
-  ]);
-
-  const alexProg = makeProg('Hypertrophy Phase 1', '6-week muscle building for Alex', client2Id, 3, 6, [
-    [ex('Squat','4x8','70','7',true,'Knees feel better this week'), ex('Leg Curl','3x12','35','7',true), ex('Leg Extension','3x12','40','7',true), ex('Calf Raise','4x15','60','6')],
-    [ex('Bench Press','4x8','65','7',true,'','Good tempo, keep it up'), ex('DB Row','4x10','28','7',true), ex('Dips','3x10','BW+10','8'), ex('Cable Curl','3x12','15','6')],
-    [ex('Sumo Deadlift','3x6','110','8',false,'Lower back sore from work, skipped'), ex('Lat Pulldown','4x10','55','7'), ex('Seated OHP','3x10','25','7'), ex('Hammer Curls','3x10','14','6')],
-  ]);
-
-  const selfProg = makeProg('My Own Training', 'Coach Mike personal offseason', client3Id, 5, 4, [
-    [ex('Competition Squat','5x3','140','8',true), ex('Pause Squat','3x3','110','7',true), ex('Belt Squat','3x10','80','6',true)],
-    [ex('Competition Bench','5x3','110','8',true,'Good speed off chest'), ex('Close Grip Bench','3x6','90','7',true), ex('DB Flye','3x12','20','6')],
-    [ex('Competition Deadlift','3x3','180','9',true,'','','https://example.com/vid3'), ex('Block Pull','3x3','200','7',true), ex('Barbell Row','4x8','80','7')],
-    [ex('OHP','4x6','70','7'), ex('Weighted Pull-ups','4x6','BW+20','8'), ex('Lateral Raises','4x15','12','6')],
-    [ex('Front Squat','3x5','100','7'), ex('Good Morning','3x8','60','6'), ex('Ab Wheel','3x12','BW','6')],
-  ]);
-
-  const profile: UserProfile = { id: coachId, name: 'Coach Mike', role: 'coach', weightUnit: 'kg', coachCode: 'LIFT42' };
-  const clients: ClientInfo[] = [
-    { id: client1Id, name: 'Sarah J.', joinedAt: new Date(Date.now() - 30 * 86400000).toISOString() },
-    { id: client2Id, name: 'Alex T.', joinedAt: new Date(Date.now() - 14 * 86400000).toISOString() },
-    { id: client3Id, name: 'Coach Mike', joinedAt: new Date(Date.now() - 7 * 86400000).toISOString() },
-  ];
-  const notifications: AppNotification[] = [
-    { id: Crypto.randomUUID(), type: 'video', title: 'Form Check Video', message: 'Sarah uploaded a video for Bench Press', programId: sarahProg.id, programTitle: sarahProg.title, exerciseName: 'Bench Press', fromRole: 'client', createdAt: new Date(Date.now() - 2 * 3600000).toISOString(), read: false },
-    { id: Crypto.randomUUID(), type: 'notes', title: 'New Client Notes', message: 'Sarah added notes on Deadlift: "PR attempt - got all reps!"', programId: sarahProg.id, programTitle: sarahProg.title, exerciseName: 'Deadlift', fromRole: 'client', createdAt: new Date(Date.now() - 4 * 3600000).toISOString(), read: false },
-    { id: Crypto.randomUUID(), type: 'completion', title: 'Exercise Completed', message: 'Alex completed Bench Press', programId: alexProg.id, programTitle: alexProg.title, exerciseName: 'Bench Press', fromRole: 'client', createdAt: new Date(Date.now() - 8 * 3600000).toISOString(), read: true },
-    { id: Crypto.randomUUID(), type: 'notes', title: 'New Client Notes', message: 'Alex added notes: "Lower back was sore from work"', programId: alexProg.id, programTitle: alexProg.title, exerciseName: 'Sumo Deadlift', fromRole: 'client', createdAt: new Date(Date.now() - 24 * 3600000).toISOString(), read: true },
-    { id: Crypto.randomUUID(), type: 'video', title: 'Form Check Video', message: 'Sarah uploaded a video for Deadlift', programId: sarahProg.id, programTitle: sarahProg.title, exerciseName: 'Deadlift', fromRole: 'client', createdAt: new Date(Date.now() - 48 * 3600000).toISOString(), read: true },
-  ];
-  const prs: LiftPR[] = [
-    { id: Crypto.randomUUID(), liftType: 'squat', weight: 145, unit: 'kg', date: new Date(Date.now() - 7 * 86400000).toISOString(), notes: 'Comp squat PR' },
-    { id: Crypto.randomUUID(), liftType: 'bench', weight: 115, unit: 'kg', date: new Date(Date.now() - 14 * 86400000).toISOString(), notes: '' },
-    { id: Crypto.randomUUID(), liftType: 'deadlift', weight: 185, unit: 'kg', date: new Date(Date.now() - 3 * 86400000).toISOString(), notes: 'Conventional' },
-  ];
-
-  await AsyncStorage.multiSet([
-    [KEYS.PROFILE, JSON.stringify(profile)],
-    [KEYS.CLIENTS, JSON.stringify(clients)],
-    [KEYS.PROGRAMS, JSON.stringify([sarahProg, alexProg, selfProg])],
-    [KEYS.NOTIFICATIONS, JSON.stringify(notifications)],
-    [KEYS.PRs, JSON.stringify(prs)],
-  ]);
+  const result = await apiPost<{ profileId: string }>('/api/seed-demo');
+  await setProfileId(result.profileId);
 }
 
 export function createSampleProgram(coachId: string): Omit<Program, 'id' | 'createdAt' | 'shareCode'> {
@@ -324,6 +349,7 @@ export function createSampleProgram(coachId: string): Omit<Program, 'id' | 'crea
     { name: 'Dips', repsSets: '3x10', weight: 'BW', rpe: '7' },
   ];
 
+  const crypto = require('expo-crypto');
   const weeks: WorkoutWeek[] = [];
   for (let w = 1; w <= 4; w++) {
     const days: WorkoutDay[] = [];
@@ -333,7 +359,7 @@ export function createSampleProgram(coachId: string): Omit<Program, 'id' | 'crea
       for (let e = 0; e < 3; e++) {
         const ex = exercises[(startIdx + e) % exercises.length];
         dayExercises.push({
-          id: Crypto.randomUUID(),
+          id: crypto.randomUUID(),
           name: ex.name,
           weight: ex.weight,
           repsSets: ex.repsSets,
