@@ -118,10 +118,10 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExe
 
   const saveChanges = () => {
     onUpdate({
-      name,
-      repsSets,
-      weight,
-      rpe,
+      name: isCoach ? name : exercise.name,
+      repsSets: isCoach ? repsSets : exercise.repsSets,
+      weight: isCoach ? weight : exercise.weight,
+      rpe: isCoach ? rpe : exercise.rpe,
       notes,
       clientNotes: isCoach ? exercise.clientNotes : clientNotes,
       coachComment: isCoach ? coachComment : exercise.coachComment,
@@ -229,14 +229,22 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExe
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Weight</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={weight}
-                onChangeText={setWeight}
-                onBlur={saveChanges}
-                placeholder={prevWeekExercise?.weight || "e.g., 100kg"}
-                placeholderTextColor={prevWeekExercise?.weight ? Colors.colors.textGhost : Colors.colors.textMuted}
-              />
+              {isCoach ? (
+                <TextInput
+                  style={styles.fieldInput}
+                  value={weight}
+                  onChangeText={setWeight}
+                  onBlur={saveChanges}
+                  placeholder={prevWeekExercise?.weight || "e.g., 100kg"}
+                  placeholderTextColor={prevWeekExercise?.weight ? Colors.colors.textGhost : Colors.colors.textMuted}
+                />
+              ) : (
+                <View style={[styles.fieldInput, styles.readOnlyField]}>
+                  <Text style={[styles.readOnlyText, !weight && prevWeekExercise?.weight ? styles.ghostText : null]}>
+                    {weight || prevWeekExercise?.weight || '-'}
+                  </Text>
+                </View>
+              )}
             </View>
             <View style={{ width: 70 }}>
               <Text style={styles.fieldLabel}>RPE</Text>
