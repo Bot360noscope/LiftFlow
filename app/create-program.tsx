@@ -4,8 +4,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback, useEffect } from "react";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
+import * as Crypto from "expo-crypto";
 import Colors from "@/constants/colors";
-import { addProgram, createSampleProgram, getProfile, cellKey, getEmptyCell } from "@/lib/storage";
+import { addProgram, createSampleProgram, getProfile, type Exercise, type WorkoutWeek, type WorkoutDay } from "@/lib/storage";
 
 export default function CreateProgramScreen() {
   const insets = useSafeAreaInsets();
@@ -13,7 +14,7 @@ export default function CreateProgramScreen() {
   const [description, setDescription] = useState('');
   const [weeks, setWeeks] = useState('4');
   const [daysPerWeek, setDaysPerWeek] = useState('3');
-  const [rows, setRows] = useState('6');
+  const [exercisesPerDay, setExercisesPerDay] = useState('4');
   const [saving, setSaving] = useState(false);
   const [coachId, setCoachId] = useState('');
 
@@ -27,32 +28,44 @@ export default function CreateProgramScreen() {
 
     const numWeeks = parseInt(weeks) || 4;
     const numDays = parseInt(daysPerWeek) || 3;
-    const numRows = parseInt(rows) || 6;
+    const numExercises = parseInt(exercisesPerDay) || 4;
 
-    const cells: Record<string, any> = {};
-    for (let r = 0; r < numRows; r++) {
-      for (let w = 1; w <= numWeeks; w++) {
-        for (let d = 1; d <= numDays; d++) {
-          const key = cellKey(r, w, d);
-          cells[key] = getEmptyCell(r, w, d);
+    const programWeeks: WorkoutWeek[] = [];
+    for (let w = 1; w <= numWeeks; w++) {
+      const days: WorkoutDay[] = [];
+      for (let d = 1; d <= numDays; d++) {
+        const exercises: Exercise[] = [];
+        for (let e = 0; e < numExercises; e++) {
+          exercises.push({
+            id: Crypto.randomUUID(),
+            name: '',
+            weight: '',
+            repsSets: '',
+            rpe: '',
+            isCompleted: false,
+            notes: '',
+            clientNotes: '',
+            coachComment: '',
+            videoUrl: '',
+          });
         }
+        days.push({ dayNumber: d, exercises });
       }
+      programWeeks.push({ weekNumber: w, days });
     }
 
     await addProgram({
       title: title.trim(),
       description: description.trim() || `${numWeeks}-week training program`,
-      totalWeeks: numWeeks,
+      weeks: programWeeks,
       daysPerWeek: numDays,
-      rowCount: numRows,
-      cells,
       coachId,
       clientId: null,
       status: 'active',
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.back();
-  }, [title, description, weeks, daysPerWeek, rows, coachId]);
+  }, [title, description, weeks, daysPerWeek, exercisesPerDay, coachId]);
 
   const handleQuickStart = useCallback(async () => {
     setSaving(true);
@@ -85,7 +98,7 @@ export default function CreateProgramScreen() {
           </View>
           <View style={styles.quickStartInfo}>
             <Text style={styles.quickStartTitle}>Quick Start Template</Text>
-            <Text style={styles.quickStartDesc}>4-week strength program with 6 exercises, 3 days/wk - ready to customize in the spreadsheet</Text>
+            <Text style={styles.quickStartDesc}>4-week strength program with exercises, 3 days/wk - ready to customize</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={Colors.colors.textMuted} />
         </Pressable>
@@ -144,13 +157,13 @@ export default function CreateProgramScreen() {
           </View>
 
           <View style={styles.thirdField}>
-            <Text style={styles.label}>Rows</Text>
+            <Text style={styles.label}>Exercises</Text>
             <View style={styles.counterRow}>
-              <Pressable style={styles.counterBtn} onPress={() => { Haptics.selectionAsync(); setRows(r => String(Math.max(1, parseInt(r) - 1))); }}>
+              <Pressable style={styles.counterBtn} onPress={() => { Haptics.selectionAsync(); setExercisesPerDay(r => String(Math.max(1, parseInt(r) - 1))); }}>
                 <Ionicons name="remove" size={20} color={Colors.colors.text} />
               </Pressable>
-              <Text style={styles.counterValue}>{rows}</Text>
-              <Pressable style={styles.counterBtn} onPress={() => { Haptics.selectionAsync(); setRows(r => String(Math.min(20, parseInt(r) + 1))); }}>
+              <Text style={styles.counterValue}>{exercisesPerDay}</Text>
+              <Pressable style={styles.counterBtn} onPress={() => { Haptics.selectionAsync(); setExercisesPerDay(r => String(Math.min(20, parseInt(r) + 1))); }}>
                 <Ionicons name="add" size={20} color={Colors.colors.text} />
               </Pressable>
             </View>
@@ -159,7 +172,7 @@ export default function CreateProgramScreen() {
 
         <View style={styles.infoBox}>
           <Ionicons name="information-circle" size={18} color={Colors.colors.textSecondary} />
-          <Text style={styles.infoText}>This creates a {weeks}W x {daysPerWeek}D grid with {rows} exercise rows. Each cell can hold exercise name, reps/sets, weight, RPE, notes, and video.</Text>
+          <Text style={styles.infoText}>This creates a {weeks}-week program with {daysPerWeek} training days per week and {exercisesPerDay} exercises per day. You can add or remove exercises later.</Text>
         </View>
 
         <Pressable

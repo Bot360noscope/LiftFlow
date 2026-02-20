@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Ale
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
@@ -41,12 +41,24 @@ export default function ProfileScreen() {
     Haptics.selectionAsync();
   };
 
-  const toggleRole = async () => {
-    const newRole = profile.role === 'client' ? 'coach' : 'client';
-    const updated = { ...profile, role: newRole };
-    await saveProfile(updated);
-    setProfile(updated);
-    Haptics.selectionAsync();
+  const handleSwitchRole = () => {
+    Alert.alert(
+      "Switch Role",
+      "This will reset your role selection. You'll be taken back to the role selection screen.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Switch Role",
+          style: "destructive",
+          onPress: async () => {
+            const updated = { ...profile, name: '' };
+            await saveProfile(updated);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            router.replace('/role-select');
+          }
+        },
+      ]
+    );
   };
 
   const handleClearData = () => {
@@ -133,7 +145,7 @@ export default function ProfileScreen() {
         <Animated.View entering={FadeInDown.delay(200).duration(400)}>
           <Text style={styles.sectionTitle}>Settings</Text>
 
-          <Pressable style={styles.settingItem} onPress={toggleRole}>
+          <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: 'rgba(232, 81, 47, 0.12)' }]}>
                 <Ionicons name="people" size={18} color={Colors.colors.primary} />
@@ -143,8 +155,8 @@ export default function ProfileScreen() {
                 <Text style={styles.settingValue}>{profile.role === 'coach' ? 'Coach' : 'Athlete'}</Text>
               </View>
             </View>
-            <Ionicons name="swap-horizontal" size={20} color={Colors.colors.textMuted} />
-          </Pressable>
+            <Ionicons name="lock-closed" size={16} color={Colors.colors.textMuted} />
+          </View>
 
           <Pressable style={styles.settingItem} onPress={toggleUnit}>
             <View style={styles.settingLeft}>
@@ -157,6 +169,19 @@ export default function ProfileScreen() {
               </View>
             </View>
             <Ionicons name="swap-horizontal" size={20} color={Colors.colors.textMuted} />
+          </Pressable>
+
+          <Pressable style={styles.settingItem} onPress={handleSwitchRole}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: 'rgba(255, 149, 0, 0.12)' }]}>
+                <Ionicons name="swap-vertical" size={18} color={Colors.colors.warning} />
+              </View>
+              <View>
+                <Text style={styles.settingLabel}>Switch Role</Text>
+                <Text style={styles.settingValue}>Go back to role selection</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.colors.textMuted} />
           </Pressable>
         </Animated.View>
 

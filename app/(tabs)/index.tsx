@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -21,10 +21,17 @@ function StatCard({ icon, label, value, color }: { icon: string; label: string; 
 }
 
 function ProgramCard({ program, role }: { program: Program; role: string }) {
-  const cells = program.cells || {};
-  const totalCells = Object.keys(cells).length;
-  const completedCells = Object.values(cells).filter(c => c.isCompleted).length;
-  const progress = totalCells > 0 ? Math.round((completedCells / totalCells) * 100) : 0;
+  let totalExercises = 0;
+  let completedExercises = 0;
+  for (const week of program.weeks) {
+    for (const day of week.days) {
+      for (const ex of day.exercises) {
+        totalExercises++;
+        if (ex.isCompleted) completedExercises++;
+      }
+    }
+  }
+  const progress = totalExercises > 0 ? Math.round((completedExercises / totalExercises) * 100) : 0;
 
   return (
     <Pressable
@@ -38,7 +45,7 @@ function ProgramCard({ program, role }: { program: Program; role: string }) {
       </View>
       <Text style={styles.programDesc} numberOfLines={1}>{program.description}</Text>
       <View style={styles.programMeta}>
-        <Text style={styles.programMetaText}>{program.totalWeeks}W / {program.daysPerWeek}D</Text>
+        <Text style={styles.programMetaText}>{program.weeks.length}W / {program.daysPerWeek}D</Text>
         <View style={styles.progressBar}>
           <View style={[styles.progressFill, { width: `${progress}%` }]} />
         </View>
@@ -207,7 +214,7 @@ export default function HomeScreen() {
             </Pressable>
           </View>
         ) : (
-          recentPrograms.map((prog, idx) => (
+          recentPrograms.map((prog) => (
             <ProgramCard key={prog.id} program={prog} role={profile?.role || 'client'} />
           ))
         )}
@@ -319,9 +326,9 @@ const styles = StyleSheet.create({
   programMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   programMetaText: { fontFamily: 'Rubik_500Medium', fontSize: 11, color: Colors.colors.textSecondary },
   progressBar: {
-    flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.colors.surfaceLight, overflow: 'hidden',
+    flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.colors.surfaceLight, overflow: 'hidden' as const,
   },
-  progressFill: { height: '100%', borderRadius: 2, backgroundColor: Colors.colors.primary },
+  progressFill: { height: '100%' as const, borderRadius: 2, backgroundColor: Colors.colors.primary },
   emptyCard: {
     alignItems: 'center', backgroundColor: Colors.colors.backgroundCard, borderRadius: 14,
     padding: 30, borderWidth: 1, borderColor: Colors.colors.border, gap: 10, marginBottom: 10,
@@ -339,7 +346,7 @@ const styles = StyleSheet.create({
   quickActions: { marginTop: 8 },
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   actionCard: {
-    width: '48%', flexDirection: 'row', alignItems: 'center', gap: 8,
+    width: '48%' as any, flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 14,
     borderWidth: 1, borderColor: Colors.colors.border,
   },

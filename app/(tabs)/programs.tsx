@@ -67,7 +67,7 @@ export default function ProgramsScreen() {
           <Text style={styles.emptyTitle}>No programs yet</Text>
           <Text style={styles.emptyDesc}>
             {role === 'coach'
-              ? 'Create a program with the spreadsheet builder and share it with clients'
+              ? 'Create a program and share it with clients'
               : 'Ask your coach for a program share code to get started'}
           </Text>
           <Pressable style={styles.createBtn} onPress={() => router.push('/create-program')}>
@@ -77,12 +77,21 @@ export default function ProgramsScreen() {
         </View>
       ) : (
         programs.map((prog, idx) => {
-          const cells = prog.cells || {};
-          const totalCells = Object.keys(cells).length;
-          const completedCells = Object.values(cells).filter(c => c.isCompleted).length;
-          const progress = totalCells > 0 ? Math.round((completedCells / totalCells) * 100) : 0;
-          const hasComments = Object.values(cells).some(c => c.coachComment);
-          const hasVideos = Object.values(cells).some(c => c.videoUrl);
+          let totalExercises = 0;
+          let completedExercises = 0;
+          let hasComments = false;
+          let hasVideos = false;
+          for (const week of prog.weeks) {
+            for (const day of week.days) {
+              for (const ex of day.exercises) {
+                totalExercises++;
+                if (ex.isCompleted) completedExercises++;
+                if (ex.coachComment || ex.clientNotes) hasComments = true;
+                if (ex.videoUrl) hasVideos = true;
+              }
+            }
+          }
+          const progress = totalExercises > 0 ? Math.round((completedExercises / totalExercises) * 100) : 0;
 
           return (
             <Animated.View key={prog.id} entering={FadeInDown.delay(idx * 60).duration(300)}>
@@ -107,7 +116,7 @@ export default function ProgramsScreen() {
                 <View style={styles.cardStats}>
                   <View style={styles.cardStat}>
                     <Ionicons name="calendar-outline" size={14} color={Colors.colors.textSecondary} />
-                    <Text style={styles.cardStatText}>{prog.totalWeeks} weeks</Text>
+                    <Text style={styles.cardStatText}>{prog.weeks.length} weeks</Text>
                   </View>
                   <View style={styles.cardStat}>
                     <Ionicons name="today-outline" size={14} color={Colors.colors.textSecondary} />
@@ -115,7 +124,7 @@ export default function ProgramsScreen() {
                   </View>
                   <View style={styles.cardStat}>
                     <Ionicons name="list-outline" size={14} color={Colors.colors.textSecondary} />
-                    <Text style={styles.cardStatText}>{prog.rowCount} exercises</Text>
+                    <Text style={styles.cardStatText}>{totalExercises} exercises</Text>
                   </View>
                   {hasComments && (
                     <View style={styles.cardStat}>
@@ -180,7 +189,7 @@ const styles = StyleSheet.create({
   cardStat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   cardStatText: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textSecondary },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
-  progressBarBg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.colors.surfaceLight, overflow: 'hidden' },
-  progressBarFill: { height: '100%', borderRadius: 2, backgroundColor: Colors.colors.primary },
+  progressBarBg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.colors.surfaceLight, overflow: 'hidden' as const },
+  progressBarFill: { height: '100%' as const, borderRadius: 2, backgroundColor: Colors.colors.primary },
   progressText: { fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: Colors.colors.textSecondary, width: 32, textAlign: 'right' },
 });

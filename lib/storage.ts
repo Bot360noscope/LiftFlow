@@ -1,34 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 
-export interface CellData {
-  cellId: string;
-  exerciseName: string;
-  weight: string;
-  repsSets: string;
-  rpe: string;
-  videoUrl: string;
-  isCompleted: boolean;
-  clientNotes: string;
-  coachComment: string;
-  completedAt: string | null;
-}
-
-export interface Program {
-  id: string;
-  title: string;
-  description: string;
-  totalWeeks: number;
-  daysPerWeek: number;
-  rowCount: number;
-  cells: Record<string, CellData>;
-  shareCode: string;
-  coachId: string;
-  clientId: string | null;
-  status: 'draft' | 'active' | 'completed';
-  createdAt: string;
-}
-
 export interface LiftPR {
   id: string;
   liftType: 'squat' | 'deadlift' | 'bench';
@@ -36,6 +8,42 @@ export interface LiftPR {
   unit: 'kg' | 'lbs';
   date: string;
   notes: string;
+}
+
+export interface Exercise {
+  id: string;
+  name: string;
+  weight: string;
+  repsSets: string;
+  rpe: string;
+  isCompleted: boolean;
+  notes: string;
+  clientNotes: string;
+  coachComment: string;
+  videoUrl: string;
+}
+
+export interface WorkoutDay {
+  dayNumber: number;
+  exercises: Exercise[];
+}
+
+export interface WorkoutWeek {
+  weekNumber: number;
+  days: WorkoutDay[];
+}
+
+export interface Program {
+  id: string;
+  title: string;
+  description: string;
+  weeks: WorkoutWeek[];
+  createdAt: string;
+  daysPerWeek: number;
+  shareCode: string;
+  coachId: string;
+  clientId: string | null;
+  status: 'draft' | 'active' | 'completed';
 }
 
 export interface UserProfile {
@@ -52,10 +60,6 @@ const KEYS = {
   PROFILE: 'liftflow_profile',
 };
 
-export function cellKey(rowIdx: number, weekNum: number, dayNum: number): string {
-  return `${rowIdx}-${weekNum}-${dayNum}`;
-}
-
 export function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -63,24 +67,6 @@ export function generateCode(): string {
     code += chars[Math.floor(Math.random() * chars.length)];
   }
   return code;
-}
-
-export async function getProfile(): Promise<UserProfile> {
-  const data = await AsyncStorage.getItem(KEYS.PROFILE);
-  if (data) return JSON.parse(data);
-  const defaultProfile: UserProfile = {
-    id: Crypto.randomUUID(),
-    name: '',
-    role: 'coach',
-    weightUnit: 'kg',
-    coachCode: generateCode(),
-  };
-  await AsyncStorage.setItem(KEYS.PROFILE, JSON.stringify(defaultProfile));
-  return defaultProfile;
-}
-
-export async function saveProfile(profile: UserProfile): Promise<void> {
-  await AsyncStorage.setItem(KEYS.PROFILE, JSON.stringify(profile));
 }
 
 export async function getPRs(): Promise<LiftPR[]> {
@@ -98,18 +84,15 @@ export async function addPR(pr: Omit<LiftPR, 'id'>): Promise<LiftPR> {
 
 export async function deletePR(id: string): Promise<void> {
   const prs = await getPRs();
-  await AsyncStorage.setItem(KEYS.PRs, JSON.stringify(prs.filter(pr => pr.id !== id)));
+  const filtered = prs.filter(pr => pr.id !== id);
+  await AsyncStorage.setItem(KEYS.PRs, JSON.stringify(filtered));
 }
 
 export async function getPrograms(): Promise<Program[]> {
   const data = await AsyncStorage.getItem(KEYS.PROGRAMS);
   if (!data) return [];
   const parsed = JSON.parse(data);
-  const valid = parsed.filter((p: any) => p.cells && typeof p.cells === 'object');
-  if (valid.length !== parsed.length) {
-    await AsyncStorage.setItem(KEYS.PROGRAMS, JSON.stringify(valid));
-  }
-  return valid;
+  return parsed.filter((p: any) => p.weeks && Array.isArray(p.weeks));
 }
 
 export async function getProgram(id: string): Promise<Program | null> {
@@ -141,7 +124,26 @@ export async function updateProgram(program: Program): Promise<void> {
 
 export async function deleteProgram(id: string): Promise<void> {
   const programs = await getPrograms();
-  await AsyncStorage.setItem(KEYS.PROGRAMS, JSON.stringify(programs.filter(p => p.id !== id)));
+  const filtered = programs.filter(p => p.id !== id);
+  await AsyncStorage.setItem(KEYS.PROGRAMS, JSON.stringify(filtered));
+}
+
+export async function getProfile(): Promise<UserProfile> {
+  const data = await AsyncStorage.getItem(KEYS.PROFILE);
+  if (data) return JSON.parse(data);
+  const defaultProfile: UserProfile = {
+    id: Crypto.randomUUID(),
+    name: '',
+    role: 'client',
+    weightUnit: 'kg',
+    coachCode: generateCode(),
+  };
+  await AsyncStorage.setItem(KEYS.PROFILE, JSON.stringify(defaultProfile));
+  return defaultProfile;
+}
+
+export async function saveProfile(profile: UserProfile): Promise<void> {
+  await AsyncStorage.setItem(KEYS.PROFILE, JSON.stringify(profile));
 }
 
 export function getBestPR(prs: LiftPR[], liftType: string): LiftPR | null {
@@ -150,61 +152,49 @@ export function getBestPR(prs: LiftPR[], liftType: string): LiftPR | null {
   return filtered.reduce((best, curr) => curr.weight > best.weight ? curr : best);
 }
 
-export function getEmptyCell(rowIdx: number, weekNum: number, dayNum: number): CellData {
-  return {
-    cellId: `${rowIdx}-${weekNum}-${dayNum}`,
-    exerciseName: '',
-    weight: '',
-    repsSets: '',
-    rpe: '',
-    videoUrl: '',
-    isCompleted: false,
-    clientNotes: '',
-    coachComment: '',
-    completedAt: null,
-  };
-}
-
 export function createSampleProgram(coachId: string): Omit<Program, 'id' | 'createdAt' | 'shareCode'> {
-  const exerciseTemplates = [
-    { name: 'Squat', rx: '5x5' },
-    { name: 'Bench Press', rx: '4x8' },
-    { name: 'Barbell Row', rx: '4x8' },
-    { name: 'Overhead Press', rx: '3x10' },
-    { name: 'Deadlift', rx: '3x5' },
-    { name: 'Pull-ups', rx: '3x8' },
+  const exercises = [
+    { name: 'Squat', repsSets: '5x5', weight: '', rpe: '7' },
+    { name: 'Bench Press', repsSets: '4x8', weight: '', rpe: '7' },
+    { name: 'Barbell Row', repsSets: '4x8', weight: '', rpe: '7' },
+    { name: 'Overhead Press', repsSets: '3x10', weight: '', rpe: '6' },
+    { name: 'Deadlift', repsSets: '3x5', weight: '', rpe: '8' },
+    { name: 'Pull-ups', repsSets: '3x8', weight: 'BW', rpe: '7' },
+    { name: 'Lunges', repsSets: '3x10', weight: '', rpe: '6' },
+    { name: 'Dips', repsSets: '3x10', weight: 'BW', rpe: '7' },
   ];
 
-  const cells: Record<string, CellData> = {};
-  const rowCount = exerciseTemplates.length;
-
-  for (let row = 0; row < rowCount; row++) {
-    for (let week = 1; week <= 4; week++) {
-      for (let day = 1; day <= 3; day++) {
-        const key = cellKey(row, week, day);
-        cells[key] = {
-          cellId: key,
-          exerciseName: exerciseTemplates[row].name,
-          weight: '',
-          repsSets: exerciseTemplates[row].rx,
-          rpe: '7',
-          videoUrl: '',
+  const weeks: WorkoutWeek[] = [];
+  for (let w = 1; w <= 4; w++) {
+    const days: WorkoutDay[] = [];
+    for (let d = 1; d <= 3; d++) {
+      const dayExercises: Exercise[] = [];
+      const startIdx = ((d - 1) * 3) % exercises.length;
+      for (let e = 0; e < 3; e++) {
+        const ex = exercises[(startIdx + e) % exercises.length];
+        dayExercises.push({
+          id: Crypto.randomUUID(),
+          name: ex.name,
+          weight: ex.weight,
+          repsSets: ex.repsSets,
+          rpe: ex.rpe,
           isCompleted: false,
+          notes: '',
           clientNotes: '',
           coachComment: '',
-          completedAt: null,
-        };
+          videoUrl: '',
+        });
       }
+      days.push({ dayNumber: d, exercises: dayExercises });
     }
+    weeks.push({ weekNumber: w, days });
   }
 
   return {
     title: 'Strength Foundations',
     description: '4-week beginner strength program',
-    totalWeeks: 4,
+    weeks,
     daysPerWeek: 3,
-    rowCount,
-    cells,
     coachId,
     clientId: null,
     status: 'active',
