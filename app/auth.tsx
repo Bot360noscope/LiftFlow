@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, Pressable, Platform, TextInput, KeyboardAvoidingView, ScrollView, ActivityIndicator } from "react-native";
+import { StyleSheet, Text, View, Pressable, Platform, TextInput, KeyboardAvoidingView, ScrollView, ActivityIndicator, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
@@ -166,6 +166,21 @@ export default function AuthScreen() {
               <Text style={styles.switchLink}>{mode === 'login' ? 'Sign Up' : 'Sign In'}</Text>
             </Pressable>
           </View>
+
+          <View style={styles.legalRow}>
+            <Text style={styles.legalText}>
+              By continuing, you agree to our{' '}
+              <Text style={styles.legalLink} onPress={() => {
+                const base = Platform.OS === 'web' ? '' : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
+                Linking.openURL(`${base}/terms`);
+              }}>Terms of Service</Text>
+              {' '}and{' '}
+              <Text style={styles.legalLink} onPress={() => {
+                const base = Platform.OS === 'web' ? '' : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
+                Linking.openURL(`${base}/privacy`);
+              }}>Privacy Policy</Text>
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -216,4 +231,7 @@ const styles = StyleSheet.create({
   switchRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 20 },
   switchText: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textSecondary },
   switchLink: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: Colors.colors.primary },
+  legalRow: { marginTop: 24, alignItems: 'center', paddingHorizontal: 12 },
+  legalText: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, textAlign: 'center' as const, lineHeight: 18 },
+  legalLink: { color: Colors.colors.primary, fontFamily: 'Rubik_500Medium' },
 });

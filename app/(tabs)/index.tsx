@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback, useRef } from "react";
@@ -6,6 +6,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
+import NetworkError from "@/components/NetworkError";
 import {
   getProfile, getPrograms, getPRs, getBestPR, getClients, getNotifications,
   clearAllNotifications, deleteNotification,
@@ -181,6 +182,8 @@ export default function HomeScreen() {
   const [clients, setClients] = useState<ClientInfo[]>(getCachedClients());
   const [notifications, setNotifications] = useState<AppNotification[]>(getCachedNotifications());
   const [clientSearch, setClientSearch] = useState('');
+  const [loading, setLoading] = useState(!getCachedProfile());
+  const [error, setError] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -196,8 +199,11 @@ export default function HomeScreen() {
       setPRs(prData);
       setClients(cl);
       setNotifications(notifs);
+      setError(false);
     } catch (e) {
-      console.warn('Failed to load data:', e);
+      setError(true);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -245,6 +251,18 @@ export default function HomeScreen() {
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 84 : 0;
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.colors.background }}>
+        <ActivityIndicator size="large" color={Colors.colors.primary} />
+      </View>
+    );
+  }
+
+  if (error && !getCachedProfile()) {
+    return <NetworkError onRetry={loadData} />;
+  }
 
   return (
     <ScrollView

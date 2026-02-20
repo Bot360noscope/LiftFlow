@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
@@ -6,6 +6,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
+import NetworkError from "@/components/NetworkError";
 import { confirmAction, showAlert } from "@/lib/confirm";
 import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, seedDemoData, deleteAccount, getCachedProfile, getCachedPRs, getCachedPrograms, getCachedClients, type UserProfile } from "@/lib/storage";
 import { useAuth } from "@/lib/auth-context";
@@ -58,11 +59,21 @@ export default function ProfileScreen() {
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  const [loading, setLoading] = useState(!getCachedProfile());
+  const [error, setError] = useState(false);
+
   const loadData = useCallback(async () => {
-    const [p, prs, progs, cl] = await Promise.all([getProfile(), getPRs(), getPrograms(), getClients()]);
-    setProfile(p);
-    setNameInput(p.name);
-    setStats({ prs: prs.length, programs: progs.length, clients: cl.length });
+    try {
+      const [p, prs, progs, cl] = await Promise.all([getProfile(), getPRs(), getPrograms(), getClients()]);
+      setProfile(p);
+      setNameInput(p.name);
+      setStats({ prs: prs.length, programs: progs.length, clients: cl.length });
+      setError(false);
+    } catch (e) {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
@@ -121,6 +132,18 @@ export default function ProfileScreen() {
 
   const isCoach = profile.role === 'coach';
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.colors.background }}>
+        <ActivityIndicator size="large" color={Colors.colors.primary} />
+      </View>
+    );
+  }
+
+  if (error && !getCachedProfile()) {
+    return <NetworkError onRetry={loadData} />;
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>

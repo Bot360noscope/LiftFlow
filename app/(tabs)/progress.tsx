@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, ActivityIndicator } from "react-native";
 import { confirmAction } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,6 +7,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
+import NetworkError from "@/components/NetworkError";
 import { getPRs, deletePR, getProfile, getBestPR, getPrograms, getClients, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, type LiftPR, type Program, type ClientInfo } from "@/lib/storage";
 
 const LIFT_COLORS: Record<string, string> = {
@@ -96,13 +97,23 @@ export default function ProgressScreen() {
   const [programs, setPrograms] = useState<Program[]>(getCachedPrograms());
   const [clients, setClients] = useState<ClientInfo[]>(getCachedClients());
 
+  const [loading, setLoading] = useState(!getCachedProfile());
+  const [error, setError] = useState(false);
+
   const loadData = useCallback(async () => {
-    const [prData, profile, progs, cl] = await Promise.all([getPRs(), getProfile(), getPrograms(), getClients()]);
-    setPRs(prData);
-    setUnit(profile.weightUnit);
-    setIsCoach(profile.role === 'coach');
-    setPrograms(progs);
-    setClients(cl);
+    try {
+      const [prData, profile, progs, cl] = await Promise.all([getPRs(), getProfile(), getPrograms(), getClients()]);
+      setPRs(prData);
+      setUnit(profile.weightUnit);
+      setIsCoach(profile.role === 'coach');
+      setPrograms(progs);
+      setClients(cl);
+      setError(false);
+    } catch (e) {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
@@ -127,6 +138,18 @@ export default function ProgressScreen() {
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 84 : 0;
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.colors.background }}>
+        <ActivityIndicator size="large" color={Colors.colors.primary} />
+      </View>
+    );
+  }
+
+  if (error && !getCachedProfile()) {
+    return <NetworkError onRetry={loadData} />;
+  }
 
   if (isCoach) {
     return (

@@ -40,53 +40,81 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 
 export async function apiGet<T>(path: string): Promise<T> {
   const authHeaders = await getAuthHeaders();
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { ...authHeaders },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || res.statusText);
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      headers: { ...authHeaders },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || res.statusText);
+    }
+    return res.json();
+  } catch (e: any) {
+    if (e.message && !e.message.includes('Unable to connect')) {
+      throw new Error('Unable to connect. Please check your internet connection.');
+    }
+    throw e;
   }
-  return res.json();
 }
 
 export async function apiPost<T>(path: string, body?: any): Promise<T> {
   const authHeaders = await getAuthHeaders();
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || res.statusText);
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || res.statusText);
+    }
+    return res.json();
+  } catch (e: any) {
+    if (e.message && !e.message.includes('Unable to connect')) {
+      throw new Error('Unable to connect. Please check your internet connection.');
+    }
+    throw e;
   }
-  return res.json();
 }
 
 export async function apiPut<T>(path: string, body?: any): Promise<T> {
   const authHeaders = await getAuthHeaders();
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...authHeaders },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || res.statusText);
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || res.statusText);
+    }
+    return res.json();
+  } catch (e: any) {
+    if (e.message && !e.message.includes('Unable to connect')) {
+      throw new Error('Unable to connect. Please check your internet connection.');
+    }
+    throw e;
   }
-  return res.json();
 }
 
 export async function apiDelete(path: string): Promise<void> {
   const authHeaders = await getAuthHeaders();
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'DELETE',
-    headers: { ...authHeaders },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || res.statusText);
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      method: 'DELETE',
+      headers: { ...authHeaders },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || res.statusText);
+    }
+  } catch (e: any) {
+    if (e.message && !e.message.includes('Unable to connect')) {
+      throw new Error('Unable to connect. Please check your internet connection.');
+    }
+    throw e;
   }
 }
 

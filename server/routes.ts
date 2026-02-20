@@ -636,6 +636,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  const legalPageStyle = `
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap');
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #121212; color: #E5E5E5; font-family: 'Rubik', sans-serif; line-height: 1.7; padding: 24px; }
+      .container { max-width: 680px; margin: 0 auto; }
+      .back { display: inline-block; color: #E8512F; text-decoration: none; font-weight: 600; font-size: 14px; margin-bottom: 24px; }
+      .back:hover { text-decoration: underline; }
+      h1 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+      .updated { font-size: 13px; color: #888; margin-bottom: 32px; }
+      h2 { font-size: 18px; font-weight: 600; color: #E8512F; margin-top: 28px; margin-bottom: 10px; }
+      p, li { font-size: 15px; color: #ccc; margin-bottom: 10px; }
+      ul { padding-left: 20px; margin-bottom: 12px; }
+      a { color: #E8512F; }
+    </style>`;
+
+  app.get("/privacy", (_req, res) => {
+    res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Privacy Policy - LiftFlow</title>${legalPageStyle}</head><body><div class="container">
+      <a class="back" href="javascript:history.back()">Back</a>
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated: February 2026</p>
+
+      <h2>1. Information We Collect</h2>
+      <p>When you use LiftFlow, we collect the following information:</p>
+      <ul>
+        <li>Account information: your email address and name</li>
+        <li>Workout data: exercises, weights, sets, reps, and RPE values</li>
+        <li>Personal records (PRs) you log</li>
+        <li>Training videos you upload for form checks</li>
+        <li>Chat messages between coaches and clients</li>
+      </ul>
+
+      <h2>2. How We Use Your Data</h2>
+      <p>We use your data to provide the LiftFlow coaching service, including syncing your workout programs, personal records, and messages across your devices. Your data powers the features you use every day.</p>
+
+      <h2>3. Data Storage & Security</h2>
+      <p>Your data is securely stored on our servers. Passwords are hashed using industry-standard algorithms and are never stored in plain text. We take reasonable measures to protect your information from unauthorized access.</p>
+
+      <h2>4. Video Uploads</h2>
+      <p>Training videos you upload are stored on our servers and are only accessible by you and your coach. Videos are not shared publicly or with any other users.</p>
+
+      <h2>5. Third Parties</h2>
+      <p>We do not sell or share your personal data with third parties. Your information stays within LiftFlow and is used solely to provide our service to you.</p>
+
+      <h2>6. Account Deletion</h2>
+      <p>You can permanently delete your account and all associated data at any time from the Profile screen within the app. Once deleted, your data cannot be recovered.</p>
+
+      <h2>7. Contact Us</h2>
+      <p>If you have any questions about this Privacy Policy, please contact us at <a href="mailto:support@liftflow.app">support@liftflow.app</a>.</p>
+    </div></body></html>`);
+  });
+
+  app.get("/terms", (_req, res) => {
+    res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Terms of Service - LiftFlow</title>${legalPageStyle}</head><body><div class="container">
+      <a class="back" href="javascript:history.back()">Back</a>
+      <h1>Terms of Service</h1>
+      <p class="updated">Last updated: February 2026</p>
+
+      <h2>1. Acceptance of Terms</h2>
+      <p>By accessing or using LiftFlow, you agree to be bound by these Terms of Service. If you do not agree, please do not use the app.</p>
+
+      <h2>2. Description of Service</h2>
+      <p>LiftFlow is a fitness coaching platform that connects coaches and clients. Coaches can create and assign training programs, review form-check videos, and communicate with clients through in-app messaging.</p>
+
+      <h2>3. User Accounts</h2>
+      <p>You are responsible for keeping your login credentials secure. You agree to notify us immediately of any unauthorized use of your account. LiftFlow is not liable for any loss resulting from unauthorized access to your account.</p>
+
+      <h2>4. User Content</h2>
+      <p>You retain ownership of all content you create or upload to LiftFlow, including workout data, training videos, and notes. By using the service, you grant LiftFlow a limited license to store and display your content as needed to provide the service.</p>
+
+      <h2>5. Acceptable Use</h2>
+      <p>You agree not to use LiftFlow to:</p>
+      <ul>
+        <li>Harass, abuse, or threaten other users</li>
+        <li>Upload harmful, offensive, or illegal content</li>
+        <li>Attempt to gain unauthorized access to other accounts or systems</li>
+        <li>Use the platform for any purpose other than its intended fitness coaching functionality</li>
+      </ul>
+
+      <h2>6. Coach-Client Relationship</h2>
+      <p>LiftFlow is a platform that facilitates communication between coaches and clients. LiftFlow is not a medical provider, fitness advisor, or healthcare professional. Any fitness advice provided through the platform is the sole responsibility of the coach. Always consult a qualified professional before starting any exercise program.</p>
+
+      <h2>7. Limitation of Liability</h2>
+      <p>LiftFlow is provided "as is" without warranties of any kind. To the fullest extent permitted by law, LiftFlow shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the service, including any injuries sustained during workouts.</p>
+
+      <h2>8. Changes to Terms</h2>
+      <p>We may update these Terms of Service from time to time. Continued use of LiftFlow after changes are posted constitutes your acceptance of the revised terms. We encourage you to review these terms periodically.</p>
+
+      <h2>9. Contact Us</h2>
+      <p>If you have any questions about these Terms of Service, please contact us at <a href="mailto:support@liftflow.app">support@liftflow.app</a>.</p>
+    </div></body></html>`);
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

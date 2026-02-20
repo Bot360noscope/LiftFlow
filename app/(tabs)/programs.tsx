@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, ActivityIndicator } from "react-native";
 import { confirmAction } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,17 +7,27 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
+import NetworkError from "@/components/NetworkError";
 import { getPrograms, deleteProgram, getProfile, getCachedPrograms, getCachedProfile, type Program } from "@/lib/storage";
 
 export default function ProgramsScreen() {
   const insets = useSafeAreaInsets();
   const [programs, setPrograms] = useState<Program[]>(getCachedPrograms());
   const [role, setRole] = useState<string>(getCachedProfile()?.role || 'coach');
+  const [loading, setLoading] = useState(getCachedPrograms().length === 0 && !getCachedProfile());
+  const [error, setError] = useState(false);
 
   const loadData = useCallback(async () => {
-    const [progs, profile] = await Promise.all([getPrograms(), getProfile()]);
-    setPrograms(progs);
-    setRole(profile.role);
+    try {
+      const [progs, profile] = await Promise.all([getPrograms(), getProfile()]);
+      setPrograms(progs);
+      setRole(profile.role);
+      setError(false);
+    } catch (e) {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
@@ -32,6 +42,18 @@ export default function ProgramsScreen() {
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 84 : 0;
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.colors.background }}>
+        <ActivityIndicator size="large" color={Colors.colors.primary} />
+      </View>
+    );
+  }
+
+  if (error && getCachedPrograms().length === 0) {
+    return <NetworkError onRetry={loadData} />;
+  }
 
   return (
     <ScrollView
