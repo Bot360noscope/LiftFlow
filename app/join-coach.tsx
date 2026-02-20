@@ -30,11 +30,11 @@ export default function JoinCoachScreen() {
         [{ text: "OK", onPress: () => router.back() }]
       );
     } catch (err: any) {
-      const msg = err?.message || '';
-      if (msg.includes('404') || msg.includes('Invalid')) {
-        Alert.alert("Invalid Code", "No coach found with that code. Please check and try again.");
+      const msg = err?.message || 'Unknown error';
+      if (msg.includes('Invalid') || msg.includes('Not Found') || msg.includes('404')) {
+        Alert.alert("Invalid Code", "No coach found with that code. Please double-check and try again.");
       } else {
-        Alert.alert("Error", "Could not connect to coach. Please try again.");
+        Alert.alert("Connection Error", `Could not connect to coach. ${msg}`);
       }
     } finally {
       setJoining(false);
