@@ -59,24 +59,13 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleSwitchRole = () => {
-    Alert.alert(
-      "Switch Role",
-      "This will reset your role selection. You'll be taken back to the role selection screen.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Switch Role",
-          style: "destructive",
-          onPress: async () => {
-            const updated = { ...profile, name: '' };
-            await saveProfile(updated);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            router.replace('/role-select');
-          },
-        },
-      ]
-    );
+  const toggleRole = async () => {
+    const newRole = profile.role === 'coach' ? 'client' : 'coach';
+    const updated = { ...profile, role: newRole };
+    await saveProfile(updated);
+    setProfile(updated);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    loadData();
   };
 
   const handleClearData = () => {
@@ -195,18 +184,18 @@ export default function ProfileScreen() {
         <Animated.View entering={FadeInDown.delay(200).duration(400)}>
           <Text style={styles.sectionTitle}>Settings</Text>
 
-          <View style={styles.settingItem}>
+          <Pressable style={styles.settingItem} onPress={toggleRole}>
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: 'rgba(232, 81, 47, 0.12)' }]}>
-                <Ionicons name="people" size={18} color={Colors.colors.primary} />
+                <Ionicons name={isCoach ? 'school' : 'fitness'} size={18} color={Colors.colors.primary} />
               </View>
               <View>
                 <Text style={styles.settingLabel}>Role</Text>
                 <Text style={styles.settingValue}>{isCoach ? 'Coach' : 'Athlete'}</Text>
               </View>
             </View>
-            <Ionicons name="lock-closed" size={16} color={Colors.colors.textMuted} />
-          </View>
+            <Ionicons name="swap-horizontal" size={20} color={Colors.colors.primary} />
+          </Pressable>
 
           <Pressable style={styles.settingItem} onPress={toggleUnit}>
             <View style={styles.settingLeft}>
@@ -219,19 +208,6 @@ export default function ProfileScreen() {
               </View>
             </View>
             <Ionicons name="swap-horizontal" size={20} color={Colors.colors.textMuted} />
-          </Pressable>
-
-          <Pressable style={styles.settingItem} onPress={handleSwitchRole}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.settingIcon, { backgroundColor: 'rgba(255, 149, 0, 0.12)' }]}>
-                <Ionicons name="swap-vertical" size={18} color={Colors.colors.warning} />
-              </View>
-              <View>
-                <Text style={styles.settingLabel}>Switch Role</Text>
-                <Text style={styles.settingValue}>Go back to role selection</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.colors.textMuted} />
           </Pressable>
         </Animated.View>
 
