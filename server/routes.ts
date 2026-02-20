@@ -751,6 +751,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     </div></body></html>`);
   });
 
+  async function cleanupExpiredVideos() {
+    try {
+      const now = new Date();
+      const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      const viewedExpired = await db.select().from(videoUploads)
+        .where(and(isNotNull(videoUploads.coachViewedAt), lt(videoUploads.coachViewedAt, threeDaysAgo)));
+
+      const unviewedExpired = await db.select().from(videoUploads)
+        .where(and(isNull(videoUploads.coachViewedAt), lt(videoUploads.uploadedAt, sevenDaysAgo)));
+
+      const toDelete = [...viewedExpired, ...unviewedExpired];
+
+      for (const record of toDelete) {
+        const filePath = path.join(uploadsDir, record.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+
+        const allPrograms = await db.select().from(programs)
+          .where(eq(programs.id, record.programId));
+
+        for (const prog of allPrograms) {
+          const weeks = prog.weeks as any[];
+          let changed = false;
+          for (const week of weeks) {
+            for (const day of week.days) {
+              for (const ex of day.exercises) {
+                if (ex.id === record.exerciseId && ex.videoUrl && ex.videoUrl.includes(record.filename)) {
+                  ex.videoUrl = '';
+                  changed = true;
+                }
+              }
+            }
+          }
+          if (changed) {
+            await db.update(programs).set({ weeks }).where(eq(programs.id, prog.id));
+          }
+        }
+
+        await db.delete(videoUploads).where(eq(videoUploads.id, record.id));
+      }
+
+      if (toDelete.length > 0) {
+        console.log(`[Video Cleanup] Deleted ${toDelete.length} expired video(s)`);
+      }
+    } catch (err) {
+      console.error('[Video Cleanup] Error:', err);
+    }
+  }
+
+  setInterval(cleanupExpiredVideos, 60 * 60 * 1000);
+  cleanupExpiredVideos();
+
   const httpServer = createServer(app);
   return httpServer;
 }
