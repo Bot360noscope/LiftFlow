@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Alert } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform } from "react-native";
+import { confirmAction } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback } from "react";
@@ -22,17 +23,11 @@ export default function ProgramsScreen() {
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
   const handleDelete = (id: string, title: string) => {
-    Alert.alert("Delete Program", `Delete "${title}"? This cannot be undone.`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete", style: "destructive",
-        onPress: async () => {
-          await deleteProgram(id);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          loadData();
-        },
-      },
-    ]);
+    confirmAction("Delete Program", `Delete "${title}"? This cannot be undone.`, async () => {
+      await deleteProgram(id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      loadData();
+    }, "Delete");
   };
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;

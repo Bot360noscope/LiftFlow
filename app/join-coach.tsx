@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View, Pressable, Platform, TextInput, Alert } from "react-native";
+import { StyleSheet, Text, View, Pressable, Platform, TextInput } from "react-native";
+import { showAlert } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
@@ -17,24 +18,24 @@ export default function JoinCoachScreen() {
   const handleJoin = async () => {
     const trimmed = code.trim().toUpperCase();
     if (trimmed.length < 4) {
-      Alert.alert("Invalid Code", "Please enter a valid coach code.");
+      showAlert("Invalid Code", "Please enter a valid coach code.");
       return;
     }
     setJoining(true);
     try {
       const result = await joinCoach(trimmed);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
+      showAlert(
         "Connected!",
-        `You've joined coach ${result.coach.name || 'your coach'}. They can now assign training programs to you.`,
-        [{ text: "OK", onPress: () => router.back() }]
+        `You've joined coach ${result.coach.name || 'your coach'}. They can now assign training programs to you.`
       );
+      router.back();
     } catch (err: any) {
       const msg = err?.message || 'Unknown error';
       if (msg.includes('Invalid') || msg.includes('Not Found') || msg.includes('404')) {
-        Alert.alert("Invalid Code", "No coach found with that code. Please double-check and try again.");
+        showAlert("Invalid Code", "No coach found with that code. Please double-check and try again.");
       } else {
-        Alert.alert("Connection Error", `Could not connect to coach. ${msg}`);
+        showAlert("Connection Error", `Could not connect to coach. ${msg}`);
       }
     } finally {
       setJoining(false);

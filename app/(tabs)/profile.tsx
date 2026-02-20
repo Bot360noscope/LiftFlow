@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Alert } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
@@ -6,6 +6,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
+import { confirmAction, showAlert } from "@/lib/confirm";
 import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, seedDemoData, type UserProfile } from "@/lib/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -76,20 +77,15 @@ export default function ProfileScreen() {
   };
 
   const handleResetCoachCode = () => {
-    Alert.alert(
+    confirmAction(
       "Reset Coach Code",
       "This will generate a new coach code. Existing clients will still be connected, but new clients will need the updated code.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reset Code",
-          onPress: async () => {
-            const newCode = await resetCoachCode();
-            setProfile({ ...profile, coachCode: newCode });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          },
-        },
-      ]
+      async () => {
+        const newCode = await resetCoachCode();
+        setProfile({ ...profile, coachCode: newCode });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      },
+      "Reset Code"
     );
   };
 
@@ -103,21 +99,15 @@ export default function ProfileScreen() {
   };
 
   const handleClearData = () => {
-    Alert.alert(
+    confirmAction(
       "Clear All Data",
       "This will delete all your programs, PRs, and settings. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear Everything",
-          style: "destructive",
-          onPress: async () => {
-            await AsyncStorage.clear();
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            router.replace('/role-select');
-          },
-        },
-      ]
+      async () => {
+        await AsyncStorage.clear();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        router.replace('/role-select');
+      },
+      "Clear Everything"
     );
   };
 
@@ -241,7 +231,7 @@ export default function ProfileScreen() {
             await seedDemoData();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             loadData();
-            Alert.alert("Demo Data Loaded", "Coach Mike with 3 clients (Sarah, Alex, and yourself) has been set up. Each client has their own program with exercise data, notes, and videos.");
+            showAlert("Demo Data Loaded", "Coach Mike with 3 clients (Sarah, Alex, and yourself) has been set up. Each client has their own program with exercise data, notes, and videos.");
           }}>
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: 'rgba(52, 199, 89, 0.12)' }]}>

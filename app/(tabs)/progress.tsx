@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Alert } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform } from "react-native";
+import { confirmAction } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState, useMemo } from "react";
@@ -117,17 +118,11 @@ export default function ProgressScreen() {
   [prs]);
 
   const handleDelete = (pr: LiftPR) => {
-    Alert.alert("Delete PR", `Remove ${LIFT_LABELS[pr.liftType]} ${pr.weight}${pr.unit}?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete", style: "destructive",
-        onPress: async () => {
-          await deletePR(pr.id);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          loadData();
-        },
-      },
-    ]);
+    confirmAction("Delete PR", `Remove ${LIFT_LABELS[pr.liftType]} ${pr.weight}${pr.unit}?`, async () => {
+      await deletePR(pr.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      loadData();
+    }, "Delete");
   };
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;

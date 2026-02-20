@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Alert, Linking, ActivityIndicator } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Linking, ActivityIndicator } from "react-native";
+import { confirmAction, showAlert } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState, useEffect, useMemo } from "react";
@@ -65,10 +66,9 @@ function VideoRecordButton({ exercise, onVideoRecorded }: { exercise: Exercise; 
     if (!cameraPermission?.granted) {
       if (cameraPermission?.status === 'denied' && !cameraPermission.canAskAgain) {
         if (Platform.OS !== 'web') {
-          Alert.alert(
+          showAlert(
             "Camera Access Required",
-            "Please enable camera access in your device settings to record videos.",
-            [{ text: "Open Settings", onPress: () => { try { Linking.openSettings(); } catch {} } }, { text: "Cancel", style: "cancel" }]
+            "Please enable camera access in your device settings to record videos."
           );
         }
         return;
@@ -94,7 +94,7 @@ function VideoRecordButton({ exercise, onVideoRecorded }: { exercise: Exercise; 
       onVideoRecorded(serverUrl);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
-      Alert.alert("Error", "Failed to record or upload video. Please try again.");
+      showAlert("Error", "Failed to record or upload video. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -180,10 +180,7 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExe
         onPress={() => setExpanded(!expanded)}
         onLongPress={() => {
           if (!isCoach) return;
-          Alert.alert("Delete Exercise", `Remove "${exercise.name || 'this exercise'}"?`, [
-            { text: "Cancel", style: "cancel" },
-            { text: "Delete", style: "destructive", onPress: onDelete },
-          ]);
+          confirmAction("Delete Exercise", `Remove "${exercise.name || 'this exercise'}"?`, onDelete, "Delete");
         }}
       >
         <View style={styles.exerciseHeaderLeft}>
@@ -611,10 +608,7 @@ export default function ProgramDetailScreen() {
         <Pressable
           onPress={() => {
             if (hasChanges) {
-              Alert.alert("Unsaved Changes", "Save before leaving?", [
-                { text: "Discard", style: "destructive", onPress: () => router.back() },
-                { text: "Save", onPress: async () => { await save(); router.back(); } },
-              ]);
+              confirmAction("Unsaved Changes", "You have unsaved changes. Discard them?", () => router.back(), "Discard");
             } else {
               router.back();
             }
