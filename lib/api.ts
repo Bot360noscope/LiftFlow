@@ -118,7 +118,7 @@ export async function apiDelete(path: string): Promise<void> {
   }
 }
 
-export async function uploadVideo(uri: string): Promise<string> {
+export async function uploadVideo(uri: string, meta?: { programId: string; exerciseId: string; uploadedBy: string; coachId: string }): Promise<string> {
   const formData = new FormData();
   const authHeaders = await getAuthHeaders();
 
@@ -132,6 +132,13 @@ export async function uploadVideo(uri: string): Promise<string> {
       type: 'video/mp4',
       name: 'video.mp4',
     } as any);
+  }
+
+  if (meta) {
+    formData.append('programId', meta.programId);
+    formData.append('exerciseId', meta.exerciseId);
+    formData.append('uploadedBy', meta.uploadedBy);
+    formData.append('coachId', meta.coachId);
   }
 
   const res = await fetch(`${BASE}/api/upload-video`, {
@@ -148,4 +155,12 @@ export async function uploadVideo(uri: string): Promise<string> {
 export function getVideoUrl(path: string): string {
   if (path.startsWith('http')) return path;
   return `${BASE}${path}`;
+}
+
+export async function markVideoViewed(videoUrl: string): Promise<void> {
+  const filename = videoUrl.split('/').pop();
+  if (!filename) return;
+  try {
+    await apiPost(`/api/videos/${filename}/viewed`, {});
+  } catch {}
 }

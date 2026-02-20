@@ -11,7 +11,7 @@ import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import * as Crypto from "expo-crypto";
 import { getProgram, updateProgram, getProfile, getClients, addNotification, deleteNotificationsByProgram, getPRs, addPR, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type LiftPR } from "@/lib/storage";
-import { uploadVideo, getVideoUrl } from "@/lib/api";
+import { uploadVideo, getVideoUrl, markVideoViewed } from "@/lib/api";
 
 function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
   const url = getVideoUrl(videoUrl);
@@ -30,14 +30,19 @@ function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
   );
 }
 
-function VideoPlayerInline({ videoUrl }: { videoUrl: string }) {
+function VideoPlayerInline({ videoUrl, isCoach }: { videoUrl: string; isCoach?: boolean }) {
   const [showPlayer, setShowPlayer] = useState(false);
 
   if (!showPlayer) {
     return (
       <Pressable
         style={[styles.videoBtn, { borderColor: Colors.colors.success }]}
-        onPress={() => setShowPlayer(true)}
+        onPress={() => {
+          setShowPlayer(true);
+          if (isCoach) {
+            markVideoViewed(videoUrl);
+          }
+        }}
       >
         <Ionicons name="play-circle-outline" size={18} color={Colors.colors.success} />
         <Text style={[styles.videoBtnText, { color: Colors.colors.success }]}>View Video</Text>
@@ -58,7 +63,7 @@ function VideoPlayerInline({ videoUrl }: { videoUrl: string }) {
   );
 }
 
-function VideoRecordButton({ exercise, onVideoRecorded }: { exercise: Exercise; onVideoRecorded: (url: string) => void }) {
+function VideoRecordButton({ exercise, onVideoRecorded, programId, coachId, uploadedBy }: { exercise: Exercise; onVideoRecorded: (url: string) => void; programId: string; coachId: string; uploadedBy: string }) {
   const [uploading, setUploading] = useState(false);
   const [cameraPermission, requestCameraPermission] = ImagePicker.useCameraPermissions();
 
@@ -90,7 +95,7 @@ function VideoRecordButton({ exercise, onVideoRecorded }: { exercise: Exercise; 
       setUploading(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const videoUri = result.assets[0].uri;
-      const serverUrl = await uploadVideo(videoUri);
+      const serverUrl = await uploadVideo(videoUri, { programId, exerciseId: exercise.id, uploadedBy, coachId });
       onVideoRecorded(serverUrl);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
@@ -124,13 +129,16 @@ function VideoRecordButton({ exercise, onVideoRecorded }: { exercise: Exercise; 
   );
 }
 
-function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExercise }: {
+function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId }: {
   exercise: Exercise;
   index: number;
   isCoach: boolean;
   onUpdate: (updates: Partial<Exercise>) => void;
   onDelete: () => void;
   prevWeekExercise?: Exercise | null;
+  programId: string;
+  coachId: string;
+  profileId: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [name, setName] = useState(exercise.name);
@@ -367,13 +375,16 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExe
           {!isCoach && (
             <VideoRecordButton
               exercise={exercise}
+              programId={programId}
+              coachId={coachId}
+              uploadedBy={profileId}
               onVideoRecorded={(url) => {
                 onUpdate({ videoUrl: url });
               }}
             />
           )}
           {isCoach && !!exercise.videoUrl && (
-            <VideoPlayerInline videoUrl={exercise.videoUrl} />
+            <VideoPlayerInline videoUrl={exercise.videoUrl} isCoach={true} />
           )}
         </View>
       )}
@@ -389,12 +400,14 @@ export default function ProgramDetailScreen() {
   const [activeDay, setActiveDay] = useState(1);
   const [hasChanges, setHasChanges] = useState(false);
   const [isCoach, setIsCoach] = useState(true);
+  const [profileId, setProfileId] = useState('');
 
   useEffect(() => {
     if (id) {
       Promise.all([getProgram(id), getProfile()]).then(([p, prof]) => {
         if (p) setProgram(p);
         setIsCoach(prof.role === 'coach');
+        setProfileId(prof.id);
         deleteNotificationsByProgram(id).catch(() => {});
       });
     }
@@ -745,6 +758,9 @@ export default function ProgramDetailScreen() {
                 onUpdate={(updates) => updateExercise(ex.id, updates)}
                 onDelete={() => deleteExercise(ex.id)}
                 prevWeekExercise={prevWeekDay?.exercises[idx] || null}
+                programId={program.id}
+                coachId={program.coachId}
+                profileId={profileId}
               />
             </Animated.View>
           ))
