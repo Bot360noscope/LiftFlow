@@ -17,6 +17,7 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **clients**: id, coachId, name, email, joinedAt
 - **prs**: id, profileId, liftType, weight, date
 - **notifications**: id, profileId, title, message, type, isRead, createdAt
+- **messages**: id, coachId, clientProfileId, senderRole, text, createdAt
 
 ## API Endpoints (server/routes.ts)
 - POST /api/profiles, GET /api/profiles/:id, PUT /api/profiles/:id
@@ -25,6 +26,8 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - GET /api/prs?profileId=X, POST /api/prs, DELETE /api/prs/:id
 - GET /api/notifications?profileId=X, POST /api/notifications, PUT /api/notifications/:id/read
 - POST /api/upload-video, GET /api/videos/:filename
+- GET /api/messages?coachId=X&clientProfileId=Y, POST /api/messages
+- GET /api/clients/search?coachId=X&q=query
 - POST /api/seed-demo, POST /api/join-coach
 
 ## Key Data Model
@@ -38,7 +41,8 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **Program Detail** (program/[id].tsx): Excel-style spreadsheet with week selector, day columns, exercise rows. Video recording via native camera
 - **Progress** (tabs/progress.tsx): PR tracking for squat/bench/deadlift with estimated total
 - **Profile** (tabs/profile.tsx): Name, role toggle, weight unit, coach code, "Load Demo Data" button
-- **Client Detail** (client/[id].tsx): Client's programs with "New Program" button
+- **Chat** (chat.tsx): Real-time messaging between coach and client with message bubbles, auto-refresh
+- **Client Detail** (client/[id].tsx): Client's programs with "New Program" button, chat button in header
 - **Create Program** (create-program.tsx): Configure weeks/days/rows or use quick-start template
 - **Add PR** (add-pr.tsx): Log personal records
 
