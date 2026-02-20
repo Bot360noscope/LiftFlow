@@ -731,32 +731,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <p class="updated">Last updated: February 2026</p>
 
       <h2>1. Information We Collect</h2>
-      <p>When you use LiftFlow, we collect the following information:</p>
+      <p>When you use LiftFlow, we collect the following types of information:</p>
       <ul>
-        <li>Account information: your email address and name</li>
-        <li>Workout data: exercises, weights, sets, reps, and RPE values</li>
-        <li>Personal records (PRs) you log</li>
-        <li>Training videos you upload for form checks</li>
-        <li>Chat messages between coaches and clients</li>
+        <li><strong>Account information:</strong> Your email address, name, and hashed password when you create an account.</li>
+        <li><strong>Profile information:</strong> Your profile picture (optional), role selection (coach or client), and preferred weight unit.</li>
+        <li><strong>Workout data:</strong> Exercises, weights, sets, reps, RPE values, workout notes, and coach comments stored within your training programs.</li>
+        <li><strong>Personal records (PRs):</strong> Squat, bench press, and deadlift records you choose to log.</li>
+        <li><strong>Form check videos:</strong> Training videos you record and upload through the app for coach review.</li>
+        <li><strong>Messages:</strong> Chat messages exchanged between coaches and clients within the app.</li>
+        <li><strong>Usage data:</strong> Basic information about how you interact with the app, such as login timestamps.</li>
       </ul>
 
       <h2>2. How We Use Your Data</h2>
-      <p>We use your data to provide the LiftFlow coaching service, including syncing your workout programs, personal records, and messages across your devices. Your data powers the features you use every day.</p>
+      <p>We use your information solely to provide and improve the LiftFlow service:</p>
+      <ul>
+        <li>To create and manage your account</li>
+        <li>To sync your workout programs, personal records, and messages across your devices</li>
+        <li>To facilitate the coach-client relationship, including program sharing and form check reviews</li>
+        <li>To display your profile picture to your connected coach or clients</li>
+        <li>To send you relevant in-app notifications about your training</li>
+      </ul>
 
       <h2>3. Data Storage & Security</h2>
-      <p>Your data is securely stored on our servers. Passwords are hashed using industry-standard algorithms and are never stored in plain text. We take reasonable measures to protect your information from unauthorized access.</p>
+      <p>Your data is securely stored on our servers using industry-standard security practices. Passwords are hashed using bcrypt and are never stored in plain text. All data is transmitted over encrypted HTTPS connections. We take reasonable technical and organizational measures to protect your information from unauthorized access, alteration, or destruction.</p>
 
-      <h2>4. Video Uploads</h2>
-      <p>Training videos you upload are stored on our servers and are only accessible by you and your coach. Videos are not shared publicly or with any other users.</p>
+      <h2>4. Video Uploads & Auto-Deletion</h2>
+      <p>Form check videos you upload are stored on our servers and are only accessible by you and your connected coach. Videos are <strong>not</strong> shared publicly or with any other users. To protect your privacy and manage storage, videos are automatically deleted according to the following schedule:</p>
+      <ul>
+        <li><strong>3 days</strong> after your coach views the video</li>
+        <li><strong>7 days</strong> after upload if the video has not been viewed by your coach</li>
+      </ul>
 
-      <h2>5. Third Parties</h2>
-      <p>We do not sell or share your personal data with third parties. Your information stays within LiftFlow and is used solely to provide our service to you.</p>
+      <h2>5. Profile Pictures</h2>
+      <p>If you upload a profile picture, it is visible to your connected coach (if you are a client) or your connected clients (if you are a coach). When you upload a new profile picture, the previous one is automatically deleted. You can remove your profile picture at any time from the Profile screen.</p>
 
-      <h2>6. Account Deletion</h2>
-      <p>You can permanently delete your account and all associated data at any time from the Profile screen within the app. Once deleted, your data cannot be recovered.</p>
+      <h2>6. Third-Party Sharing</h2>
+      <p>We do <strong>not</strong> sell, rent, or share your personal data with third parties for marketing or advertising purposes. Your information stays within LiftFlow and is used solely to provide our service to you. We do not use third-party analytics or advertising SDKs.</p>
 
-      <h2>7. Contact Us</h2>
-      <p>If you have any questions about this Privacy Policy, please contact us at <a href="mailto:support@liftflow.app">support@liftflow.app</a>.</p>
+      <h2>7. Data Retention</h2>
+      <p>We retain your account data for as long as your account is active. If you delete your account, all associated data — including your profile, programs, personal records, messages, videos, and profile picture — is permanently and immediately deleted from our servers. This action cannot be undone.</p>
+
+      <h2>8. Your Rights</h2>
+      <p>You have the right to:</p>
+      <ul>
+        <li><strong>Access</strong> your personal data through the app at any time</li>
+        <li><strong>Update</strong> your personal information (name, profile picture, weight unit) from the Profile screen</li>
+        <li><strong>Delete</strong> your account and all associated data permanently from the Profile screen</li>
+        <li><strong>Request</strong> a copy of your data by contacting us at the email below</li>
+      </ul>
+
+      <h2>9. Children's Privacy</h2>
+      <p>LiftFlow is not intended for children under the age of 13. We do not knowingly collect personal information from children under 13. If we become aware that a child under 13 has provided us with personal information, we will take steps to delete that information promptly. If you believe a child under 13 has provided us with personal data, please contact us immediately.</p>
+
+      <h2>10. Changes to This Policy</h2>
+      <p>We may update this Privacy Policy from time to time. When we make significant changes, we will notify you through the app or by updating the "Last updated" date at the top of this page. We encourage you to review this policy periodically.</p>
+
+      <h2>11. Contact Us</h2>
+      <p>If you have any questions, concerns, or requests regarding this Privacy Policy or your personal data, please contact us at <a href="mailto:support@liftflow.app">support@liftflow.app</a>.</p>
     </div></body></html>`);
   });
 
@@ -767,36 +798,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <p class="updated">Last updated: February 2026</p>
 
       <h2>1. Acceptance of Terms</h2>
-      <p>By accessing or using LiftFlow, you agree to be bound by these Terms of Service. If you do not agree, please do not use the app.</p>
+      <p>By creating an account or using LiftFlow, you agree to be bound by these Terms of Service and our <a href="/privacy">Privacy Policy</a>. If you do not agree to these terms, please do not use the app.</p>
 
-      <h2>2. Description of Service</h2>
-      <p>LiftFlow is a fitness coaching platform that connects coaches and clients. Coaches can create and assign training programs, review form-check videos, and communicate with clients through in-app messaging.</p>
+      <h2>2. Eligibility</h2>
+      <p>You must be at least 13 years old to create an account and use LiftFlow. If you are between 13 and 18 years old, you must have the consent of a parent or legal guardian. By using the app, you represent that you meet these age requirements.</p>
 
-      <h2>3. User Accounts</h2>
-      <p>You are responsible for keeping your login credentials secure. You agree to notify us immediately of any unauthorized use of your account. LiftFlow is not liable for any loss resulting from unauthorized access to your account.</p>
+      <h2>3. Description of Service</h2>
+      <p>LiftFlow is a fitness coaching platform that connects coaches and clients. Coaches can create and assign training programs, review form-check videos, and communicate with clients through in-app messaging. The service is provided for personal, non-commercial fitness coaching purposes.</p>
 
-      <h2>4. User Content</h2>
-      <p>You retain ownership of all content you create or upload to LiftFlow, including workout data, training videos, and notes. By using the service, you grant LiftFlow a limited license to store and display your content as needed to provide the service.</p>
+      <h2>4. User Accounts</h2>
+      <p>You are responsible for maintaining the confidentiality of your login credentials and for all activities that occur under your account. You agree to:</p>
+      <ul>
+        <li>Provide accurate and complete information when creating your account</li>
+        <li>Keep your password secure and not share it with others</li>
+        <li>Notify us immediately of any unauthorized use of your account</li>
+      </ul>
+      <p>LiftFlow is not liable for any loss or damage resulting from unauthorized access to your account.</p>
 
-      <h2>5. Acceptable Use</h2>
+      <h2>5. User Content</h2>
+      <p>You retain ownership of all content you create or upload to LiftFlow, including workout data, training videos, profile pictures, and notes. By using the service, you grant LiftFlow a limited, non-exclusive license to store, process, and display your content as necessary to provide the service. This license ends when you delete your content or your account.</p>
+
+      <h2>6. Acceptable Use</h2>
       <p>You agree not to use LiftFlow to:</p>
       <ul>
         <li>Harass, abuse, or threaten other users</li>
-        <li>Upload harmful, offensive, or illegal content</li>
+        <li>Upload harmful, offensive, inappropriate, or illegal content</li>
         <li>Attempt to gain unauthorized access to other accounts or systems</li>
+        <li>Reverse-engineer, decompile, or attempt to extract the source code of the app</li>
         <li>Use the platform for any purpose other than its intended fitness coaching functionality</li>
+        <li>Create multiple accounts for the purpose of abuse or circumventing restrictions</li>
       </ul>
 
-      <h2>6. Coach-Client Relationship</h2>
-      <p>LiftFlow is a platform that facilitates communication between coaches and clients. LiftFlow is not a medical provider, fitness advisor, or healthcare professional. Any fitness advice provided through the platform is the sole responsibility of the coach. Always consult a qualified professional before starting any exercise program.</p>
+      <h2>7. Coach-Client Relationship</h2>
+      <p>LiftFlow is a platform that facilitates communication between coaches and clients. LiftFlow does not employ, endorse, or certify any coaches on the platform. LiftFlow is not a medical provider, fitness advisor, or healthcare professional. Any fitness advice provided through the platform is the sole responsibility of the coach providing it. Always consult a qualified medical professional before starting any exercise program.</p>
 
-      <h2>7. Limitation of Liability</h2>
-      <p>LiftFlow is provided "as is" without warranties of any kind. To the fullest extent permitted by law, LiftFlow shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the service, including any injuries sustained during workouts.</p>
+      <h2>8. Account Deletion</h2>
+      <p>You may delete your account at any time from the Profile screen within the app. Upon deletion, all of your data — including your profile, programs, personal records, messages, videos, and profile picture — will be permanently and immediately removed from our servers. This action cannot be undone.</p>
 
-      <h2>8. Changes to Terms</h2>
-      <p>We may update these Terms of Service from time to time. Continued use of LiftFlow after changes are posted constitutes your acceptance of the revised terms. We encourage you to review these terms periodically.</p>
+      <h2>9. Termination</h2>
+      <p>We reserve the right to suspend or terminate your account at any time if we reasonably believe you have violated these Terms of Service. Upon termination, your right to use LiftFlow will immediately cease. We may also remove any content that violates these terms.</p>
 
-      <h2>9. Contact Us</h2>
+      <h2>10. Disclaimer of Warranties</h2>
+      <p>LiftFlow is provided "as is" and "as available" without warranties of any kind, either express or implied, including but not limited to implied warranties of merchantability, fitness for a particular purpose, and non-infringement. We do not guarantee that the service will be uninterrupted, secure, or error-free.</p>
+
+      <h2>11. Limitation of Liability</h2>
+      <p>To the fullest extent permitted by applicable law, LiftFlow and its owners, operators, and affiliates shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the service, including but not limited to any injuries sustained during workouts, loss of data, or service interruptions.</p>
+
+      <h2>12. Governing Law</h2>
+      <p>These Terms of Service shall be governed by and construed in accordance with the laws of the jurisdiction in which LiftFlow operates, without regard to its conflict of law provisions.</p>
+
+      <h2>13. Changes to Terms</h2>
+      <p>We may update these Terms of Service from time to time. When we make significant changes, we will update the "Last updated" date at the top of this page. Continued use of LiftFlow after changes are posted constitutes your acceptance of the revised terms. We encourage you to review these terms periodically.</p>
+
+      <h2>14. Contact Us</h2>
       <p>If you have any questions about these Terms of Service, please contact us at <a href="mailto:support@liftflow.app">support@liftflow.app</a>.</p>
     </div></body></html>`);
   });
