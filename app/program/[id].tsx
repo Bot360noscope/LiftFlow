@@ -1,13 +1,91 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Alert } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Alert, Linking, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState, useEffect, useMemo } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import * as Crypto from "expo-crypto";
 import { getProgram, updateProgram, getProfile, addNotification, type Program, type Exercise, type WorkoutWeek, type WorkoutDay } from "@/lib/storage";
+import { uploadVideo, getVideoUrl } from "@/lib/api";
+
+function VideoRecordButton({ exercise, onVideoRecorded }: { exercise: Exercise; onVideoRecorded: (url: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const [cameraPermission, requestCameraPermission] = ImagePicker.useCameraPermissions();
+
+  const handleRecord = async () => {
+    if (!cameraPermission?.granted) {
+      if (cameraPermission?.status === 'denied' && !cameraPermission.canAskAgain) {
+        if (Platform.OS !== 'web') {
+          Alert.alert(
+            "Camera Access Required",
+            "Please enable camera access in your device settings to record videos.",
+            [{ text: "Open Settings", onPress: () => { try { Linking.openSettings(); } catch {} } }, { text: "Cancel", style: "cancel" }]
+          );
+        }
+        return;
+      }
+      const result = await requestCameraPermission();
+      if (!result.granted) return;
+    }
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['videos'],
+        videoMaxDuration: 120,
+        videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
+        allowsEditing: true,
+      });
+
+      if (result.canceled || !result.assets?.[0]) return;
+
+      setUploading(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const videoUri = result.assets[0].uri;
+      const serverUrl = await uploadVideo(videoUri);
+      onVideoRecorded(serverUrl);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      Alert.alert("Error", "Failed to record or upload video. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const hasVideo = !!exercise.videoUrl;
+
+  return (
+    <View style={{ gap: 8, marginTop: 16 }}>
+      <Pressable style={styles.videoBtn} onPress={handleRecord} disabled={uploading}>
+        {uploading ? (
+          <>
+            <ActivityIndicator size="small" color={Colors.colors.primary} />
+            <Text style={styles.videoBtnText}>Uploading...</Text>
+          </>
+        ) : (
+          <>
+            <Ionicons name="videocam-outline" size={18} color={Colors.colors.primary} />
+            <Text style={styles.videoBtnText}>{hasVideo ? 'Re-record Video' : 'Record Video'}</Text>
+          </>
+        )}
+      </Pressable>
+      {hasVideo && (
+        <Pressable
+          style={[styles.videoBtn, { borderColor: Colors.colors.success }]}
+          onPress={() => {
+            const url = getVideoUrl(exercise.videoUrl);
+            Linking.openURL(url).catch(() => Alert.alert("Error", "Could not open video"));
+          }}
+        >
+          <Ionicons name="play-circle-outline" size={18} color={Colors.colors.success} />
+          <Text style={[styles.videoBtnText, { color: Colors.colors.success }]}>View Recorded Video</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
 
 function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExercise }: {
   exercise: Exercise;
@@ -245,13 +323,18 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExe
           )}
 
           {!isCoach && (
-            <Pressable style={styles.videoBtn} onPress={() => Alert.alert("Video", "Video recording will be available soon")}>
-              <Ionicons name="videocam-outline" size={18} color={Colors.colors.primary} />
-              <Text style={styles.videoBtnText}>Record Video</Text>
-            </Pressable>
+            <VideoRecordButton
+              exercise={exercise}
+              onVideoRecorded={(url) => {
+                onUpdate({ videoUrl: url });
+              }}
+            />
           )}
           {isCoach && !!exercise.videoUrl && (
-            <Pressable style={styles.videoBtn} onPress={() => Alert.alert("Video", "View client's video")}>
+            <Pressable style={styles.videoBtn} onPress={() => {
+              const url = getVideoUrl(exercise.videoUrl);
+              Linking.openURL(url).catch(() => Alert.alert("Error", "Could not open video"));
+            }}>
               <Ionicons name="play-circle-outline" size={18} color={Colors.colors.primary} />
               <Text style={styles.videoBtnText}>View Video</Text>
             </Pressable>
