@@ -25,17 +25,15 @@ function StatCard({ icon, label, value, color }: { icon: string; label: string; 
   );
 }
 
-function ClientCard({ client, programs }: { client: ClientInfo; programs: Program[] }) {
+function ClientCard({ client, programs, hasUnread }: { client: ClientInfo; programs: Program[]; hasUnread: boolean }) {
   const clientPrograms = programs.filter(p => p.clientId === client.id);
-  let totalEx = 0, completedEx = 0, hasNotes = false, hasVideo = false;
+  let totalEx = 0, completedEx = 0;
   for (const prog of clientPrograms) {
     for (const week of prog.weeks) {
       for (const day of week.days) {
         for (const ex of day.exercises) {
           if (ex.name) totalEx++;
           if (ex.isCompleted) completedEx++;
-          if (ex.clientNotes) hasNotes = true;
-          if (ex.videoUrl) hasVideo = true;
         }
       }
     }
@@ -55,22 +53,11 @@ function ClientCard({ client, programs }: { client: ClientInfo; programs: Progra
           <Text style={styles.clientAvatarText}>{(client.name || '?')[0].toUpperCase()}</Text>
         </View>
         <View style={styles.clientInfo}>
-          <Text style={styles.clientName}>{client.name || 'Client'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={styles.clientName}>{client.name || 'Client'}</Text>
+            {hasUnread && <View style={styles.clientUnreadDot} />}
+          </View>
           <Text style={styles.clientMeta}>{clientPrograms.length} program{clientPrograms.length !== 1 ? 's' : ''}</Text>
-        </View>
-        <View style={styles.clientIndicators}>
-          {hasNotes && <Ionicons name="chatbubble" size={14} color={Colors.colors.accent} />}
-          {hasVideo && <Ionicons name="videocam" size={14} color={Colors.colors.primary} />}
-          <Pressable
-            hitSlop={8}
-            onPress={(e) => {
-              e.stopPropagation();
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push({ pathname: '/chat', params: { clientId: client.id, clientName: client.name, clientProfileId: client.clientProfileId || '' } });
-            }}
-          >
-            <Ionicons name="chatbubbles-outline" size={24} color={Colors.colors.primary} />
-          </Pressable>
         </View>
       </View>
       {totalEx > 0 && (
@@ -272,7 +259,7 @@ export default function HomeScreen() {
         <View style={styles.greetingRow}>
           <View>
             <Text style={styles.greeting}>
-              {isCoach ? 'Coach Dashboard' : 'My Training'}
+              {isCoach ? 'Dashboard' : 'My Training'}
             </Text>
             <Text style={styles.greetingSub}>
               {profile?.name ? `Welcome, ${profile.name}` : 'Welcome to LiftFlow'}
@@ -299,8 +286,8 @@ export default function HomeScreen() {
           {isCoach ? (
             <>
               <StatCard icon="people" label="Clients" value={String(clients.length)} color={Colors.colors.primary} />
-              <StatCard icon="barbell" label="Programs" value={String(programs.length)} color={Colors.colors.accent} />
-              <StatCard icon="notifications" label="Unread" value={String(unreadNotifs.length)} color={Colors.colors.warning} />
+              <StatCard icon="barbell" label="Active Programs" value={String(activePrograms.length)} color={Colors.colors.accent} />
+              <StatCard icon="notifications" label="Needs Review" value={String(unreadNotifs.length)} color={Colors.colors.warning} />
             </>
           ) : (
             <>
@@ -316,7 +303,7 @@ export default function HomeScreen() {
         <>
           <Animated.View entering={FadeInDown.delay(200).duration(400)}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>My Clients</Text>
+              <Text style={styles.sectionTitle}>Clients</Text>
               <Pressable
                 style={styles.addBtn}
                 onPress={() => {
@@ -351,8 +338,8 @@ export default function HomeScreen() {
             {clients.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Ionicons name="people-outline" size={32} color={Colors.colors.textMuted} />
-                <Text style={styles.emptyText}>No clients yet</Text>
-                <Text style={styles.emptySubText}>Share your coach code to connect with clients</Text>
+                <Text style={styles.emptyText}>No clients connected yet</Text>
+                <Text style={styles.emptySubText}>Share your coach code so clients can find you</Text>
               </View>
             ) : filteredClients.length === 0 ? (
               <View style={styles.emptyCard}>
@@ -361,7 +348,12 @@ export default function HomeScreen() {
               </View>
             ) : (
               filteredClients.map((client) => (
-                <ClientCard key={client.id} client={client} programs={programs} />
+                <ClientCard
+                  key={client.id}
+                  client={client}
+                  programs={programs}
+                  hasUnread={notifications.some(n => !n.read && n.title.toLowerCase().includes(client.name.toLowerCase()))}
+                />
               ))
             )}
           </Animated.View>
@@ -383,42 +375,6 @@ export default function HomeScreen() {
               ))}
             </Animated.View>
           )}
-
-          <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-            <View style={styles.quickActions}>
-              <Text style={styles.sectionTitle}>Quick Actions</Text>
-              <View style={styles.actionsGrid}>
-                <Pressable
-                  style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
-                  onPress={() => router.push('/create-program')}
-                >
-                  <Ionicons name="grid-outline" size={22} color={Colors.colors.primary} />
-                  <Text style={styles.actionText}>Build Program</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
-                  onPress={() => router.push('/(tabs)/programs')}
-                >
-                  <Ionicons name="barbell-outline" size={22} color={Colors.colors.accent} />
-                  <Text style={styles.actionText}>Programs</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
-                  onPress={() => router.push('/(tabs)/progress')}
-                >
-                  <Ionicons name="analytics-outline" size={22} color={Colors.colors.success} />
-                  <Text style={styles.actionText}>Client Progress</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
-                  onPress={() => router.push('/(tabs)/profile')}
-                >
-                  <Ionicons name="settings-outline" size={22} color={Colors.colors.textSecondary} />
-                  <Text style={styles.actionText}>Settings</Text>
-                </Pressable>
-              </View>
-            </View>
-          </Animated.View>
         </>
       ) : (
         <>
@@ -471,7 +427,7 @@ export default function HomeScreen() {
 
           <Animated.View entering={FadeInDown.delay(250).duration(400)}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>My Programs</Text>
+              <Text style={styles.sectionTitle}>Programs</Text>
               <Pressable
                 style={styles.addBtn}
                 onPress={() => {
@@ -485,9 +441,9 @@ export default function HomeScreen() {
 
             {recentPrograms.length === 0 ? (
               <View style={styles.emptyCard}>
-                <Ionicons name="people-outline" size={32} color={Colors.colors.textMuted} />
-                <Text style={styles.emptyText}>No programs assigned yet</Text>
-                <Text style={styles.emptySubText}>Enter your coach's code to get started</Text>
+                <Ionicons name="barbell-outline" size={32} color={Colors.colors.textMuted} />
+                <Text style={styles.emptyText}>No programs yet</Text>
+                <Text style={styles.emptySubText}>Connect with your coach to receive your first program</Text>
                 <Pressable
                   style={styles.emptyBtn}
                   onPress={() => router.push('/join-coach')}
@@ -511,49 +467,6 @@ export default function HomeScreen() {
               </Pressable>
             )}
           </Animated.View>
-
-          <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-            <View style={styles.quickActions}>
-              <Text style={styles.sectionTitle}>Quick Actions</Text>
-              <View style={styles.actionsGrid}>
-                <Pressable
-                  style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
-                  onPress={() => router.push('/chat')}
-                >
-                  <Ionicons name="chatbubbles-outline" size={22} color={Colors.colors.primary} />
-                  <Text style={styles.actionText}>Chat with Coach</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
-                  onPress={() => router.push('/join-coach')}
-                >
-                  <Ionicons name="people-outline" size={22} color={Colors.colors.accent} />
-                  <Text style={styles.actionText}>Join Coach</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
-                  onPress={() => router.push('/add-pr')}
-                >
-                  <Ionicons name="trophy-outline" size={22} color={Colors.colors.success} />
-                  <Text style={styles.actionText}>Log PR</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
-                  onPress={() => router.push('/(tabs)/progress')}
-                >
-                  <Ionicons name="trending-up" size={22} color={Colors.colors.warning} />
-                  <Text style={styles.actionText}>View Progress</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
-                  onPress={() => router.push('/(tabs)/profile')}
-                >
-                  <Ionicons name="settings-outline" size={22} color={Colors.colors.textSecondary} />
-                  <Text style={styles.actionText}>Settings</Text>
-                </Pressable>
-              </View>
-            </View>
-          </Animated.View>
         </>
       )}
     </ScrollView>
@@ -563,47 +476,47 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.colors.background },
   scrollContent: { paddingHorizontal: 20 },
-  greetingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  greeting: { fontFamily: 'Rubik_700Bold', fontSize: 26, color: Colors.colors.text },
-  greetingSub: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textSecondary, marginTop: 2 },
+  greetingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
+  greeting: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.text },
+  greetingSub: { fontFamily: 'Rubik_400Regular', fontSize: 15, color: Colors.colors.textSecondary, marginTop: 4 },
   roleChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(232,81,47,0.1)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12,
+    backgroundColor: 'rgba(232,81,47,0.1)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
   },
-  roleChipText: { fontFamily: 'Rubik_500Medium', fontSize: 12, color: Colors.colors.primary },
+  roleChipText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.primary },
   coachCodeCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 16,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 16,
     borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 16,
   },
   coachCodeLeft: {},
-  coachCodeLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: Colors.colors.text },
-  coachCodeDesc: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted, marginTop: 2 },
+  coachCodeLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.text },
+  coachCodeDesc: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 4 },
   coachCodeBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(232,81,47,0.1)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(232,81,47,0.1)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8,
   },
   coachCodeValue: { fontFamily: 'Rubik_700Bold', fontSize: 16, color: Colors.colors.primary, letterSpacing: 2 },
-  coachCodeHiddenText: { fontFamily: 'Rubik_500Medium', fontSize: 12, color: Colors.colors.textMuted },
-  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  coachCodeHiddenText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.textMuted },
+  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
   statCard: {
     flex: 1, alignItems: 'center', backgroundColor: Colors.colors.backgroundCard,
-    borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.colors.border, gap: 6,
+    borderRadius: 12, padding: 16, borderWidth: 1, borderColor: Colors.colors.border, gap: 8,
   },
   statIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   statValue: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text },
-  statLabel: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted },
+  statLabel: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12,
     borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 12,
   },
   searchInput: {
-    flex: 1, fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.text, padding: 0,
+    flex: 1, fontFamily: 'Rubik_400Regular', fontSize: 15, color: Colors.colors.text, padding: 0,
   },
   clientCard: {
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 10,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 16,
+    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 12,
   },
   clientCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   clientAvatar: {
@@ -613,29 +526,29 @@ const styles = StyleSheet.create({
   clientAvatarText: { fontFamily: 'Rubik_700Bold', fontSize: 16, color: Colors.colors.primary },
   clientInfo: { flex: 1 },
   clientName: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.text },
-  clientMeta: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted, marginTop: 1 },
-  clientIndicators: { flexDirection: 'row', gap: 6 },
-  clientProgress: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
-  clientProgressText: { fontFamily: 'Rubik_500Medium', fontSize: 11, color: Colors.colors.textSecondary, width: 72, textAlign: 'right' },
+  clientMeta: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 4 },
+  clientUnreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.colors.primary },
+  clientProgress: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
+  clientProgressText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.textSecondary, width: 72, textAlign: 'right' },
   notifItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 12,
-    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 6,
+    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 8,
   },
   notifItemUnread: { borderColor: Colors.colors.primary, backgroundColor: 'rgba(232,81,47,0.04)' },
   notifIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   notifContent: { flex: 1 },
   notifTitle: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: Colors.colors.text },
-  notifMsg: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted, marginTop: 1 },
+  notifMsg: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 4 },
   notifDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.colors.primary },
-  prRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  prRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
   prCard: {
     flex: 1, alignItems: 'center', backgroundColor: Colors.colors.backgroundCard,
     borderRadius: 12, paddingVertical: 12, borderLeftWidth: 3, paddingHorizontal: 8,
   },
-  prLift: { fontFamily: 'Rubik_600SemiBold', fontSize: 12 },
-  prWeight: { fontFamily: 'Rubik_700Bold', fontSize: 22, color: Colors.colors.text, marginTop: 2 },
-  prUnit: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted },
+  prLift: { fontFamily: 'Rubik_600SemiBold', fontSize: 13 },
+  prWeight: { fontFamily: 'Rubik_700Bold', fontSize: 22, color: Colors.colors.text, marginTop: 4 },
+  prUnit: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.text, marginBottom: 12 },
   addBtn: {
@@ -643,31 +556,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(232,81,47,0.1)', marginBottom: 12,
   },
   clearBtn: {
-    width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+    width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
     backgroundColor: Colors.colors.surfaceLight, marginBottom: 12,
   },
   programCard: {
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 16,
-    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 10,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 16,
+    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 12,
   },
   programCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   programTitle: { flex: 1, fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.text },
-  programDesc: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, marginTop: 4 },
-  programMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
-  programMetaText: { fontFamily: 'Rubik_500Medium', fontSize: 11, color: Colors.colors.textSecondary },
+  programDesc: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 4 },
+  programMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
+  programMetaText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.textSecondary },
   progressBar: {
     flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.colors.surfaceLight, overflow: 'hidden' as const,
   },
   progressFill: { height: '100%' as const, borderRadius: 2, backgroundColor: Colors.colors.primary },
   emptyCard: {
-    alignItems: 'center', backgroundColor: Colors.colors.backgroundCard, borderRadius: 14,
-    padding: 30, borderWidth: 1, borderColor: Colors.colors.border, gap: 10, marginBottom: 10,
+    alignItems: 'center', backgroundColor: Colors.colors.backgroundCard, borderRadius: 12,
+    padding: 32, borderWidth: 1, borderColor: Colors.colors.border, gap: 8, marginBottom: 12,
   },
-  emptyText: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: Colors.colors.textSecondary, textAlign: 'center' },
-  emptySubText: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, textAlign: 'center' },
+  emptyText: { fontFamily: 'Rubik_500Medium', fontSize: 15, color: Colors.colors.textSecondary, textAlign: 'center' },
+  emptySubText: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, textAlign: 'center' },
   emptyBtn: {
-    backgroundColor: Colors.colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10,
+    backgroundColor: Colors.colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12,
   },
   emptyBtnText: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: '#fff' },
   seeAllBtn: {
@@ -675,12 +588,4 @@ const styles = StyleSheet.create({
     paddingVertical: 12, marginTop: 4,
   },
   seeAllText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.primary },
-  quickActions: { marginTop: 8 },
-  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  actionCard: {
-    width: '48%' as any, flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: Colors.colors.border,
-  },
-  actionText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.text },
 });
