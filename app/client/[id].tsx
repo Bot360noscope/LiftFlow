@@ -83,7 +83,15 @@ export default function ClientDetailScreen() {
           <Ionicons name="arrow-back" size={24} color={Colors.colors.text} />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{displayName}</Text>
-        <View style={{ width: 24 }} />
+        <Pressable
+          hitSlop={8}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push({ pathname: '/chat', params: { clientId: id, clientName: displayName, clientProfileId: client?.clientProfileId || '' } });
+          }}
+        >
+          <Ionicons name="chatbubbles-outline" size={22} color={Colors.colors.primary} />
+        </Pressable>
       </View>
 
       <ScrollView

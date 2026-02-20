@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback } from "react";
@@ -60,6 +60,16 @@ function ClientCard({ client, programs }: { client: ClientInfo; programs: Progra
         <View style={styles.clientIndicators}>
           {hasNotes && <Ionicons name="chatbubble" size={14} color={Colors.colors.accent} />}
           {hasVideo && <Ionicons name="videocam" size={14} color={Colors.colors.primary} />}
+          <Pressable
+            hitSlop={8}
+            onPress={(e) => {
+              e.stopPropagation();
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push({ pathname: '/chat', params: { clientId: client.id, clientName: client.name, clientProfileId: client.clientProfileId || '' } });
+            }}
+          >
+            <Ionicons name="chatbubbles-outline" size={18} color={Colors.colors.primary} />
+          </Pressable>
         </View>
       </View>
       {totalEx > 0 && (
@@ -176,6 +186,7 @@ export default function HomeScreen() {
   const [prs, setPRs] = useState<LiftPR[]>([]);
   const [clients, setClients] = useState<ClientInfo[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [clientSearch, setClientSearch] = useState('');
 
   const loadData = useCallback(async () => {
     try {
@@ -219,6 +230,9 @@ export default function HomeScreen() {
   const unreadNotifs = notifications.filter(n => !n.read);
   const clientNotifs = isCoach ? notifications.filter(n => n.fromRole === 'client') : notifications;
   const recentNotifs = clientNotifs.slice(0, 5);
+  const filteredClients = clientSearch.trim()
+    ? clients.filter(c => c.name.toLowerCase().includes(clientSearch.trim().toLowerCase()))
+    : clients;
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 84 : 0;
@@ -292,14 +306,39 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
+            {clients.length > 2 && (
+              <View style={styles.searchBar}>
+                <Ionicons name="search" size={16} color={Colors.colors.textMuted} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search clients..."
+                  placeholderTextColor={Colors.colors.textMuted}
+                  value={clientSearch}
+                  onChangeText={setClientSearch}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {clientSearch.length > 0 && (
+                  <Pressable onPress={() => setClientSearch('')} hitSlop={8}>
+                    <Ionicons name="close-circle" size={16} color={Colors.colors.textMuted} />
+                  </Pressable>
+                )}
+              </View>
+            )}
+
             {clients.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Ionicons name="people-outline" size={32} color={Colors.colors.textMuted} />
                 <Text style={styles.emptyText}>No clients yet</Text>
                 <Text style={styles.emptySubText}>Share your coach code to connect with clients</Text>
               </View>
+            ) : filteredClients.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Ionicons name="search-outline" size={24} color={Colors.colors.textMuted} />
+                <Text style={styles.emptyText}>No matching clients</Text>
+              </View>
             ) : (
-              clients.map((client) => (
+              filteredClients.map((client) => (
                 <ClientCard key={client.id} client={client} programs={programs} />
               ))
             )}
@@ -457,23 +496,30 @@ export default function HomeScreen() {
               <View style={styles.actionsGrid}>
                 <Pressable
                   style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
+                  onPress={() => router.push('/chat')}
+                >
+                  <Ionicons name="chatbubbles-outline" size={22} color={Colors.colors.primary} />
+                  <Text style={styles.actionText}>Chat with Coach</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
                   onPress={() => router.push('/join-coach')}
                 >
-                  <Ionicons name="people-outline" size={22} color={Colors.colors.primary} />
+                  <Ionicons name="people-outline" size={22} color={Colors.colors.accent} />
                   <Text style={styles.actionText}>Join Coach</Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
                   onPress={() => router.push('/add-pr')}
                 >
-                  <Ionicons name="trophy-outline" size={22} color={Colors.colors.accent} />
+                  <Ionicons name="trophy-outline" size={22} color={Colors.colors.success} />
                   <Text style={styles.actionText}>Log PR</Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.8 }]}
                   onPress={() => router.push('/(tabs)/progress')}
                 >
-                  <Ionicons name="trending-up" size={22} color={Colors.colors.success} />
+                  <Ionicons name="trending-up" size={22} color={Colors.colors.warning} />
                   <Text style={styles.actionText}>View Progress</Text>
                 </Pressable>
                 <Pressable
@@ -525,6 +571,14 @@ const styles = StyleSheet.create({
   statIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   statValue: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text },
   statLabel: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted },
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1, fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.text, padding: 0,
+  },
   clientCard: {
     backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 14,
     borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 10,

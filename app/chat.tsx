@@ -1,0 +1,214 @@
+import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, KeyboardAvoidingView } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import * as Haptics from "expo-haptics";
+import Colors from "@/constants/colors";
+import { getProfile, getMessages, sendMessage, getClients, type ChatMessage, type UserProfile } from "@/lib/storage";
+
+export default function ChatScreen() {
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ clientId?: string; clientName?: string; clientProfileId?: string; coachId?: string }>();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [chatPartnerName, setChatPartnerName] = useState(params.clientName || 'Chat');
+  const [coachId, setCoachId] = useState('');
+  const [clientProfileId, setClientProfileId] = useState('');
+  const [sending, setSending] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    (async () => {
+      const prof = await getProfile();
+      setProfile(prof);
+
+      let resolvedCoachId = '';
+      let resolvedClientProfileId = '';
+
+      if (prof.role === 'coach') {
+        resolvedCoachId = prof.id;
+        resolvedClientProfileId = params.clientProfileId || '';
+        setChatPartnerName(params.clientName || 'Client');
+      } else {
+        const allClients = await getClients();
+        if (allClients.length > 0) {
+          const clientRecord = allClients[0];
+          resolvedCoachId = params.coachId || (clientRecord as any).coachId || (clientRecord as any).coach_id || '';
+          resolvedClientProfileId = prof.id;
+        }
+      }
+
+      setCoachId(resolvedCoachId);
+      setClientProfileId(resolvedClientProfileId);
+
+      if (resolvedCoachId && resolvedClientProfileId) {
+        const msgs = await getMessages(resolvedCoachId, resolvedClientProfileId);
+        setMessages(msgs);
+      }
+    })();
+  }, []);
+
+  const loadMessages = useCallback(async () => {
+    if (!coachId || !clientProfileId) return;
+    const msgs = await getMessages(coachId, clientProfileId);
+    setMessages(msgs);
+  }, [coachId, clientProfileId]);
+
+  useEffect(() => {
+    if (!coachId || !clientProfileId) return;
+    const interval = setInterval(loadMessages, 5000);
+    return () => clearInterval(interval);
+  }, [coachId, clientProfileId, loadMessages]);
+
+  const handleSend = async () => {
+    if (!input.trim() || !coachId || !clientProfileId || sending) return;
+    setSending(true);
+    const text = input.trim();
+    setInput('');
+    try {
+      const msg = await sendMessage(coachId, clientProfileId, text);
+      setMessages(prev => [...prev, msg]);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    } catch (e) {
+      setInput(text);
+    }
+    setSending(false);
+  };
+
+  const isCoach = profile?.role === 'coach';
+  const webTopInset = Platform.OS === 'web' ? 67 : 0;
+
+  const renderMessage = ({ item }: { item: ChatMessage }) => {
+    const isMe = item.senderRole === profile?.role;
+    const time = new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    return (
+      <View style={[styles.messageBubbleRow, isMe && styles.messageBubbleRowMe]}>
+        <View style={[styles.messageBubble, isMe ? styles.messageBubbleMe : styles.messageBubbleThem]}>
+          <Text style={[styles.messageText, isMe && styles.messageTextMe]}>{item.text}</Text>
+          <Text style={[styles.messageTime, isMe && styles.messageTimeMe]}>{time}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={90}
+    >
+      <View style={[styles.header, { paddingTop: insets.top + webTopInset + 8 }]}>
+        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color={Colors.colors.text} />
+        </Pressable>
+        <View style={styles.headerCenter}>
+          <View style={styles.headerAvatar}>
+            <Text style={styles.headerAvatarText}>{(chatPartnerName || '?')[0].toUpperCase()}</Text>
+          </View>
+          <View>
+            <Text style={styles.headerName}>{chatPartnerName}</Text>
+            <Text style={styles.headerRole}>{isCoach ? 'Client' : 'Coach'}</Text>
+          </View>
+        </View>
+        <View style={{ width: 32 }} />
+      </View>
+
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        keyExtractor={(item) => item.id}
+        renderItem={renderMessage}
+        contentContainerStyle={[styles.messagesList, { paddingBottom: 12 }]}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+        ListEmptyComponent={
+          <View style={styles.emptyChat}>
+            <Ionicons name="chatbubbles-outline" size={40} color={Colors.colors.textMuted} />
+            <Text style={styles.emptyChatText}>No messages yet</Text>
+            <Text style={styles.emptyChatSub}>Start the conversation!</Text>
+          </View>
+        }
+      />
+
+      <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 12) }]}>
+        <TextInput
+          style={styles.textInput}
+          placeholder="Type a message..."
+          placeholderTextColor={Colors.colors.textMuted}
+          value={input}
+          onChangeText={setInput}
+          multiline
+          maxLength={1000}
+          onSubmitEditing={handleSend}
+          blurOnSubmit={false}
+        />
+        <Pressable
+          style={[styles.sendBtn, (!input.trim() || sending) && styles.sendBtnDisabled]}
+          onPress={handleSend}
+          disabled={!input.trim() || sending}
+        >
+          <Ionicons name="send" size={18} color={input.trim() && !sending ? '#fff' : Colors.colors.textMuted} />
+        </Pressable>
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.colors.background },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingBottom: 12,
+    borderBottomWidth: 1, borderBottomColor: Colors.colors.border,
+    backgroundColor: Colors.colors.backgroundCard,
+  },
+  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerAvatar: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(232,81,47,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  headerAvatarText: { fontFamily: 'Rubik_700Bold', fontSize: 14, color: Colors.colors.primary },
+  headerName: { fontFamily: 'Rubik_600SemiBold', fontSize: 16, color: Colors.colors.text },
+  headerRole: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted },
+  messagesList: { paddingHorizontal: 16, paddingTop: 16 },
+  messageBubbleRow: { flexDirection: 'row', marginBottom: 8, justifyContent: 'flex-start' },
+  messageBubbleRowMe: { justifyContent: 'flex-end' },
+  messageBubble: {
+    maxWidth: '78%', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10,
+  },
+  messageBubbleMe: {
+    backgroundColor: Colors.colors.primary, borderBottomRightRadius: 4,
+  },
+  messageBubbleThem: {
+    backgroundColor: Colors.colors.backgroundCard, borderBottomLeftRadius: 4,
+    borderWidth: 1, borderColor: Colors.colors.border,
+  },
+  messageText: { fontFamily: 'Rubik_400Regular', fontSize: 15, color: Colors.colors.text, lineHeight: 20 },
+  messageTextMe: { color: '#fff' },
+  messageTime: { fontFamily: 'Rubik_400Regular', fontSize: 10, color: Colors.colors.textMuted, marginTop: 4, textAlign: 'right' },
+  messageTimeMe: { color: 'rgba(255,255,255,0.7)' },
+  emptyChat: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 8 },
+  emptyChatText: { fontFamily: 'Rubik_600SemiBold', fontSize: 16, color: Colors.colors.textSecondary },
+  emptyChatSub: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted },
+  inputRow: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 8,
+    paddingHorizontal: 16, paddingTop: 10,
+    borderTopWidth: 1, borderTopColor: Colors.colors.border,
+    backgroundColor: Colors.colors.backgroundCard,
+  },
+  textInput: {
+    flex: 1, fontFamily: 'Rubik_400Regular', fontSize: 15, color: Colors.colors.text,
+    backgroundColor: Colors.colors.background, borderRadius: 20,
+    paddingHorizontal: 16, paddingVertical: 10, maxHeight: 100,
+    borderWidth: 1, borderColor: Colors.colors.border,
+  },
+  sendBtn: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  sendBtnDisabled: { backgroundColor: Colors.colors.surfaceLight },
+});
