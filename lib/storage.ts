@@ -54,10 +54,31 @@ export interface UserProfile {
   coachCode: string;
 }
 
+export interface ClientInfo {
+  id: string;
+  name: string;
+  joinedAt: string;
+}
+
+export interface AppNotification {
+  id: string;
+  type: 'video' | 'notes' | 'comment' | 'completion';
+  title: string;
+  message: string;
+  programId: string;
+  programTitle: string;
+  exerciseName: string;
+  fromRole: 'coach' | 'client';
+  createdAt: string;
+  read: boolean;
+}
+
 const KEYS = {
   PRs: 'liftflow_prs',
   PROGRAMS: 'liftflow_programs',
   PROFILE: 'liftflow_profile',
+  CLIENTS: 'liftflow_clients',
+  NOTIFICATIONS: 'liftflow_notifications',
 };
 
 export function generateCode(): string {
@@ -146,10 +167,73 @@ export async function saveProfile(profile: UserProfile): Promise<void> {
   await AsyncStorage.setItem(KEYS.PROFILE, JSON.stringify(profile));
 }
 
+export async function resetCoachCode(): Promise<string> {
+  const profile = await getProfile();
+  const newCode = generateCode();
+  profile.coachCode = newCode;
+  await saveProfile(profile);
+  return newCode;
+}
+
 export function getBestPR(prs: LiftPR[], liftType: string): LiftPR | null {
   const filtered = prs.filter(p => p.liftType === liftType);
   if (filtered.length === 0) return null;
   return filtered.reduce((best, curr) => curr.weight > best.weight ? curr : best);
+}
+
+export async function getClients(): Promise<ClientInfo[]> {
+  const data = await AsyncStorage.getItem(KEYS.CLIENTS);
+  return data ? JSON.parse(data) : [];
+}
+
+export async function addClient(client: Omit<ClientInfo, 'joinedAt'>): Promise<void> {
+  const clients = await getClients();
+  if (clients.some(c => c.id === client.id)) return;
+  clients.push({ ...client, joinedAt: new Date().toISOString() });
+  await AsyncStorage.setItem(KEYS.CLIENTS, JSON.stringify(clients));
+}
+
+export async function removeClient(id: string): Promise<void> {
+  const clients = await getClients();
+  const filtered = clients.filter(c => c.id !== id);
+  await AsyncStorage.setItem(KEYS.CLIENTS, JSON.stringify(filtered));
+}
+
+export async function getNotifications(): Promise<AppNotification[]> {
+  const data = await AsyncStorage.getItem(KEYS.NOTIFICATIONS);
+  return data ? JSON.parse(data) : [];
+}
+
+export async function addNotification(notification: Omit<AppNotification, 'id' | 'createdAt' | 'read'>): Promise<void> {
+  const notifications = await getNotifications();
+  notifications.unshift({
+    ...notification,
+    id: Crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+    read: false,
+  });
+  if (notifications.length > 50) notifications.length = 50;
+  await AsyncStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(notifications));
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  const notifications = await getNotifications();
+  const n = notifications.find(n => n.id === id);
+  if (n) {
+    n.read = true;
+    await AsyncStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(notifications));
+  }
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  const notifications = await getNotifications();
+  notifications.forEach(n => n.read = true);
+  await AsyncStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(notifications));
+}
+
+export async function getUnreadNotificationCount(): Promise<number> {
+  const notifications = await getNotifications();
+  return notifications.filter(n => !n.read).length;
 }
 
 export function createSampleProgram(coachId: string): Omit<Program, 'id' | 'createdAt' | 'shareCode'> {

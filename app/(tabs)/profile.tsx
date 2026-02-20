@@ -6,7 +6,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
-import { getProfile, saveProfile, getPRs, getPrograms, type UserProfile } from "@/lib/storage";
+import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, type UserProfile } from "@/lib/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function ProfileScreen() {
@@ -14,13 +14,13 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<UserProfile>({ id: '', name: '', role: 'coach', weightUnit: 'kg', coachCode: '' });
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState('');
-  const [stats, setStats] = useState({ prs: 0, programs: 0 });
+  const [stats, setStats] = useState({ prs: 0, programs: 0, clients: 0 });
 
   const loadData = useCallback(async () => {
-    const [p, prs, progs] = await Promise.all([getProfile(), getPRs(), getPrograms()]);
+    const [p, prs, progs, cl] = await Promise.all([getProfile(), getPRs(), getPrograms(), getClients()]);
     setProfile(p);
     setNameInput(p.name);
-    setStats({ prs: prs.length, programs: progs.length });
+    setStats({ prs: prs.length, programs: progs.length, clients: cl.length });
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
@@ -41,6 +41,24 @@ export default function ProfileScreen() {
     Haptics.selectionAsync();
   };
 
+  const handleResetCoachCode = () => {
+    Alert.alert(
+      "Reset Coach Code",
+      "This will generate a new coach code. Existing clients will still be connected, but new clients will need the updated code.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reset Code",
+          onPress: async () => {
+            const newCode = await resetCoachCode();
+            setProfile({ ...profile, coachCode: newCode });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          },
+        },
+      ]
+    );
+  };
+
   const handleSwitchRole = () => {
     Alert.alert(
       "Switch Role",
@@ -55,7 +73,7 @@ export default function ProfileScreen() {
             await saveProfile(updated);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             router.replace('/role-select');
-          }
+          },
         },
       ]
     );
@@ -73,13 +91,14 @@ export default function ProfileScreen() {
           onPress: async () => {
             await AsyncStorage.clear();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            loadData();
-          }
+            router.replace('/role-select');
+          },
         },
       ]
     );
   };
 
+  const isCoach = profile.role === 'coach';
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   return (
@@ -119,27 +138,58 @@ export default function ProfileScreen() {
             </Pressable>
           )}
           <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>{profile.role === 'coach' ? 'Coach' : 'Athlete'}</Text>
+            <Text style={styles.roleText}>{isCoach ? 'Coach' : 'Athlete'}</Text>
           </View>
-          {profile.role === 'coach' && !!profile.coachCode && (
-            <View style={styles.coachCodeSection}>
-              <Text style={styles.coachCodeLabel}>Coach Code</Text>
-              <Text style={styles.coachCodeValue}>{profile.coachCode}</Text>
-            </View>
-          )}
         </Animated.View>
 
+        {isCoach && (
+          <Animated.View entering={FadeInDown.delay(80).duration(400)}>
+            <View style={styles.coachCodeCard}>
+              <View style={styles.coachCodeHeader}>
+                <View>
+                  <Text style={styles.coachCodeLabel}>Coach Code</Text>
+                  <Text style={styles.coachCodeSub}>Share with clients to connect</Text>
+                </View>
+                <Pressable style={styles.resetCodeBtn} onPress={handleResetCoachCode}>
+                  <Ionicons name="refresh" size={16} color={Colors.colors.primary} />
+                  <Text style={styles.resetCodeText}>Reset</Text>
+                </Pressable>
+              </View>
+              <View style={styles.coachCodeDisplay}>
+                <Text style={styles.coachCodeValue}>{profile.coachCode}</Text>
+              </View>
+            </View>
+          </Animated.View>
+        )}
+
         <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Ionicons name="trophy" size={22} color={Colors.colors.accent} />
-            <Text style={styles.statValue}>{stats.prs}</Text>
-            <Text style={styles.statLabel}>PRs Logged</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Ionicons name="barbell" size={22} color={Colors.colors.primary} />
-            <Text style={styles.statValue}>{stats.programs}</Text>
-            <Text style={styles.statLabel}>Programs</Text>
-          </View>
+          {isCoach ? (
+            <>
+              <View style={styles.statCard}>
+                <Ionicons name="people" size={22} color={Colors.colors.primary} />
+                <Text style={styles.statValue}>{stats.clients}</Text>
+                <Text style={styles.statLabel}>Clients</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Ionicons name="barbell" size={22} color={Colors.colors.accent} />
+                <Text style={styles.statValue}>{stats.programs}</Text>
+                <Text style={styles.statLabel}>Programs</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.statCard}>
+                <Ionicons name="trophy" size={22} color={Colors.colors.accent} />
+                <Text style={styles.statValue}>{stats.prs}</Text>
+                <Text style={styles.statLabel}>PRs Logged</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Ionicons name="barbell" size={22} color={Colors.colors.primary} />
+                <Text style={styles.statValue}>{stats.programs}</Text>
+                <Text style={styles.statLabel}>Programs</Text>
+              </View>
+            </>
+          )}
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(200).duration(400)}>
@@ -152,7 +202,7 @@ export default function ProfileScreen() {
               </View>
               <View>
                 <Text style={styles.settingLabel}>Role</Text>
-                <Text style={styles.settingValue}>{profile.role === 'coach' ? 'Coach' : 'Athlete'}</Text>
+                <Text style={styles.settingValue}>{isCoach ? 'Coach' : 'Athlete'}</Text>
               </View>
             </View>
             <Ionicons name="lock-closed" size={16} color={Colors.colors.textMuted} />
@@ -208,173 +258,67 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.colors.background,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  headerTitle: {
-    fontFamily: 'Rubik_700Bold',
-    fontSize: 28,
-    color: Colors.colors.text,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-  },
+  container: { flex: 1, backgroundColor: Colors.colors.background },
+  header: { paddingHorizontal: 20, paddingVertical: 16 },
+  headerTitle: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.text },
+  scrollContent: { paddingHorizontal: 20 },
   profileCard: {
-    backgroundColor: Colors.colors.backgroundCard,
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.colors.border,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 20, padding: 24,
+    alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: Colors.colors.border,
   },
-  avatarContainer: {
-    marginBottom: 14,
-  },
+  avatarContainer: { marginBottom: 14 },
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(232, 81, 47, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: Colors.colors.primary,
+    width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(232, 81, 47, 0.12)',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.colors.primary,
   },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  profileName: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 20,
-    color: Colors.colors.text,
-  },
-  nameEditRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    width: '100%',
-  },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  profileName: { fontFamily: 'Rubik_600SemiBold', fontSize: 20, color: Colors.colors.text },
+  nameEditRow: { flexDirection: 'row', alignItems: 'center', gap: 10, width: '100%' },
   nameInput: {
-    flex: 1,
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 18,
-    color: Colors.colors.text,
-    backgroundColor: Colors.colors.surfaceLight,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    flex: 1, fontFamily: 'Rubik_500Medium', fontSize: 18, color: Colors.colors.text,
+    backgroundColor: Colors.colors.surfaceLight, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
   },
   roleBadge: {
-    backgroundColor: 'rgba(232, 81, 47, 0.12)',
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    borderRadius: 12,
-    marginTop: 10,
+    backgroundColor: 'rgba(232, 81, 47, 0.12)', paddingHorizontal: 14, paddingVertical: 5, borderRadius: 12, marginTop: 10,
   },
-  roleText: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 13,
-    color: Colors.colors.primary,
+  roleText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.primary },
+  coachCodeCard: {
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 16, padding: 18,
+    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 16,
   },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
+  coachCodeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  coachCodeLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.text },
+  coachCodeSub: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted, marginTop: 2 },
+  resetCodeBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(232,81,47,0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8,
   },
+  resetCodeText: { fontFamily: 'Rubik_500Medium', fontSize: 12, color: Colors.colors.primary },
+  coachCodeDisplay: {
+    alignItems: 'center', backgroundColor: Colors.colors.surface, borderRadius: 12,
+    paddingVertical: 16, marginTop: 14, borderWidth: 1, borderColor: Colors.colors.border,
+  },
+  coachCodeValue: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.primary, letterSpacing: 4 },
+  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
   statCard: {
-    flex: 1,
-    backgroundColor: Colors.colors.backgroundCard,
-    borderRadius: 14,
-    padding: 18,
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.colors.border,
+    flex: 1, backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 18,
+    alignItems: 'center', gap: 6, borderWidth: 1, borderColor: Colors.colors.border,
   },
-  statValue: {
-    fontFamily: 'Rubik_700Bold',
-    fontSize: 24,
-    color: Colors.colors.text,
-  },
-  statLabel: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    color: Colors.colors.textMuted,
-  },
+  statValue: { fontFamily: 'Rubik_700Bold', fontSize: 24, color: Colors.colors.text },
+  statLabel: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted },
   sectionTitle: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 16,
-    color: Colors.colors.textSecondary,
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontFamily: 'Rubik_600SemiBold', fontSize: 16, color: Colors.colors.textSecondary,
+    marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5,
   },
   settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.colors.backgroundCard,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: Colors.colors.border,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 16,
+    marginBottom: 8, borderWidth: 1, borderColor: Colors.colors.border,
   },
-  dangerItem: {
-    borderColor: 'rgba(255, 59, 48, 0.2)',
-  },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  settingIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingLabel: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 15,
-    color: Colors.colors.text,
-  },
-  settingValue: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    color: Colors.colors.textMuted,
-    marginTop: 1,
-  },
-  coachCodeSection: {
-    marginTop: 12,
-    alignItems: 'center',
-    gap: 4,
-  },
-  coachCodeLabel: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 11,
-    color: Colors.colors.textMuted,
-  },
-  coachCodeValue: {
-    fontFamily: 'Rubik_700Bold',
-    fontSize: 20,
-    color: Colors.colors.primary,
-    letterSpacing: 3,
-  },
-  version: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    color: Colors.colors.textMuted,
-    textAlign: 'center',
-    marginTop: 30,
-  },
+  dangerItem: { borderColor: 'rgba(255, 59, 48, 0.2)' },
+  settingLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  settingIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  settingLabel: { fontFamily: 'Rubik_500Medium', fontSize: 15, color: Colors.colors.text },
+  settingValue: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, marginTop: 1 },
+  version: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, textAlign: 'center', marginTop: 30 },
 });

@@ -7,7 +7,7 @@ import * as Haptics from "expo-haptics";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import * as Crypto from "expo-crypto";
-import { getProgram, updateProgram, getProfile, type Program, type Exercise, type WorkoutWeek, type WorkoutDay } from "@/lib/storage";
+import { getProgram, updateProgram, getProfile, addNotification, type Program, type Exercise, type WorkoutWeek, type WorkoutDay } from "@/lib/storage";
 
 function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete }: {
   exercise: Exercise;
@@ -253,12 +253,74 @@ export default function ProgramDetailScreen() {
   }, [id]);
 
   const save = useCallback(async () => {
-    if (program) {
-      await updateProgram(program);
-      setHasChanges(false);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (!program) return;
+    const oldProgram = await getProgram(program.id);
+
+    await updateProgram(program);
+    setHasChanges(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    if (oldProgram) {
+      for (const week of program.weeks) {
+        for (const day of week.days) {
+          for (const ex of day.exercises) {
+            const oldWeek = oldProgram.weeks.find(w => w.weekNumber === week.weekNumber);
+            const oldDay = oldWeek?.days.find(d => d.dayNumber === day.dayNumber);
+            const oldEx = oldDay?.exercises.find(e => e.id === ex.id);
+            if (!oldEx || !ex.name) continue;
+
+            if (!isCoach) {
+              if (ex.clientNotes && ex.clientNotes !== oldEx.clientNotes) {
+                addNotification({
+                  type: 'notes',
+                  title: 'New Client Notes',
+                  message: `Notes added on ${ex.name}: "${ex.clientNotes.slice(0, 60)}"`,
+                  programId: program.id,
+                  programTitle: program.title,
+                  exerciseName: ex.name,
+                  fromRole: 'client',
+                });
+              }
+              if (ex.videoUrl && ex.videoUrl !== oldEx.videoUrl) {
+                addNotification({
+                  type: 'video',
+                  title: 'Form Check Video',
+                  message: `Video uploaded for ${ex.name}`,
+                  programId: program.id,
+                  programTitle: program.title,
+                  exerciseName: ex.name,
+                  fromRole: 'client',
+                });
+              }
+              if (ex.isCompleted && !oldEx.isCompleted) {
+                addNotification({
+                  type: 'completion',
+                  title: 'Exercise Completed',
+                  message: `${ex.name} marked as completed`,
+                  programId: program.id,
+                  programTitle: program.title,
+                  exerciseName: ex.name,
+                  fromRole: 'client',
+                });
+              }
+            } else {
+              if (ex.coachComment && ex.coachComment !== oldEx.coachComment) {
+                addNotification({
+                  type: 'comment',
+                  title: 'New Coach Feedback',
+                  message: `Coach commented on ${ex.name}: "${ex.coachComment.slice(0, 60)}"`,
+                  programId: program.id,
+                  programTitle: program.title,
+                  exerciseName: ex.name,
+                  fromRole: 'coach',
+                });
+              }
+            }
+          }
+        }
+      }
     }
-  }, [program]);
+  }, [program, isCoach]);
 
   const currentWeek = program?.weeks.find(w => w.weekNumber === activeWeek);
   const currentDay = currentWeek?.days.find(d => d.dayNumber === activeDay);

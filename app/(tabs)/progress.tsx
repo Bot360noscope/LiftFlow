@@ -6,7 +6,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
-import { getPRs, deletePR, getProfile, getBestPR, type LiftPR } from "@/lib/storage";
+import { getPRs, deletePR, getProfile, getBestPR, getPrograms, getClients, type LiftPR, type Program, type ClientInfo } from "@/lib/storage";
 
 const LIFT_COLORS: Record<string, string> = {
   squat: Colors.colors.squat,
@@ -20,15 +20,88 @@ const LIFT_LABELS: Record<string, string> = {
   bench: 'Bench Press',
 };
 
+function ClientProgressCard({ client, programs, delay }: { client: ClientInfo; programs: Program[]; delay: number }) {
+  const clientPrograms = programs.filter(p => p.clientId === client.id);
+  let totalEx = 0, completedEx = 0, notesCount = 0, videosCount = 0;
+  for (const prog of clientPrograms) {
+    for (const week of prog.weeks) {
+      for (const day of week.days) {
+        for (const ex of day.exercises) {
+          if (ex.name) totalEx++;
+          if (ex.isCompleted) completedEx++;
+          if (ex.clientNotes) notesCount++;
+          if (ex.videoUrl) videosCount++;
+        }
+      }
+    }
+  }
+  const progress = totalEx > 0 ? Math.round((completedEx / totalEx) * 100) : 0;
+
+  return (
+    <Animated.View entering={FadeInDown.delay(delay).duration(400)}>
+      <Pressable
+        style={({ pressed }) => [styles.clientProgressCard, pressed && { opacity: 0.85 }]}
+        onPress={() => {
+          if (clientPrograms.length > 0) {
+            router.push(`/program/${clientPrograms[0].id}`);
+          }
+        }}
+      >
+        <View style={styles.clientHeader}>
+          <View style={styles.clientAvatar}>
+            <Text style={styles.clientAvatarText}>{(client.name || '?')[0].toUpperCase()}</Text>
+          </View>
+          <View style={styles.clientHeaderInfo}>
+            <Text style={styles.clientNameText}>{client.name || 'Client'}</Text>
+            <Text style={styles.clientJoined}>Joined {new Date(client.joinedAt).toLocaleDateString()}</Text>
+          </View>
+        </View>
+
+        <View style={styles.clientStatsRow}>
+          <View style={styles.clientStatBox}>
+            <Text style={styles.clientStatNum}>{clientPrograms.length}</Text>
+            <Text style={styles.clientStatLabel}>Programs</Text>
+          </View>
+          <View style={styles.clientStatBox}>
+            <Text style={[styles.clientStatNum, { color: Colors.colors.success }]}>{completedEx}</Text>
+            <Text style={styles.clientStatLabel}>Completed</Text>
+          </View>
+          <View style={styles.clientStatBox}>
+            <Text style={[styles.clientStatNum, { color: Colors.colors.accent }]}>{notesCount}</Text>
+            <Text style={styles.clientStatLabel}>Notes</Text>
+          </View>
+          <View style={styles.clientStatBox}>
+            <Text style={[styles.clientStatNum, { color: Colors.colors.primary }]}>{videosCount}</Text>
+            <Text style={styles.clientStatLabel}>Videos</Text>
+          </View>
+        </View>
+
+        <View style={styles.clientProgressRow}>
+          <View style={styles.progressBarBg}>
+            <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+          </View>
+          <Text style={styles.clientProgressText}>{progress}%</Text>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const [prs, setPRs] = useState<LiftPR[]>([]);
   const [unit, setUnit] = useState<'kg' | 'lbs'>('kg');
+  const [isCoach, setIsCoach] = useState(false);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [clients, setClients] = useState<ClientInfo[]>([]);
 
   const loadData = useCallback(async () => {
-    const [prData, profile] = await Promise.all([getPRs(), getProfile()]);
+    const [prData, profile, progs, cl] = await Promise.all([getPRs(), getProfile(), getPrograms(), getClients()]);
     setPRs(prData);
     setUnit(profile.weightUnit);
+    setIsCoach(profile.role === 'coach');
+    setPrograms(progs);
+    setClients(cl);
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
@@ -59,6 +132,54 @@ export default function ProgressScreen() {
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 84 : 0;
+
+  if (isCoach) {
+    return (
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + webTopInset + 16, paddingBottom: insets.bottom + webBottomInset + 20 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.pageTitle}>Client Progress</Text>
+
+        <Animated.View entering={FadeInDown.duration(400)}>
+          <View style={styles.overviewRow}>
+            <View style={styles.overviewCard}>
+              <Text style={styles.overviewValue}>{clients.length}</Text>
+              <Text style={styles.overviewLabel}>Total Clients</Text>
+            </View>
+            <View style={styles.overviewCard}>
+              <Text style={styles.overviewValue}>{programs.length}</Text>
+              <Text style={styles.overviewLabel}>Programs</Text>
+            </View>
+            <View style={styles.overviewCard}>
+              <Text style={[styles.overviewValue, { color: Colors.colors.success }]}>
+                {programs.filter(p => p.status === 'active').length}
+              </Text>
+              <Text style={styles.overviewLabel}>Active</Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        <Text style={styles.sectionTitle}>Clients</Text>
+
+        {clients.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="people-outline" size={40} color={Colors.colors.textMuted} />
+            <Text style={styles.emptyText}>No clients yet</Text>
+            <Text style={styles.emptyDesc}>Share your coach code with clients to start tracking their progress</Text>
+          </View>
+        ) : (
+          clients.map((client, idx) => (
+            <ClientProgressCard key={client.id} client={client} programs={programs} delay={idx * 60} />
+          ))
+        )}
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
@@ -161,12 +282,40 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.colors.background },
   scrollContent: { paddingHorizontal: 20 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  pageTitle: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.text },
+  pageTitle: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.text, marginBottom: 20 },
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: Colors.colors.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
   },
   addBtnText: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: '#fff' },
+  overviewRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  overviewCard: {
+    flex: 1, alignItems: 'center', backgroundColor: Colors.colors.backgroundCard,
+    borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.colors.border,
+  },
+  overviewValue: { fontFamily: 'Rubik_700Bold', fontSize: 24, color: Colors.colors.text },
+  overviewLabel: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted, marginTop: 4 },
+  clientProgressCard: {
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 16,
+    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 12,
+  },
+  clientHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  clientAvatar: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(232,81,47,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  clientAvatarText: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.primary },
+  clientHeaderInfo: { flex: 1 },
+  clientNameText: { fontFamily: 'Rubik_600SemiBold', fontSize: 16, color: Colors.colors.text },
+  clientJoined: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted, marginTop: 2 },
+  clientStatsRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  clientStatBox: {
+    flex: 1, alignItems: 'center', backgroundColor: Colors.colors.surface, borderRadius: 8, paddingVertical: 8,
+  },
+  clientStatNum: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.text },
+  clientStatLabel: { fontFamily: 'Rubik_400Regular', fontSize: 10, color: Colors.colors.textMuted, marginTop: 2 },
+  clientProgressRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  clientProgressText: { fontFamily: 'Rubik_600SemiBold', fontSize: 12, color: Colors.colors.textSecondary, width: 32, textAlign: 'right' },
   totalCard: {
     alignItems: 'center', backgroundColor: Colors.colors.backgroundCard, borderRadius: 16,
     padding: 24, borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 16,
@@ -189,7 +338,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.text, marginBottom: 12 },
   emptyState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
   emptyText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.text },
-  emptyDesc: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted },
+  emptyDesc: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, textAlign: 'center', paddingHorizontal: 20 },
   prRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 14,
@@ -202,4 +351,6 @@ const styles = StyleSheet.create({
   prNotes: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textSecondary, marginTop: 2 },
   prWeight: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.text },
   prUnit: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted },
+  progressBarBg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.colors.surfaceLight, overflow: 'hidden' as const },
+  progressBarFill: { height: '100%' as const, borderRadius: 2, backgroundColor: Colors.colors.primary },
 });
