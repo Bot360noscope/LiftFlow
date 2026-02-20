@@ -147,14 +147,22 @@ export default function HomeScreen() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   const loadData = useCallback(async () => {
-    const [p, progs, prData, cl, notifs] = await Promise.all([
-      getProfile(), getPrograms(), getPRs(), getClients(), getNotifications(),
-    ]);
-    setProfile(p);
-    setPrograms(progs);
-    setPRs(prData);
-    setClients(cl);
-    setNotifications(notifs);
+    try {
+      const p = await getProfile();
+      setProfile(p);
+      const [progs, prData, cl, notifs] = await Promise.all([
+        getPrograms().catch(() => [] as Program[]),
+        getPRs().catch(() => [] as LiftPR[]),
+        getClients().catch(() => [] as ClientInfo[]),
+        getNotifications().catch(() => [] as AppNotification[]),
+      ]);
+      setPrograms(progs);
+      setPRs(prData);
+      setClients(cl);
+      setNotifications(notifs);
+    } catch (e) {
+      console.warn('Failed to load data:', e);
+    }
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));

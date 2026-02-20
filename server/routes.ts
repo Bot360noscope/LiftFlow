@@ -324,7 +324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: 'Coach Mike',
         role: 'coach',
         weightUnit: 'kg',
-        coachCode: 'LIFT42',
+        coachCode: generateCode(),
       }).returning();
 
       const client1ProfileId = randomUUID();
