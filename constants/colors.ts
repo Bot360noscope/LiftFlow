@@ -12,6 +12,7 @@ const colors = {
   text: '#FFFFFF',
   textSecondary: '#A0A0A0',
   textMuted: '#666666',
+  textGhost: 'rgba(232, 81, 47, 0.4)',
   border: '#333333',
   borderLight: '#444444',
   success: '#34C759',

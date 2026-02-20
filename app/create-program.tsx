@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, Pressable, Platform, TextInput, ScrollView } fr
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback, useEffect } from "react";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as Crypto from "expo-crypto";
 import Colors from "@/constants/colors";
@@ -10,6 +10,7 @@ import { addProgram, createSampleProgram, getProfile, type Exercise, type Workou
 
 export default function CreateProgramScreen() {
   const insets = useSafeAreaInsets();
+  const { clientId, clientName } = useLocalSearchParams<{ clientId?: string; clientName?: string }>();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [weeks, setWeeks] = useState('4');
@@ -60,7 +61,7 @@ export default function CreateProgramScreen() {
       weeks: programWeeks,
       daysPerWeek: numDays,
       coachId,
-      clientId: null,
+      clientId: clientId || null,
       status: 'active',
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -83,7 +84,7 @@ export default function CreateProgramScreen() {
         <Pressable onPress={() => router.back()} hitSlop={8}>
           <Ionicons name="close" size={28} color={Colors.colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>New Program</Text>
+        <Text style={styles.headerTitle}>{clientName ? `Program for ${clientName}` : 'New Program'}</Text>
         <View style={{ width: 28 }} />
       </View>
 

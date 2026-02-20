@@ -9,12 +9,13 @@ import Colors from "@/constants/colors";
 import * as Crypto from "expo-crypto";
 import { getProgram, updateProgram, getProfile, addNotification, type Program, type Exercise, type WorkoutWeek, type WorkoutDay } from "@/lib/storage";
 
-function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete }: {
+function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExercise }: {
   exercise: Exercise;
   index: number;
   isCoach: boolean;
   onUpdate: (updates: Partial<Exercise>) => void;
   onDelete: () => void;
+  prevWeekExercise?: Exercise | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [name, setName] = useState(exercise.name);
@@ -89,9 +90,11 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete }: {
             )
           )}
           <View style={styles.exerciseHeaderInfo}>
-            <Text style={styles.exerciseName} numberOfLines={1}>{exercise.name || `Exercise ${index + 1}`}</Text>
+            <Text style={[styles.exerciseName, !exercise.name && prevWeekExercise?.name ? styles.ghostText : null]} numberOfLines={1}>
+              {exercise.name || prevWeekExercise?.name || `Exercise ${index + 1}`}
+            </Text>
             <Text style={styles.exerciseMeta}>
-              {exercise.repsSets ? exercise.repsSets : '-'} {exercise.weight ? `@ ${exercise.weight}` : ''} {exercise.rpe ? `RPE ${exercise.rpe}` : ''}
+              {exercise.repsSets || prevWeekExercise?.repsSets || '-'} {exercise.weight ? `@ ${exercise.weight}` : ''} {exercise.rpe ? `RPE ${exercise.rpe}` : ''}
             </Text>
           </View>
         </View>
@@ -115,12 +118,14 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete }: {
               value={name}
               onChangeText={setName}
               onBlur={saveChanges}
-              placeholder="e.g., Squat"
-              placeholderTextColor={Colors.colors.textMuted}
+              placeholder={prevWeekExercise?.name || "e.g., Squat"}
+              placeholderTextColor={prevWeekExercise?.name ? Colors.colors.textGhost : Colors.colors.textMuted}
             />
           ) : (
             <View style={[styles.fieldInput, styles.readOnlyField]}>
-              <Text style={styles.readOnlyText}>{name || 'No exercise name'}</Text>
+              <Text style={[styles.readOnlyText, !name && prevWeekExercise?.name ? styles.ghostText : null]}>
+                {name || prevWeekExercise?.name || 'No exercise name'}
+              </Text>
             </View>
           )}
 
@@ -129,16 +134,18 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete }: {
               <Text style={styles.fieldLabel}>Sets x Reps</Text>
               {isCoach ? (
                 <TextInput
-                  style={styles.fieldInput}
+                  style={[styles.fieldInput, !repsSets && prevWeekExercise?.repsSets ? styles.ghostedInput : null]}
                   value={repsSets}
                   onChangeText={setRepsSets}
                   onBlur={saveChanges}
-                  placeholder="e.g., 5x5"
-                  placeholderTextColor={Colors.colors.textMuted}
+                  placeholder={prevWeekExercise?.repsSets || "e.g., 5x5"}
+                  placeholderTextColor={prevWeekExercise?.repsSets ? Colors.colors.textGhost : Colors.colors.textMuted}
                 />
               ) : (
                 <View style={[styles.fieldInput, styles.readOnlyField]}>
-                  <Text style={styles.readOnlyText}>{repsSets || '-'}</Text>
+                  <Text style={[styles.readOnlyText, !repsSets && prevWeekExercise?.repsSets ? styles.ghostText : null]}>
+                    {repsSets || prevWeekExercise?.repsSets || '-'}
+                  </Text>
                 </View>
               )}
             </View>
@@ -149,25 +156,27 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete }: {
                 value={weight}
                 onChangeText={setWeight}
                 onBlur={saveChanges}
-                placeholder="e.g., 100kg"
-                placeholderTextColor={Colors.colors.textMuted}
+                placeholder={prevWeekExercise?.weight || "e.g., 100kg"}
+                placeholderTextColor={prevWeekExercise?.weight ? Colors.colors.textGhost : Colors.colors.textMuted}
               />
             </View>
             <View style={{ width: 70 }}>
               <Text style={styles.fieldLabel}>RPE</Text>
               {isCoach ? (
                 <TextInput
-                  style={styles.fieldInput}
+                  style={[styles.fieldInput, !rpe && prevWeekExercise?.rpe ? styles.ghostedInput : null]}
                   value={rpe}
                   onChangeText={setRpe}
                   onBlur={saveChanges}
-                  placeholder="7"
-                  placeholderTextColor={Colors.colors.textMuted}
+                  placeholder={prevWeekExercise?.rpe || "7"}
+                  placeholderTextColor={prevWeekExercise?.rpe ? Colors.colors.textGhost : Colors.colors.textMuted}
                   keyboardType="decimal-pad"
                 />
               ) : (
                 <View style={[styles.fieldInput, styles.readOnlyField]}>
-                  <Text style={styles.readOnlyText}>{rpe || '-'}</Text>
+                  <Text style={[styles.readOnlyText, !rpe && prevWeekExercise?.rpe ? styles.ghostText : null]}>
+                    {rpe || prevWeekExercise?.rpe || '-'}
+                  </Text>
                 </View>
               )}
             </View>
@@ -345,6 +354,12 @@ export default function ProgramDetailScreen() {
   const currentDay = currentWeek?.days.find(d => d.dayNumber === activeDay);
   const exercises = currentDay?.exercises || [];
 
+  const prevWeekDay = useMemo(() => {
+    if (!program || activeWeek <= 1) return null;
+    const prevWeek = program.weeks.find(w => w.weekNumber === activeWeek - 1);
+    return prevWeek?.days.find(d => d.dayNumber === activeDay) || null;
+  }, [program, activeWeek, activeDay]);
+
   const weekProgress = useMemo(() => {
     if (!currentWeek) return 0;
     let total = 0;
@@ -362,20 +377,48 @@ export default function ProgramDetailScreen() {
 
   const updateExercise = useCallback((exerciseId: string, updates: Partial<Exercise>) => {
     if (!program) return;
+
+    const currentDay = program.weeks
+      .find(w => w.weekNumber === activeWeek)?.days
+      .find(d => d.dayNumber === activeDay);
+    const exerciseIndex = currentDay?.exercises.findIndex(e => e.id === exerciseId) ?? -1;
+    const oldExercise = currentDay?.exercises[exerciseIndex];
+    const nameChanged = updates.name !== undefined && oldExercise && updates.name !== oldExercise.name;
+
     const updatedWeeks = program.weeks.map(week => {
-      if (week.weekNumber !== activeWeek) return week;
-      return {
-        ...week,
-        days: week.days.map(day => {
-          if (day.dayNumber !== activeDay) return day;
-          return {
-            ...day,
-            exercises: day.exercises.map(ex =>
-              ex.id === exerciseId ? { ...ex, ...updates } : ex
-            ),
-          };
-        }),
-      };
+      if (week.weekNumber === activeWeek) {
+        return {
+          ...week,
+          days: week.days.map(day => {
+            if (day.dayNumber !== activeDay) return day;
+            return {
+              ...day,
+              exercises: day.exercises.map(ex =>
+                ex.id === exerciseId ? { ...ex, ...updates } : ex
+              ),
+            };
+          }),
+        };
+      }
+      if (nameChanged && week.weekNumber > activeWeek && exerciseIndex >= 0) {
+        return {
+          ...week,
+          days: week.days.map(day => {
+            if (day.dayNumber !== activeDay) return day;
+            const targetEx = day.exercises[exerciseIndex];
+            if (!targetEx) return day;
+            const shouldUpdate = !targetEx.name || targetEx.name === oldExercise.name;
+            if (!shouldUpdate) return day;
+            return {
+              ...day,
+              exercises: day.exercises.map((ex, i) =>
+                i === exerciseIndex ? { ...ex, name: updates.name! } : ex
+              ),
+            };
+          }),
+        };
+      }
+      return week;
     });
     setProgram({ ...program, weeks: updatedWeeks });
     setHasChanges(true);
@@ -529,6 +572,7 @@ export default function ProgramDetailScreen() {
                 isCoach={isCoach}
                 onUpdate={(updates) => updateExercise(ex.id, updates)}
                 onDelete={() => deleteExercise(ex.id)}
+                prevWeekExercise={prevWeekDay?.exercises[idx] || null}
               />
             </Animated.View>
           ))
@@ -612,6 +656,8 @@ const styles = StyleSheet.create({
   fieldRow: { flexDirection: 'row', gap: 8 },
   readOnlyField: { backgroundColor: Colors.colors.surfaceLight },
   readOnlyText: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted },
+  ghostedInput: { borderColor: 'rgba(232, 81, 47, 0.2)' },
+  ghostText: { color: Colors.colors.textGhost, fontStyle: 'italic' },
   completionToggle: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: Colors.colors.surface, borderRadius: 10, padding: 12,

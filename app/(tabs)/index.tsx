@@ -46,9 +46,7 @@ function ClientCard({ client, programs }: { client: ClientInfo; programs: Progra
       style={({ pressed }) => [styles.clientCard, pressed && { opacity: 0.85 }]}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        if (clientPrograms.length > 0) {
-          router.push(`/program/${clientPrograms[0].id}`);
-        }
+        router.push({ pathname: '/client/[id]', params: { id: client.id, name: client.name } });
       }}
     >
       <View style={styles.clientCardHeader}>

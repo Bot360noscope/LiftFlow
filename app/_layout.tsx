@@ -26,6 +26,7 @@ function RootLayoutNav() {
       <Stack.Screen name="add-pr" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="create-program" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="join-coach" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="client/[id]" options={{ headerShown: false, presentation: "card" }} />
     </Stack>
   );
 }
