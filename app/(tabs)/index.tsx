@@ -8,6 +8,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import {
   getProfile, getPrograms, getPRs, getBestPR, getClients, getNotifications,
+  markNotificationRead, clearAllNotifications,
   type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification,
 } from "@/lib/storage";
 
@@ -110,7 +111,7 @@ function ProgramCard({ program }: { program: Program }) {
   );
 }
 
-function NotificationItem({ notification }: { notification: AppNotification }) {
+function NotificationItem({ notification, onRead }: { notification: AppNotification; onRead: (id: string) => void }) {
   const icon = notification.type === 'video' ? 'videocam' :
     notification.type === 'notes' ? 'chatbubble' :
     notification.type === 'comment' ? 'school' : 'checkmark-circle';
@@ -123,6 +124,7 @@ function NotificationItem({ notification }: { notification: AppNotification }) {
       style={[styles.notifItem, !notification.read && styles.notifItemUnread]}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        if (!notification.read) onRead(notification.id);
         router.push(`/program/${notification.programId}`);
       }}
     >
@@ -158,6 +160,17 @@ export default function HomeScreen() {
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+
+  const handleReadNotification = async (id: string) => {
+    await markNotificationRead(id);
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+
+  const handleClearAllNotifications = async () => {
+    await clearAllNotifications();
+    setNotifications([]);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
 
   const bestSquat = getBestPR(prs, 'squat');
   const bestDeadlift = getBestPR(prs, 'deadlift');
@@ -268,9 +281,18 @@ export default function HomeScreen() {
 
           {recentNotifs.length > 0 && (
             <Animated.View entering={FadeInDown.delay(250).duration(400)}>
-              <Text style={styles.sectionTitle}>Recent Activity</Text>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Recent Activity</Text>
+                <Pressable
+                  style={styles.clearBtn}
+                  onPress={handleClearAllNotifications}
+                  hitSlop={8}
+                >
+                  <Ionicons name="close" size={16} color={Colors.colors.textMuted} />
+                </Pressable>
+              </View>
               {recentNotifs.map(n => (
-                <NotificationItem key={n.id} notification={n} />
+                <NotificationItem key={n.id} notification={n} onRead={handleReadNotification} />
               ))}
             </Animated.View>
           )}
@@ -344,9 +366,18 @@ export default function HomeScreen() {
 
           {recentNotifs.length > 0 && (
             <Animated.View entering={FadeInDown.delay(220).duration(400)}>
-              <Text style={styles.sectionTitle}>Recent Activity</Text>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Recent Activity</Text>
+                <Pressable
+                  style={styles.clearBtn}
+                  onPress={handleClearAllNotifications}
+                  hitSlop={8}
+                >
+                  <Ionicons name="close" size={16} color={Colors.colors.textMuted} />
+                </Pressable>
+              </View>
               {recentNotifs.map(n => (
-                <NotificationItem key={n.id} notification={n} />
+                <NotificationItem key={n.id} notification={n} onRead={handleReadNotification} />
               ))}
             </Animated.View>
           )}
@@ -507,6 +538,10 @@ const styles = StyleSheet.create({
   addBtn: {
     width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(232,81,47,0.1)', marginBottom: 12,
+  },
+  clearBtn: {
+    width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.colors.surfaceLight, marginBottom: 12,
   },
   programCard: {
     backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 16,

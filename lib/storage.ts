@@ -231,6 +231,10 @@ export async function markAllNotificationsRead(): Promise<void> {
   await AsyncStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(notifications));
 }
 
+export async function clearAllNotifications(): Promise<void> {
+  await AsyncStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify([]));
+}
+
 export async function getUnreadNotificationCount(): Promise<number> {
   const notifications = await getNotifications();
   return notifications.filter(n => !n.read).length;
