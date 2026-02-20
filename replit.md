@@ -8,7 +8,7 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **Backend**: Express serving on port 5000 (landing page + REST API)
 - **Database**: PostgreSQL via Drizzle ORM (shared/schema.ts)
 - **Data Flow**: Frontend → lib/storage.ts (API client) → Express API → PostgreSQL
-- **Video**: expo-image-picker for native camera recording, multer for server-side upload handling
+- **Video**: expo-image-picker for native camera recording, multer for server-side upload handling, auto-cleanup (3 days after coach views, 7 days if unviewed)
 - **Theme**: Dark mode with energetic orange/red palette (#E8512F)
 
 ## Database Schema (shared/schema.ts)
@@ -18,6 +18,7 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **prs**: id, profileId, liftType, weight, date
 - **notifications**: id, profileId, title, message, type, isRead, createdAt
 - **messages**: id, coachId, clientProfileId, senderRole, text, createdAt
+- **video_uploads**: id, filename, programId, exerciseId, uploadedBy, coachId, coachViewedAt, uploadedAt
 
 ## API Endpoints (server/routes.ts)
 - POST /api/profiles, GET /api/profiles/:id, PUT /api/profiles/:id
@@ -25,7 +26,7 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - GET /api/clients?coachId=X, POST /api/clients, DELETE /api/clients/:id
 - GET /api/prs?profileId=X, POST /api/prs, DELETE /api/prs/:id
 - GET /api/notifications?profileId=X, POST /api/notifications, PUT /api/notifications/:id/read
-- POST /api/upload-video, GET /api/videos/:filename
+- POST /api/upload-video, GET /api/videos/:filename, POST /api/videos/:filename/viewed
 - GET /api/messages?coachId=X&clientProfileId=Y, POST /api/messages
 - GET /api/clients/search?coachId=X&q=query
 - POST /api/seed-demo, POST /api/join-coach
