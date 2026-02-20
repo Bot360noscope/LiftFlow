@@ -45,6 +45,8 @@ function ClientCard({ client, programs, hasUnread }: { client: ClientInfo; progr
   return (
     <Pressable
       style={({ pressed }) => [styles.clientCard, pressed && { opacity: 0.85 }]}
+      accessibilityLabel={`View client ${client.name || 'details'}`}
+      accessibilityRole="button"
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         router.push({ pathname: '/client/[id]', params: { id: client.id, name: client.name } });
@@ -94,6 +96,8 @@ function ProgramCard({ program }: { program: Program }) {
   return (
     <Pressable
       style={({ pressed }) => [styles.programCard, pressed && { opacity: 0.8 }]}
+      accessibilityLabel={`Open program ${program.title}`}
+      accessibilityRole="button"
       onPress={() => router.push(`/program/${program.id}`)}
     >
       <View style={styles.programCardHeader}>
@@ -290,6 +294,8 @@ export default function HomeScreen() {
           </View>
           <Pressable
             style={styles.roleChip}
+            accessibilityLabel={`Role: ${isCoach ? 'Coach' : 'Client'}. View profile`}
+            accessibilityRole="button"
             onPress={() => router.push('/(tabs)/profile')}
           >
             <Ionicons name={isCoach ? 'school' : 'fitness'} size={14} color={Colors.colors.primary} />
@@ -329,6 +335,8 @@ export default function HomeScreen() {
               <Text style={styles.sectionTitle}>Clients</Text>
               <Pressable
                 style={styles.addBtn}
+                accessibilityLabel="View all clients"
+                accessibilityRole="button"
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push('/(tabs)/programs');
@@ -348,9 +356,10 @@ export default function HomeScreen() {
                 onChangeText={setClientSearch}
                 autoCapitalize="none"
                 autoCorrect={false}
+                accessibilityLabel="Search clients"
               />
               {clientSearch.length > 0 && (
-                <Pressable onPress={() => setClientSearch('')} hitSlop={8}>
+                <Pressable onPress={() => setClientSearch('')} hitSlop={8} accessibilityLabel="Clear search" accessibilityRole="button">
                   <Ionicons name="close-circle" size={16} color={Colors.colors.textMuted} />
                 </Pressable>
               )}
@@ -387,6 +396,8 @@ export default function HomeScreen() {
                   style={styles.clearBtn}
                   onPress={handleClearAllNotifications}
                   hitSlop={8}
+                  accessibilityLabel="Clear all notifications"
+                  accessibilityRole="button"
                 >
                   <Ionicons name="close" size={16} color={Colors.colors.textMuted} />
                 </Pressable>
@@ -436,6 +447,8 @@ export default function HomeScreen() {
                   style={styles.clearBtn}
                   onPress={handleClearAllNotifications}
                   hitSlop={8}
+                  accessibilityLabel="Clear all notifications"
+                  accessibilityRole="button"
                 >
                   <Ionicons name="close" size={16} color={Colors.colors.textMuted} />
                 </Pressable>
@@ -451,6 +464,8 @@ export default function HomeScreen() {
               <Text style={styles.sectionTitle}>Programs</Text>
               <Pressable
                 style={styles.addBtn}
+                accessibilityLabel="Create new program"
+                accessibilityRole="button"
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push('/create-program');
@@ -467,6 +482,8 @@ export default function HomeScreen() {
                 <Text style={styles.emptySubText}>Connect with your coach to receive your first program</Text>
                 <Pressable
                   style={styles.emptyBtn}
+                  accessibilityLabel="Join a coach"
+                  accessibilityRole="button"
                   onPress={() => router.push('/join-coach')}
                 >
                   <Text style={styles.emptyBtnText}>Join Coach</Text>
@@ -481,6 +498,8 @@ export default function HomeScreen() {
             {programs.length > 3 && (
               <Pressable
                 style={styles.seeAllBtn}
+                accessibilityLabel="See all programs"
+                accessibilityRole="button"
                 onPress={() => router.push('/(tabs)/programs')}
               >
                 <Text style={styles.seeAllText}>See all programs</Text>

@@ -81,6 +81,7 @@ export default function AuthScreen() {
                 onChangeText={setName}
                 autoCapitalize="words"
                 autoComplete="name"
+                accessibilityLabel="Name"
               />
             </View>
           )}
@@ -97,6 +98,7 @@ export default function AuthScreen() {
               autoCapitalize="none"
               autoComplete="email"
               autoCorrect={false}
+              accessibilityLabel="Email address"
             />
           </View>
 
@@ -111,8 +113,9 @@ export default function AuthScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                accessibilityLabel="Password"
               />
-              <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn} hitSlop={8}>
+              <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn} hitSlop={8} accessibilityLabel={showPassword ? "Hide password" : "Show password"} accessibilityRole="button">
                 <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={Colors.colors.textMuted} />
               </Pressable>
             </View>
@@ -151,6 +154,8 @@ export default function AuthScreen() {
             style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
             onPress={handleSubmit}
             disabled={loading}
+            accessibilityLabel={mode === 'login' ? 'Sign in' : 'Create account'}
+            accessibilityRole="button"
           >
             {loading ? (
               <ActivityIndicator color="#fff" size="small" />
@@ -163,7 +168,7 @@ export default function AuthScreen() {
             <Text style={styles.switchText}>
               {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}
             </Text>
-            <Pressable onPress={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); }}>
+            <Pressable onPress={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); }} accessibilityLabel={mode === 'login' ? 'Switch to sign up' : 'Switch to sign in'} accessibilityRole="button">
               <Text style={styles.switchLink}>{mode === 'login' ? 'Sign Up' : 'Sign In'}</Text>
             </Pressable>
           </View>
@@ -171,12 +176,12 @@ export default function AuthScreen() {
           <View style={styles.legalRow}>
             <Text style={styles.legalText}>
               By continuing, you agree to our{' '}
-              <Text style={styles.legalLink} onPress={() => {
+              <Text style={styles.legalLink} accessibilityRole="link" accessibilityLabel="Terms of Service" onPress={() => {
                 const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
                 WebBrowser.openBrowserAsync(`${base}/terms`);
               }}>Terms of Service</Text>
               {' '}and{' '}
-              <Text style={styles.legalLink} onPress={() => {
+              <Text style={styles.legalLink} accessibilityRole="link" accessibilityLabel="Privacy Policy" onPress={() => {
                 const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
                 WebBrowser.openBrowserAsync(`${base}/privacy`);
               }}>Privacy Policy</Text>

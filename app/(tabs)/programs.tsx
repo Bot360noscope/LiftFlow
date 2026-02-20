@@ -68,6 +68,8 @@ export default function ProgramsScreen() {
         <Text style={styles.pageTitle}>Programs</Text>
         <Pressable
           style={styles.newBtn}
+          accessibilityLabel="Create new program"
+          accessibilityRole="button"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.push('/create-program');
@@ -88,12 +90,12 @@ export default function ProgramsScreen() {
               : 'Ask your coach for a program share code to get started'}
           </Text>
           {role === 'coach' ? (
-            <Pressable style={styles.createBtn} onPress={() => router.push('/create-program')}>
+            <Pressable style={styles.createBtn} onPress={() => router.push('/create-program')} accessibilityLabel="Create program" accessibilityRole="button">
               <Ionicons name="add-circle" size={18} color="#fff" />
               <Text style={styles.createBtnText}>Create Program</Text>
             </Pressable>
           ) : (
-            <Pressable style={styles.createBtn} onPress={() => router.push('/join-coach')}>
+            <Pressable style={styles.createBtn} onPress={() => router.push('/join-coach')} accessibilityLabel="Join a coach" accessibilityRole="button">
               <Ionicons name="people" size={18} color="#fff" />
               <Text style={styles.createBtnText}>Join Coach</Text>
             </Pressable>
@@ -121,6 +123,8 @@ export default function ProgramsScreen() {
             <Animated.View key={prog.id} entering={FadeInDown.delay(idx * 60).duration(300)}>
               <Pressable
                 style={({ pressed }) => [styles.programCard, pressed && { opacity: 0.85 }]}
+                accessibilityLabel={`Open program ${prog.title}`}
+                accessibilityRole="button"
                 onPress={() => router.push(`/program/${prog.id}`)}
                 onLongPress={() => handleDelete(prog.id, prog.title)}
               >

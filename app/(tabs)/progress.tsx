@@ -43,6 +43,8 @@ function ClientProgressCard({ client, programs, delay }: { client: ClientInfo; p
     <Animated.View entering={FadeInDown.delay(delay).duration(400)}>
       <Pressable
         style={({ pressed }) => [styles.clientProgressCard, pressed && { opacity: 0.85 }]}
+        accessibilityLabel={`View ${client.name || 'client'} progress`}
+        accessibilityRole="button"
         onPress={() => {
           if (clientPrograms.length > 0) {
             router.push(`/program/${clientPrograms[0].id}`);
@@ -212,6 +214,8 @@ export default function ProgressScreen() {
         <Text style={styles.pageTitle}>Progress</Text>
         <Pressable
           style={styles.addBtn}
+          accessibilityLabel="Log a new PR"
+          accessibilityRole="button"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.push('/add-pr');
@@ -279,6 +283,8 @@ export default function ProgressScreen() {
           <Animated.View key={pr.id} entering={FadeInDown.delay(idx * 40).duration(300)}>
             <Pressable
               style={({ pressed }) => [styles.prRow, pressed && { opacity: 0.8 }]}
+              accessibilityLabel={`${LIFT_LABELS[pr.liftType]} ${pr.weight} ${pr.unit}`}
+              accessibilityRole="button"
               onLongPress={() => handleDelete(pr)}
             >
               <View style={[styles.prDot, { backgroundColor: LIFT_COLORS[pr.liftType] }]} />

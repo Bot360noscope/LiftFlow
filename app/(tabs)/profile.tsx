@@ -194,7 +194,7 @@ export default function ProfileScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
       >
         <Animated.View entering={FadeInDown.duration(400)} style={styles.profileCard}>
-          <Pressable style={styles.avatarContainer} onPress={handlePickAvatar} onLongPress={profile.avatarUrl ? handleRemoveAvatar : undefined}>
+          <Pressable style={styles.avatarContainer} onPress={handlePickAvatar} onLongPress={profile.avatarUrl ? handleRemoveAvatar : undefined} accessibilityLabel="Change profile picture" accessibilityRole="imagebutton">
             {avatarUploading ? (
               <View style={styles.avatar}>
                 <ActivityIndicator size="small" color={Colors.colors.primary} />
@@ -219,13 +219,14 @@ export default function ProfileScreen() {
                 placeholder="Enter your name"
                 placeholderTextColor={Colors.colors.textMuted}
                 autoFocus
+                accessibilityLabel="Your name"
               />
-              <Pressable onPress={handleSave} hitSlop={8}>
+              <Pressable onPress={handleSave} hitSlop={8} accessibilityLabel="Save name" accessibilityRole="button">
                 <Ionicons name="checkmark-circle" size={28} color={Colors.colors.success} />
               </Pressable>
             </View>
           ) : (
-            <Pressable onPress={() => setEditing(true)} style={styles.nameRow}>
+            <Pressable onPress={() => setEditing(true)} style={styles.nameRow} accessibilityLabel="Edit name" accessibilityRole="button">
               <Text style={styles.profileName}>{profile.name || 'Tap to set name'}</Text>
               <Ionicons name="pencil" size={16} color={Colors.colors.textMuted} />
             </Pressable>
@@ -290,7 +291,7 @@ export default function ProfileScreen() {
             <Ionicons name="swap-horizontal" size={20} color={Colors.colors.primary} />
           </Pressable>
 
-          <Pressable style={styles.settingItem} onPress={toggleUnit}>
+          <Pressable style={styles.settingItem} onPress={toggleUnit} accessibilityLabel="Toggle weight unit" accessibilityRole="button">
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: 'rgba(255, 140, 66, 0.12)' }]}>
                 <Ionicons name="scale" size={18} color={Colors.colors.accent} />
@@ -325,7 +326,7 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={18} color={Colors.colors.textMuted} />
           </Pressable>
 
-          <Pressable style={[styles.settingItem, styles.dangerItem]} onPress={() => { setDeleteInput(''); setShowDeleteModal(true); }}>
+          <Pressable style={[styles.settingItem, styles.dangerItem]} onPress={() => { setDeleteInput(''); setShowDeleteModal(true); }} accessibilityLabel="Delete account" accessibilityRole="button">
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: Colors.colors.dangerLight }]}>
                 <Ionicons name="trash" size={18} color={Colors.colors.danger} />
@@ -341,6 +342,8 @@ export default function ProfileScreen() {
         <Animated.View entering={FadeInDown.delay(350).duration(400)}>
           <Pressable
             style={styles.logoutBtn}
+            accessibilityLabel="Sign out"
+            accessibilityRole="button"
             onPress={() => {
               confirmAction(
                 "Sign Out",
@@ -361,6 +364,8 @@ export default function ProfileScreen() {
         <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.legalSection}>
           <Pressable
             style={styles.legalLink}
+            accessibilityLabel="Privacy Policy"
+            accessibilityRole="link"
             onPress={() => {
               const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
               WebBrowser.openBrowserAsync(`${base}/privacy`);
@@ -372,6 +377,8 @@ export default function ProfileScreen() {
           </Pressable>
           <Pressable
             style={styles.legalLink}
+            accessibilityLabel="Terms of Service"
+            accessibilityRole="link"
             onPress={() => {
               const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
               WebBrowser.openBrowserAsync(`${base}/terms`);
@@ -403,15 +410,18 @@ export default function ProfileScreen() {
               placeholderTextColor={Colors.colors.textMuted}
               autoCapitalize="characters"
               autoCorrect={false}
+              accessibilityLabel="Type DELETE to confirm account deletion"
             />
             <View style={styles.modalButtons}>
-              <Pressable style={styles.modalCancelBtn} onPress={() => setShowDeleteModal(false)}>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setShowDeleteModal(false)} accessibilityLabel="Cancel" accessibilityRole="button">
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </Pressable>
               <Pressable
                 style={[styles.modalDeleteBtn, deleteInput !== 'DELETE' && styles.modalDeleteBtnDisabled]}
                 onPress={handleDeleteAccount}
                 disabled={deleteInput !== 'DELETE' || deleting}
+                accessibilityLabel="Delete account permanently"
+                accessibilityRole="button"
               >
                 <Text style={styles.modalDeleteText}>{deleting ? 'Deleting...' : 'Delete Forever'}</Text>
               </Pressable>
