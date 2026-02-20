@@ -47,6 +47,15 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **Create Program** (create-program.tsx): Configure weeks/days/rows or use quick-start template
 - **Add PR** (add-pr.tsx): Log personal records
 
+## Apple App Store Compliance (Feb 2026)
+- **Privacy Policy**: Comprehensive policy at GET /privacy with data collection details, video auto-deletion schedule, children's privacy (13+), user rights, profile picture handling
+- **Terms of Service**: Full terms at GET /terms with eligibility (13+), termination clause, governing law, account deletion rights
+- **In-App Legal Links**: Privacy Policy and Terms accessible from Profile screen (required by Apple)
+- **Permissions**: NSCameraUsageDescription, NSPhotoLibraryUsageDescription, NSMicrophoneUsageDescription set in app.json
+- **Account Deletion**: Full data cleanup including avatar files, video files, and all DB records
+- **Accessibility**: accessibilityLabel and accessibilityRole on key interactive elements across all screens
+- **Video Recording**: 45-second max for form check videos
+
 ## User Preferences
 - Fonts: Rubik (400, 500, 600, 700)
 - Dark theme with orange primary color
