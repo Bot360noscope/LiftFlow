@@ -85,7 +85,7 @@ function VideoRecordButton({ exercise, onVideoRecorded, programId, coachId, uplo
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['videos'],
-        videoMaxDuration: 120,
+        videoMaxDuration: 45,
         videoQuality: ImagePicker.UIImagePickerControllerQualityType.High,
         allowsEditing: true,
       });

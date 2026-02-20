@@ -53,6 +53,7 @@ export interface UserProfile {
   role: 'coach' | 'client';
   weightUnit: 'kg' | 'lbs';
   coachCode: string;
+  avatarUrl: string;
 }
 
 export interface ClientInfo {
@@ -60,6 +61,7 @@ export interface ClientInfo {
   name: string;
   joinedAt: string;
   clientProfileId?: string;
+  avatarUrl?: string;
 }
 
 export interface AppNotification {
@@ -138,6 +140,7 @@ function mapProfile(profile: any): UserProfile {
     role: profile.role as 'coach' | 'client',
     weightUnit: (profile.weightUnit || profile.weight_unit) as 'kg' | 'lbs',
     coachCode: profile.coachCode || profile.coach_code,
+    avatarUrl: profile.avatarUrl || profile.avatar_url || '',
   };
 }
 
@@ -440,14 +443,7 @@ export async function sendMessage(coachId: string, clientProfileId: string, text
 export async function register(email: string, password: string, name: string, role: 'coach' | 'client'): Promise<{ token: string; profile: UserProfile }> {
   const data = await apiPost<any>('/api/auth/register', { email, password, name, role });
   await setAuthToken(data.token);
-  const prof = data.profile;
-  const profile: UserProfile = {
-    id: prof.id,
-    name: prof.name,
-    role: prof.role as 'coach' | 'client',
-    weightUnit: (prof.weightUnit || prof.weight_unit) as 'kg' | 'lbs',
-    coachCode: prof.coachCode || prof.coach_code,
-  };
+  const profile = mapProfile(data.profile);
   await setProfileId(profile.id);
   return { token: data.token, profile };
 }
@@ -455,14 +451,7 @@ export async function register(email: string, password: string, name: string, ro
 export async function login(email: string, password: string): Promise<{ token: string; profile: UserProfile }> {
   const data = await apiPost<any>('/api/auth/login', { email, password });
   await setAuthToken(data.token);
-  const prof = data.profile;
-  const profile: UserProfile = {
-    id: prof.id,
-    name: prof.name,
-    role: prof.role as 'coach' | 'client',
-    weightUnit: (prof.weightUnit || prof.weight_unit) as 'kg' | 'lbs',
-    coachCode: prof.coachCode || prof.coach_code,
-  };
+  const profile = mapProfile(data.profile);
   await setProfileId(profile.id);
   return { token: data.token, profile };
 }

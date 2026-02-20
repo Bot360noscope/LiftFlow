@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, ActivityIndicator } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, ActivityIndicator, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback, useRef } from "react";
@@ -13,6 +13,7 @@ import {
   getCachedProfile, getCachedPrograms, getCachedPRs, getCachedClients, getCachedNotifications,
   type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification,
 } from "@/lib/storage";
+import { getAvatarUrl } from "@/lib/api";
 
 function StatCard({ icon, label, value, color }: { icon: string; label: string; value: string; color: string }) {
   return (
@@ -50,9 +51,13 @@ function ClientCard({ client, programs, hasUnread }: { client: ClientInfo; progr
       }}
     >
       <View style={styles.clientCardHeader}>
-        <View style={styles.clientAvatar}>
-          <Text style={styles.clientAvatarText}>{(client.name || '?')[0].toUpperCase()}</Text>
-        </View>
+        {client.avatarUrl ? (
+          <Image source={{ uri: getAvatarUrl(client.avatarUrl) }} style={styles.clientAvatarImage} />
+        ) : (
+          <View style={styles.clientAvatar}>
+            <Text style={styles.clientAvatarText}>{(client.name || '?')[0].toUpperCase()}</Text>
+          </View>
+        )}
         <View style={styles.clientInfo}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Text style={styles.clientName}>{client.name || 'Client'}</Text>
@@ -539,6 +544,9 @@ const styles = StyleSheet.create({
   clientAvatar: {
     width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(232,81,47,0.15)',
     alignItems: 'center', justifyContent: 'center',
+  },
+  clientAvatarImage: {
+    width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: Colors.colors.primary,
   },
   clientAvatarText: { fontFamily: 'Rubik_700Bold', fontSize: 16, color: Colors.colors.primary },
   clientInfo: { flex: 1 },

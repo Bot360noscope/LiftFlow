@@ -9,6 +9,7 @@ export const profiles = pgTable("profiles", {
   role: text("role").notNull().default('client'),
   weightUnit: text("weight_unit").notNull().default('kg'),
   coachCode: text("coach_code").notNull(),
+  avatarUrl: text("avatar_url").notNull().default(''),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -71,6 +72,10 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   profileId: varchar("profile_id").notNull(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  verificationToken: text("verification_token"),
+  resetToken: text("reset_token"),
+  resetTokenExpiry: timestamp("reset_token_expiry"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

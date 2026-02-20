@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback } from "react";
@@ -10,6 +10,7 @@ import {
   getPrograms, getClients,
   type Program, type ClientInfo,
 } from "@/lib/storage";
+import { getAvatarUrl } from "@/lib/api";
 
 function ProgramCard({ program }: { program: Program }) {
   let totalExercises = 0;
@@ -100,9 +101,13 @@ export default function ClientDetailScreen() {
       >
         <Animated.View entering={FadeInDown.duration(350)}>
           <View style={styles.clientHeader}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{displayName[0].toUpperCase()}</Text>
-            </View>
+            {client?.avatarUrl ? (
+              <Image source={{ uri: getAvatarUrl(client.avatarUrl) }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{displayName[0].toUpperCase()}</Text>
+              </View>
+            )}
             <View style={styles.clientHeaderInfo}>
               <Text style={styles.clientName}>{displayName}</Text>
               {joinedStr ? <Text style={styles.clientJoined}>Joined {joinedStr}</Text> : null}
@@ -184,6 +189,9 @@ const styles = StyleSheet.create({
   avatar: {
     width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(232,81,47,0.15)',
     alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.colors.primary,
+  },
+  avatarImage: {
+    width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: Colors.colors.primary,
   },
   avatarText: { fontFamily: 'Rubik_700Bold', fontSize: 22, color: Colors.colors.primary },
   clientHeaderInfo: { flex: 1 },

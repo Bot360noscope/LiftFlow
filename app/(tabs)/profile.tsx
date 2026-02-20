@@ -1,15 +1,17 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, ActivityIndicator } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, ActivityIndicator, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import NetworkError from "@/components/NetworkError";
 import { confirmAction, showAlert } from "@/lib/confirm";
 import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, seedDemoData, deleteAccount, getCachedProfile, getCachedPRs, getCachedPrograms, getCachedClients, type UserProfile } from "@/lib/storage";
 import { useAuth } from "@/lib/auth-context";
+import { uploadAvatar, deleteAvatar, getAvatarUrl } from "@/lib/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Modal } from "react-native";
 
@@ -51,7 +53,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { logout: authLogout } = useAuth();
   const cached = getCachedProfile();
-  const [profile, setProfile] = useState<UserProfile>(cached || { id: '', name: '', role: 'coach', weightUnit: 'kg', coachCode: '' });
+  const [profile, setProfile] = useState<UserProfile>(cached || { id: '', name: '', role: 'coach', weightUnit: 'kg', coachCode: '', avatarUrl: '' });
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(cached?.name || '');
   const [stats, setStats] = useState({ prs: getCachedPRs().length, programs: getCachedPrograms().length, clients: getCachedClients().length });
@@ -59,8 +61,42 @@ export default function ProfileScreen() {
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
   const [loading, setLoading] = useState(!getCachedProfile());
   const [error, setError] = useState(false);
+
+  const handlePickAvatar = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    setAvatarUploading(true);
+    try {
+      const avatarUrl = await uploadAvatar(profile.id, result.assets[0].uri);
+      setProfile({ ...profile, avatarUrl });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      showAlert('Error', 'Failed to upload photo');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    confirmAction('Remove Photo', 'Are you sure you want to remove your profile photo?', async () => {
+      try {
+        await deleteAvatar(profile.id);
+        setProfile({ ...profile, avatarUrl: '' });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch {
+        showAlert('Error', 'Failed to remove photo');
+      }
+    }, 'Remove');
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -156,11 +192,22 @@ export default function ProfileScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
       >
         <Animated.View entering={FadeInDown.duration(400)} style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Ionicons name="person" size={32} color={Colors.colors.primary} />
+          <Pressable style={styles.avatarContainer} onPress={handlePickAvatar} onLongPress={profile.avatarUrl ? handleRemoveAvatar : undefined}>
+            {avatarUploading ? (
+              <View style={styles.avatar}>
+                <ActivityIndicator size="small" color={Colors.colors.primary} />
+              </View>
+            ) : profile.avatarUrl ? (
+              <Image source={{ uri: getAvatarUrl(profile.avatarUrl) }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatar}>
+                <Ionicons name="person" size={32} color={Colors.colors.primary} />
+              </View>
+            )}
+            <View style={styles.avatarBadge}>
+              <Ionicons name="camera" size={12} color="#fff" />
             </View>
-          </View>
+          </Pressable>
           {editing ? (
             <View style={styles.nameEditRow}>
               <TextInput
@@ -358,10 +405,18 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 24,
     alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: Colors.colors.border,
   },
-  avatarContainer: { marginBottom: 14 },
+  avatarContainer: { marginBottom: 14, position: 'relative' as const },
   avatar: {
     width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(232, 81, 47, 0.12)',
     alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.colors.primary,
+  },
+  avatarImage: {
+    width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: Colors.colors.primary,
+  },
+  avatarBadge: {
+    position: 'absolute' as const, bottom: 0, right: -2, width: 24, height: 24, borderRadius: 12,
+    backgroundColor: Colors.colors.primary, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: Colors.colors.backgroundCard,
   },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   profileName: { fontFamily: 'Rubik_600SemiBold', fontSize: 20, color: Colors.colors.text },

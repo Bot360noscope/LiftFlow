@@ -157,6 +157,36 @@ export function getVideoUrl(path: string): string {
   return `${BASE}${path}`;
 }
 
+export function getAvatarUrl(path: string): string {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  return `${BASE}${path}`;
+}
+
+export async function uploadAvatar(profileId: string, uri: string): Promise<string> {
+  const formData = new FormData();
+  const ext = uri.split('.').pop() || 'jpg';
+  formData.append('avatar', {
+    uri,
+    name: `avatar.${ext}`,
+    type: `image/${ext === 'png' ? 'png' : 'jpeg'}`,
+  } as any);
+  formData.append('profileId', profileId);
+  const token = await getAuthToken();
+  const res = await fetch(`${BASE}/api/upload-avatar`, {
+    method: 'POST',
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+    body: formData,
+  });
+  if (!res.ok) throw new Error('Upload failed');
+  const data = await res.json();
+  return data.avatarUrl;
+}
+
+export async function deleteAvatar(profileId: string): Promise<void> {
+  await apiDelete(`/api/avatar/${profileId}`);
+}
+
 export async function markVideoViewed(videoUrl: string): Promise<void> {
   const filename = videoUrl.split('/').pop();
   if (!filename) return;

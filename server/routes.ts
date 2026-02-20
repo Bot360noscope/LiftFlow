@@ -241,7 +241,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const coachId = req.query.coachId as string;
       if (!coachId) return res.status(400).json({ error: "coachId required" });
       const result = await db.select().from(clients).where(eq(clients.coachId, coachId)).orderBy(desc(clients.joinedAt));
-      res.json(result);
+      const enriched = await Promise.all(result.map(async (c) => {
+        if (c.clientProfileId) {
+          const [prof] = await db.select({ avatarUrl: profiles.avatarUrl }).from(profiles).where(eq(profiles.id, c.clientProfileId));
+          return { ...c, avatarUrl: prof?.avatarUrl || '' };
+        }
+        return { ...c, avatarUrl: '' };
+      }));
+      res.json(enriched);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -491,6 +498,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(and(eq(videoUploads.filename, filename), isNull(videoUploads.coachViewedAt)))
         .returning();
       res.json({ updated: records.length > 0 });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // === AVATAR UPLOAD/DELETE ===
+  app.post("/api/upload-avatar", upload.single("avatar"), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+      const avatarUrl = `/api/avatars/${req.file.filename}`;
+      const { profileId } = req.body;
+      if (profileId) {
+        const existing = await db.select().from(profiles).where(eq(profiles.id, profileId));
+        if (existing.length > 0 && existing[0].avatarUrl) {
+          const oldFilename = existing[0].avatarUrl.split('/').pop();
+          if (oldFilename) {
+            const oldPath = path.join(uploadsDir, oldFilename);
+            if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+          }
+        }
+        await db.update(profiles).set({ avatarUrl }).where(eq(profiles.id, profileId));
+      }
+      res.json({ avatarUrl });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.get("/api/avatars/:filename", (req, res) => {
+    const filePath = path.join(uploadsDir, req.params.filename);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Not found" });
+    res.sendFile(filePath);
+  });
+
+  app.delete("/api/avatar/:profileId", async (req, res) => {
+    try {
+      const { profileId } = req.params;
+      const existing = await db.select().from(profiles).where(eq(profiles.id, profileId));
+      if (existing.length > 0 && existing[0].avatarUrl) {
+        const filename = existing[0].avatarUrl.split('/').pop();
+        if (filename) {
+          const filePath = path.join(uploadsDir, filename);
+          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        }
+        await db.update(profiles).set({ avatarUrl: '' }).where(eq(profiles.id, profileId));
+      }
+      res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
