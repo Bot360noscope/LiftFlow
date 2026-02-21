@@ -54,7 +54,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { logout: authLogout } = useAuth();
   const cached = getCachedProfile();
-  const [profile, setProfile] = useState<UserProfile>(cached || { id: '', name: '', role: 'coach', weightUnit: 'kg', coachCode: '', avatarUrl: '' });
+  const [profile, setProfile] = useState<UserProfile>(cached || { id: '', name: '', role: 'coach', weightUnit: 'kg', coachCode: '', avatarUrl: '', plan: 'free', planUserLimit: 1 });
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(cached?.name || '');
   const [stats, setStats] = useState({ prs: getCachedPRs().length, programs: getCachedPrograms().length, clients: getCachedClients().length });
@@ -270,6 +270,38 @@ export default function ProfileScreen() {
               coachCode={profile.coachCode}
               onReset={handleResetCoachCode}
             />
+          </Animated.View>
+        )}
+
+        {isCoach && (
+          <Animated.View entering={FadeInDown.delay(90).duration(400)}>
+            <View style={styles.planCard}>
+              <View style={styles.planHeader}>
+                <View style={styles.planBadge}>
+                  <Ionicons name={profile.plan === 'free' ? 'star-outline' : 'star'} size={16} color={profile.plan === 'free' ? Colors.colors.textMuted : '#FFD700'} />
+                  <Text style={[styles.planBadgeText, profile.plan !== 'free' && { color: '#FFD700' }]}>
+                    {profile.plan === 'free' ? 'Free Plan' : profile.plan === 'saas' ? 'Premium' : profile.plan === 'enterprise' ? 'Enterprise' : profile.plan.charAt(0).toUpperCase() + profile.plan.slice(1)}
+                  </Text>
+                </View>
+                <Pressable
+                  style={styles.upgradeBtnSmall}
+                  onPress={() => {
+                    const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
+                    WebBrowser.openBrowserAsync('https://liftflow-payment.replit.app');
+                  }}
+                >
+                  <Text style={styles.upgradeBtnSmallText}>{profile.plan === 'free' ? 'Upgrade' : 'Manage'}</Text>
+                </Pressable>
+              </View>
+              <View style={styles.planDetails}>
+                <View style={styles.planDetailRow}>
+                  <Ionicons name="people-outline" size={16} color={Colors.colors.textMuted} />
+                  <Text style={styles.planDetailText}>
+                    {stats.clients} / {profile.planUserLimit === 999 ? 'Unlimited' : profile.planUserLimit} client{profile.planUserLimit !== 1 ? 's' : ''}
+                  </Text>
+                </View>
+              </View>
+            </View>
           </Animated.View>
         )}
 
@@ -564,6 +596,20 @@ const styles = StyleSheet.create({
   coachCodeValue: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.primary, letterSpacing: 4 },
   coachCodeHidden: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   coachCodeHiddenText: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: Colors.colors.textMuted },
+  planCard: {
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 18,
+    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 16,
+  },
+  planHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  planBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  planBadgeText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.textMuted },
+  upgradeBtnSmall: {
+    backgroundColor: 'rgba(232,81,47,0.12)', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8,
+  },
+  upgradeBtnSmallText: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: Colors.colors.primary },
+  planDetails: { marginTop: 12 },
+  planDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  planDetailText: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textSecondary },
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
   statCard: {
     flex: 1, backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 18,
