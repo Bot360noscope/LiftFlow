@@ -170,7 +170,13 @@ function configureExpoAndLanding(app: express.Application) {
   const landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
   const appName = getAppName();
 
+  const webDistPath = path.resolve(process.cwd(), "dist");
+  const hasWebBuild = fs.existsSync(path.join(webDistPath, "index.html"));
+
   log("Serving static Expo files with dynamic manifest routing");
+  if (hasWebBuild) {
+    log("Web build found in dist/ - serving web app for browser clients");
+  }
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith("/api")) {
@@ -184,6 +190,14 @@ function configureExpoAndLanding(app: express.Application) {
     const platform = req.header("expo-platform");
     if (platform && (platform === "ios" || platform === "android")) {
       return serveExpoManifest(platform, res);
+    }
+
+    if (req.path === "/" && hasWebBuild) {
+      const userAgent = req.header("user-agent") || "";
+      const isExpoClient = req.header("expo-platform") || userAgent.includes("Expo");
+      if (!isExpoClient) {
+        return res.sendFile(path.join(webDistPath, "index.html"));
+      }
     }
 
     if (req.path === "/") {
@@ -200,6 +214,10 @@ function configureExpoAndLanding(app: express.Application) {
 
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use(express.static(path.resolve(process.cwd(), "static-build")));
+
+  if (hasWebBuild) {
+    app.use(express.static(webDistPath));
+  }
 
   log("Expo routing: Checking expo-platform header on / and /manifest");
 }
@@ -233,6 +251,25 @@ function setupErrorHandler(app: express.Application) {
   configureExpoAndLanding(app);
 
   const server = await registerRoutes(app);
+
+  const webDistPath = path.resolve(process.cwd(), "dist");
+  const webIndexPath = path.join(webDistPath, "index.html");
+  if (fs.existsSync(webIndexPath)) {
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.path.startsWith("/api") || req.path.startsWith("/uploads") || req.path.startsWith("/avatars") || req.path === "/privacy" || req.path === "/terms") {
+        return next();
+      }
+      const platform = req.header("expo-platform");
+      if (platform) {
+        return next();
+      }
+      const ext = path.extname(req.path);
+      if (ext && ext !== ".html") {
+        return next();
+      }
+      res.sendFile(webIndexPath);
+    });
+  }
 
   setupErrorHandler(app);
 
