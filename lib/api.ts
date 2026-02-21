@@ -50,7 +50,7 @@ export async function apiGet<T>(path: string): Promise<T> {
     }
     return res.json();
   } catch (e: any) {
-    if (e.message && !e.message.includes('Unable to connect')) {
+    if (e instanceof TypeError || (e.message && (e.message.includes('Network request failed') || e.message.includes('Failed to fetch')))) {
       throw new Error('Unable to connect. Please check your internet connection.');
     }
     throw e;
@@ -71,7 +71,7 @@ export async function apiPost<T>(path: string, body?: any): Promise<T> {
     }
     return res.json();
   } catch (e: any) {
-    if (e.message && !e.message.includes('Unable to connect')) {
+    if (e instanceof TypeError || (e.message && (e.message.includes('Network request failed') || e.message.includes('Failed to fetch')))) {
       throw new Error('Unable to connect. Please check your internet connection.');
     }
     throw e;
@@ -92,7 +92,7 @@ export async function apiPut<T>(path: string, body?: any): Promise<T> {
     }
     return res.json();
   } catch (e: any) {
-    if (e.message && !e.message.includes('Unable to connect')) {
+    if (e instanceof TypeError || (e.message && (e.message.includes('Network request failed') || e.message.includes('Failed to fetch')))) {
       throw new Error('Unable to connect. Please check your internet connection.');
     }
     throw e;
@@ -111,7 +111,7 @@ export async function apiDelete(path: string): Promise<void> {
       throw new Error(err.error || res.statusText);
     }
   } catch (e: any) {
-    if (e.message && !e.message.includes('Unable to connect')) {
+    if (e instanceof TypeError || (e.message && (e.message.includes('Network request failed') || e.message.includes('Failed to fetch')))) {
       throw new Error('Unable to connect. Please check your internet connection.');
     }
     throw e;
