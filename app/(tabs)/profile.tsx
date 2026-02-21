@@ -308,12 +308,12 @@ export default function ProfileScreen() {
           {isCoach ? (
             <>
               <View style={styles.statCard}>
-                <Ionicons name="people" size={22} color={Colors.colors.primary} />
+                <Ionicons name="people" size={22} color={Colors.colors.textMuted} />
                 <Text style={styles.statValue}>{stats.clients}</Text>
                 <Text style={styles.statLabel}>Clients</Text>
               </View>
               <View style={styles.statCard}>
-                <Ionicons name="barbell" size={22} color={Colors.colors.accent} />
+                <Ionicons name="barbell" size={22} color={Colors.colors.textMuted} />
                 <Text style={styles.statValue}>{stats.programs}</Text>
                 <Text style={styles.statLabel}>Programs</Text>
               </View>
@@ -321,12 +321,12 @@ export default function ProfileScreen() {
           ) : (
             <>
               <View style={styles.statCard}>
-                <Ionicons name="trophy" size={22} color={Colors.colors.accent} />
+                <Ionicons name="trophy" size={22} color={Colors.colors.textMuted} />
                 <Text style={styles.statValue}>{stats.prs}</Text>
                 <Text style={styles.statLabel}>PRs Logged</Text>
               </View>
               <View style={styles.statCard}>
-                <Ionicons name="barbell" size={22} color={Colors.colors.primary} />
+                <Ionicons name="barbell" size={22} color={Colors.colors.textMuted} />
                 <Text style={styles.statValue}>{stats.programs}</Text>
                 <Text style={styles.statLabel}>Programs</Text>
               </View>
@@ -339,21 +339,21 @@ export default function ProfileScreen() {
 
           <Pressable style={styles.settingItem} onPress={toggleRole}>
             <View style={styles.settingLeft}>
-              <View style={[styles.settingIcon, { backgroundColor: 'rgba(232, 81, 47, 0.12)' }]}>
-                <Ionicons name={isCoach ? 'school' : 'fitness'} size={18} color={Colors.colors.primary} />
+              <View style={[styles.settingIcon, { backgroundColor: 'rgba(102, 102, 102, 0.12)' }]}>
+                <Ionicons name={isCoach ? 'school' : 'fitness'} size={18} color={Colors.colors.textMuted} />
               </View>
               <View style={styles.settingTextWrap}>
                 <Text style={styles.settingLabel} numberOfLines={1}>Role</Text>
                 <Text style={styles.settingValue} numberOfLines={1}>{isCoach ? 'Coach' : 'Athlete'}</Text>
               </View>
             </View>
-            <Ionicons name="swap-horizontal" size={20} color={Colors.colors.primary} />
+            <Ionicons name="swap-horizontal" size={20} color={Colors.colors.textMuted} />
           </Pressable>
 
           <Pressable style={styles.settingItem} onPress={toggleUnit} accessibilityLabel="Toggle weight unit" accessibilityRole="button">
             <View style={styles.settingLeft}>
-              <View style={[styles.settingIcon, { backgroundColor: 'rgba(255, 140, 66, 0.12)' }]}>
-                <Ionicons name="scale" size={18} color={Colors.colors.accent} />
+              <View style={[styles.settingIcon, { backgroundColor: 'rgba(102, 102, 102, 0.12)' }]}>
+                <Ionicons name="scale" size={18} color={Colors.colors.textMuted} />
               </View>
               <View style={styles.settingTextWrap}>
                 <Text style={styles.settingLabel} numberOfLines={1}>Weight Unit</Text>
@@ -388,8 +388,8 @@ export default function ProfileScreen() {
             showAlert("Demo Data Loaded", "Coach Mike with 3 clients (Sarah, Alex, and yourself) has been set up. Each client has their own program with exercise data, notes, and videos.");
           }}>
             <View style={styles.settingLeft}>
-              <View style={[styles.settingIcon, { backgroundColor: 'rgba(52, 199, 89, 0.12)' }]}>
-                <Ionicons name="flask" size={18} color={Colors.colors.success} />
+              <View style={[styles.settingIcon, { backgroundColor: 'rgba(102, 102, 102, 0.12)' }]}>
+                <Ionicons name="flask" size={18} color={Colors.colors.textMuted} />
               </View>
               <View style={styles.settingTextWrap}>
                 <Text style={styles.settingLabel} numberOfLines={1}>Load Demo Data</Text>
