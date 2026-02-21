@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, KeyboardAvoidingView, ActivityIndicator, Image, ScrollView, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, Keyboard, ActivityIndicator, Image, ScrollView, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -37,7 +37,20 @@ export default function ChatTab() {
   const [loading, setLoading] = useState(true);
   const [hasCoach, setHasCoach] = useState(false);
   const [sendError, setSendError] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
 
   const [coachClients, setCoachClients] = useState<ClientInfo[]>([]);
   const [latestMsgs, setLatestMsgs] = useState<LatestMessages>({});
@@ -233,11 +246,16 @@ export default function ChatTab() {
     );
   }
 
+  const tabBarHeight = Platform.OS === 'web' ? 84 : 50;
+  const bottomPadding = Platform.OS === 'web'
+    ? 34
+    : keyboardHeight > 0
+      ? keyboardHeight - tabBarHeight
+      : insets.bottom;
+
   return (
-    <KeyboardAvoidingView
+    <View
       style={[styles.container, { paddingTop: insets.top + webTopInset }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -259,6 +277,8 @@ export default function ChatTab() {
           }
         }}
         scrollEnabled={!!messages.length}
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           <View style={styles.emptyMessages}>
             <Ionicons name="chatbubble-ellipses-outline" size={40} color={Colors.colors.textMuted} />
@@ -273,7 +293,7 @@ export default function ChatTab() {
           <Text style={styles.errorText}>{sendError}</Text>
         </View>
       ) : null}
-      <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom + (Platform.OS === 'web' ? 84 : 50), Platform.OS === 'web' ? 34 : 8) }]}>
+      <View style={[styles.inputRow, { paddingBottom: Math.max(bottomPadding, 8) }]}>
         <TextInput
           style={styles.input}
           value={input}
@@ -293,7 +313,7 @@ export default function ChatTab() {
           <Ionicons name="send" size={20} color="#fff" />
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
