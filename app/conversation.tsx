@@ -110,7 +110,7 @@ export default function ChatScreen() {
   const bottomPadding = Platform.OS === 'web'
     ? 34
     : keyboardHeight > 0
-      ? keyboardHeight - insets.bottom
+      ? keyboardHeight + 90
       : insets.bottom || 12;
 
   const renderMessage = ({ item }: { item: ChatMessage }) => {
