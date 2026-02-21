@@ -129,6 +129,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  app.get("/api/verify-account", async (req, res) => {
+    try {
+      const email = req.query.email as string;
+      if (!email) return res.status(400).json({ error: "Email is required" });
+
+      const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
+      if (!user) return res.json({ exists: false });
+
+      const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.profileId));
+      res.json({
+        exists: true,
+        profileId: user.profileId,
+        plan: profile?.plan || 'free',
+        name: profile?.name || '',
+      });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // === PROFILES ===
   app.post("/api/profiles", async (req, res) => {
     try {
