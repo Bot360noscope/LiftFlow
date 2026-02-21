@@ -34,6 +34,8 @@ export default function JoinCoachScreen() {
       const msg = err?.message || 'Unknown error';
       if (msg.includes('Invalid') || msg.includes('Not Found') || msg.includes('404')) {
         showAlert("Invalid Code", "No coach found with that code. Please double-check and try again.");
+      } else if (msg.includes('already have a coach')) {
+        showAlert("Already Connected", "You already have a coach. Remove your current coach from your Profile settings before joining a new one.");
       } else {
         showAlert("Connection Error", `Could not connect to coach. ${msg}`);
       }

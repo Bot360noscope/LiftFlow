@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Image } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Image, Modal, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback } from "react";
@@ -7,10 +7,11 @@ import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import {
-  getPrograms, getClients,
+  getPrograms, getClients, removeClient,
   type Program, type ClientInfo,
 } from "@/lib/storage";
 import { getAvatarUrl } from "@/lib/api";
+import { showAlert } from "@/lib/confirm";
 
 function ProgramCard({ program }: { program: Program }) {
   let totalExercises = 0;
@@ -60,6 +61,9 @@ export default function ClientDetailScreen() {
   const { id, name: clientName } = useLocalSearchParams<{ id: string; name?: string }>();
   const [client, setClient] = useState<ClientInfo | null>(null);
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [removeInput, setRemoveInput] = useState('');
+  const [removing, setRemoving] = useState(false);
 
   const loadData = useCallback(async () => {
     const [allPrograms, allClients] = await Promise.all([getPrograms(), getClients()]);
@@ -72,6 +76,21 @@ export default function ClientDetailScreen() {
   }, [id]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+
+  const handleRemoveClient = async () => {
+    if (removeInput !== 'REMOVE') return;
+    setRemoving(true);
+    try {
+      await removeClient(id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowRemoveModal(false);
+      showAlert("Client Removed", `${displayName} has been removed from your clients.`);
+      router.back();
+    } catch (e: any) {
+      showAlert('Error', e.message || 'Failed to remove client');
+    }
+    setRemoving(false);
+  };
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const displayName = client?.name || clientName || 'Client';
@@ -173,7 +192,56 @@ export default function ClientDetailScreen() {
             ))
           )}
         </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(300).duration(350)}>
+          <Pressable
+            style={({ pressed }) => [styles.removeClientBtn, pressed && { opacity: 0.85 }]}
+            onPress={() => { setRemoveInput(''); setShowRemoveModal(true); }}
+            accessibilityLabel="Remove client"
+            accessibilityRole="button"
+          >
+            <Ionicons name="person-remove" size={18} color={Colors.colors.danger} />
+            <Text style={styles.removeClientText}>Remove Client</Text>
+          </Pressable>
+        </Animated.View>
       </ScrollView>
+
+      <Modal visible={showRemoveModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Ionicons name="person-remove" size={40} color={Colors.colors.danger} />
+            <Text style={styles.modalTitle}>Remove Client</Text>
+            <Text style={styles.modalMessage}>
+              This will remove {displayName} from your clients. Chat messages will be deleted and program assignments will be unlinked. This action cannot be undone.
+            </Text>
+            <Text style={styles.modalPrompt}>Type REMOVE to confirm:</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={removeInput}
+              onChangeText={setRemoveInput}
+              placeholder="Type REMOVE"
+              placeholderTextColor={Colors.colors.textMuted}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              accessibilityLabel="Type REMOVE to confirm client removal"
+            />
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setShowRemoveModal(false)} accessibilityLabel="Cancel" accessibilityRole="button">
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalDeleteBtn, removeInput !== 'REMOVE' && styles.modalDeleteBtnDisabled]}
+                onPress={handleRemoveClient}
+                disabled={removeInput !== 'REMOVE' || removing}
+                accessibilityLabel="Remove client permanently"
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalDeleteText}>{removing ? 'Removing...' : 'Remove Client'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -237,4 +305,42 @@ const styles = StyleSheet.create({
   },
   emptyText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.textSecondary },
   emptySubText: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, textAlign: 'center' },
+  removeClientBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 14, marginTop: 24, marginBottom: 20, borderRadius: 12,
+    borderWidth: 1, borderColor: 'rgba(255, 59, 48, 0.25)',
+    backgroundColor: 'rgba(255, 59, 48, 0.06)',
+  },
+  removeClientText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.danger },
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24,
+  },
+  modalCard: {
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 20, padding: 28,
+    alignItems: 'center', width: '100%', maxWidth: 360,
+    borderWidth: 1, borderColor: Colors.colors.border,
+  },
+  modalTitle: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text, marginTop: 12 },
+  modalMessage: {
+    fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textSecondary,
+    textAlign: 'center', marginTop: 8, lineHeight: 20,
+  },
+  modalPrompt: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: Colors.colors.text, marginTop: 18, alignSelf: 'flex-start' },
+  modalInput: {
+    fontFamily: 'Rubik_600SemiBold', fontSize: 18, color: Colors.colors.text,
+    backgroundColor: Colors.colors.surface, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12,
+    textAlign: 'center', width: '100%', marginTop: 10, borderWidth: 1, borderColor: Colors.colors.border, letterSpacing: 2,
+  },
+  modalButtons: { flexDirection: 'row', gap: 12, marginTop: 20, width: '100%' },
+  modalCancelBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center',
+    backgroundColor: Colors.colors.surface, borderWidth: 1, borderColor: Colors.colors.border,
+  },
+  modalCancelText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.text },
+  modalDeleteBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center',
+    backgroundColor: Colors.colors.danger,
+  },
+  modalDeleteBtnDisabled: { opacity: 0.4 },
+  modalDeleteText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: '#fff' },
 });
