@@ -1026,7 +1026,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/webhooks/payment", async (req, res) => {
     try {
-      const { webhookSecret, email, plan, durationDays, userCount, tier, status } = req.body;
+      console.log('[Payment Webhook] Received body:', JSON.stringify(req.body));
+      const { webhookSecret, email, plan, durationDays, userCount, tier, status, clientCount, maxClients, quantity } = req.body;
 
       const expectedSecret = process.env.LIFTFLOW_WEBHOOK_SECRET;
       if (!expectedSecret || webhookSecret !== expectedSecret) {
@@ -1038,7 +1039,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const resolvedTier = tier || plan || 'free';
-      const resolvedUserLimit = userCount || (resolvedTier === 'enterprise' ? 999 : 1);
+      const rawCount = userCount || clientCount || maxClients || quantity;
+      const resolvedUserLimit = rawCount
+        ? Number(rawCount)
+        : resolvedTier === 'enterprise' ? 999
+        : resolvedTier === 'saas' || resolvedTier === 'premium' ? 999
+        : 1;
 
       const user = await db.select().from(users).where(eq(users.email, email)).limit(1);
       if (user.length === 0) {
