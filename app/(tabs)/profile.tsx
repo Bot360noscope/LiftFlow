@@ -286,7 +286,7 @@ export default function ProfileScreen() {
                 <Pressable
                   style={styles.upgradeBtnSmall}
                   onPress={() => {
-                    WebBrowser.openBrowserAsync('https://liftflowpay.manus.space');
+                    WebBrowser.openBrowserAsync('https://liftflow-paysite.onrender.com/pricing');
                   }}
                 >
                   <Text style={styles.upgradeBtnSmallText}>{profile.plan === 'free' ? 'Upgrade' : 'Manage'}</Text>
