@@ -250,8 +250,8 @@ export default function ChatTab() {
   const bottomPadding = Platform.OS === 'web'
     ? 34
     : keyboardHeight > 0
-      ? keyboardHeight - tabBarHeight
-      : insets.bottom;
+      ? keyboardHeight - tabBarHeight + 30
+      : insets.bottom + tabBarHeight;
 
   return (
     <View
