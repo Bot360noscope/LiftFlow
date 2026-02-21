@@ -532,9 +532,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: 'chat',
         title: `Message from ${senderName}`,
         message: msgText.length > 80 ? msgText.slice(0, 80) + '...' : msgText,
-        programId: '',
-        programTitle: '',
-        exerciseName: '',
+        programId: coachId,
+        programTitle: clientProfileId,
+        exerciseName: senderName,
         fromRole: senderRole,
       });
 

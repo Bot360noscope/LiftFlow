@@ -134,7 +134,14 @@ function NotificationItem({ notification, onDelete }: { notification: AppNotific
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onDelete(notification.id);
         if (notification.type === 'chat') {
-          router.push('/conversation');
+          router.push({
+            pathname: '/conversation',
+            params: {
+              coachId: notification.programId,
+              clientProfileId: notification.programTitle,
+              clientName: notification.exerciseName,
+            },
+          });
         } else if (notification.programId) {
           router.push(`/program/${notification.programId}`);
         }
