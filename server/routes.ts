@@ -351,7 +351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const limit = coachProfile[0].planUserLimit || 1;
         const currentClients = await db.select().from(clients).where(eq(clients.coachId, coach.id));
         if (currentClients.length >= limit) {
-          const planName = plan === 'free' ? 'Free' : plan === 'saas' ? 'Premium' : plan.charAt(0).toUpperCase() + plan.slice(1);
+          const planName = plan === 'free' ? 'Free' : plan === 'tier_5' ? 'Starter' : plan === 'tier_10' ? 'Growth' : plan === 'saas' ? 'SaaS' : plan.charAt(0).toUpperCase() + plan.slice(1);
           return res.status(403).json({ error: `This coach has reached their ${planName} plan limit of ${limit} client${limit !== 1 ? 's' : ''}. The coach needs to upgrade their plan to accept more clients.` });
         }
       }
@@ -1060,8 +1060,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rawCount = userCount || clientCount || maxClients || quantity;
       const resolvedUserLimit = rawCount
         ? Number(rawCount)
-        : resolvedTier === 'enterprise' ? 999
-        : resolvedTier === 'saas' || resolvedTier === 'premium' ? 999
+        : resolvedTier === 'tier_5' ? 5
+        : resolvedTier === 'tier_10' ? 10
+        : resolvedTier === 'saas' || resolvedTier === 'premium' || resolvedTier === 'enterprise' ? 999
         : 1;
 
       const user = await db.select().from(users).where(eq(users.email, email)).limit(1);
