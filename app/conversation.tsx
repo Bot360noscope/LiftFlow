@@ -1,9 +1,10 @@
-import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, KeyboardAvoidingView, Keyboard } from "react-native";
+import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, Keyboard } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import Colors from "@/constants/colors";
 import { getProfile, getMessages, sendMessage, getMyCoach, type ChatMessage, type UserProfile } from "@/lib/storage";
 
@@ -118,7 +119,7 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
       keyboardVerticalOffset={0}
     >
       <View style={[styles.header, { paddingTop: insets.top + webTopInset + 8 }]}>
@@ -170,7 +171,7 @@ export default function ChatScreen() {
               <Text style={styles.errorText}>{sendError}</Text>
             </View>
           ) : null}
-          <View style={[styles.inputRow, { paddingBottom: keyboardVisible ? 8 : Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 12) }]}>
+          <View style={[styles.inputRow, { paddingBottom: keyboardVisible ? 4 : Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 12) }]}>
             <TextInput
               style={styles.textInput}
               placeholder="Type a message..."
