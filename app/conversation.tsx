@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, KeyboardAvoidingView } from "react-native";
+import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, KeyboardAvoidingView, Keyboard } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -19,7 +19,14 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sendError, setSendError] = useState('');
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardVisible(false));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -163,7 +170,7 @@ export default function ChatScreen() {
               <Text style={styles.errorText}>{sendError}</Text>
             </View>
           ) : null}
-          <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 12) }]}>
+          <View style={[styles.inputRow, { paddingBottom: keyboardVisible ? 8 : Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 12) }]}>
             <TextInput
               style={styles.textInput}
               placeholder="Type a message..."
