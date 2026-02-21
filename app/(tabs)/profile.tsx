@@ -401,11 +401,11 @@ export default function ProfileScreen() {
 
           <Pressable style={[styles.settingItem, styles.dangerItem]} onPress={() => { setDeleteInput(''); setShowDeleteModal(true); }} accessibilityLabel="Delete account" accessibilityRole="button">
             <View style={styles.settingLeft}>
-              <View style={[styles.settingIcon, { backgroundColor: Colors.colors.dangerLight }]}>
-                <Ionicons name="trash" size={18} color={Colors.colors.danger} />
+              <View style={[styles.settingIcon, { backgroundColor: 'rgba(102, 102, 102, 0.12)' }]}>
+                <Ionicons name="trash" size={18} color={Colors.colors.textMuted} />
               </View>
               <View style={styles.settingTextWrap}>
-                <Text style={[styles.settingLabel, { color: Colors.colors.danger }]} numberOfLines={1}>Delete Account</Text>
+                <Text style={styles.settingLabel} numberOfLines={1}>Delete Account</Text>
                 <Text style={styles.settingValue} numberOfLines={2}>Permanently delete your account and all data</Text>
               </View>
             </View>
