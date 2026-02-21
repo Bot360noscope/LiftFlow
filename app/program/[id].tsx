@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Linking, ActivityIndicator } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Linking, ActivityIndicator, Modal } from "react-native";
 import { confirmAction, showAlert } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,7 +10,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import * as Crypto from "expo-crypto";
-import { getProgram, updateProgram, getProfile, getClients, addNotification, deleteNotificationsByProgram, getPRs, addPR, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type LiftPR } from "@/lib/storage";
+import { getProgram, updateProgram, deleteProgram, getProfile, getClients, addNotification, deleteNotificationsByProgram, getPRs, addPR, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type LiftPR } from "@/lib/storage";
 import { uploadVideo, getVideoUrl, markVideoViewed } from "@/lib/api";
 
 function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
@@ -538,6 +538,57 @@ export default function ProgramDetailScreen() {
     }
   }, [program, isCoach]);
 
+  const addWeek = useCallback(() => {
+    if (!program) return;
+    const lastWeek = program.weeks[program.weeks.length - 1];
+    const newWeekNumber = lastWeek ? lastWeek.weekNumber + 1 : 1;
+    const daysPerWeek = lastWeek ? lastWeek.days.length : program.daysPerWeek;
+    const newDays: WorkoutDay[] = [];
+    for (let d = 1; d <= daysPerWeek; d++) {
+      const templateDay = lastWeek?.days.find(day => day.dayNumber === d);
+      newDays.push({
+        dayNumber: d,
+        exercises: templateDay
+          ? templateDay.exercises.map(ex => ({
+              id: Crypto.randomUUID(),
+              name: ex.name,
+              repsSets: ex.repsSets,
+              weight: '',
+              rpe: '',
+              isCompleted: false,
+              notes: ex.notes,
+              clientNotes: '',
+              coachComment: '',
+              videoUrl: '',
+            }))
+          : [],
+      });
+    }
+    const newWeek: WorkoutWeek = { weekNumber: newWeekNumber, days: newDays };
+    setProgram({ ...program, weeks: [...program.weeks, newWeek] });
+    setActiveWeek(newWeekNumber);
+    setHasChanges(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, [program]);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteProgram = async () => {
+    if (deleteInput !== 'DELETE' || !program) return;
+    setDeleting(true);
+    try {
+      await deleteProgram(program.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setShowDeleteModal(false);
+      router.back();
+    } catch (e: any) {
+      showAlert('Error', e.message || 'Failed to delete program');
+    }
+    setDeleting(false);
+  };
+
   const currentWeek = program?.weeks.find(w => w.weekNumber === activeWeek);
   const currentDay = currentWeek?.days.find(d => d.dayNumber === activeDay);
   const exercises = currentDay?.exercises || [];
@@ -696,9 +747,14 @@ export default function ProgramDetailScreen() {
             </View>
           </View>
         </View>
-        <Pressable onPress={save} hitSlop={8}>
-          <Ionicons name="checkmark-circle" size={26} color={hasChanges ? Colors.colors.primary : Colors.colors.textMuted} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Pressable onPress={() => { setDeleteInput(''); setShowDeleteModal(true); }} hitSlop={8} accessibilityLabel="Delete program" accessibilityRole="button">
+            <Ionicons name="trash-outline" size={22} color={Colors.colors.danger} />
+          </Pressable>
+          <Pressable onPress={save} hitSlop={8}>
+            <Ionicons name="checkmark-circle" size={26} color={hasChanges ? Colors.colors.primary : Colors.colors.textMuted} />
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.weekSelector}>
@@ -714,6 +770,11 @@ export default function ProgramDetailScreen() {
               </Text>
             </Pressable>
           ))}
+          {isCoach && (
+            <Pressable style={styles.addWeekChip} onPress={addWeek} accessibilityLabel="Add week" accessibilityRole="button">
+              <Ionicons name="add" size={16} color={Colors.colors.primary} />
+            </Pressable>
+          )}
         </ScrollView>
         <View style={styles.weekProgressRow}>
           <View style={styles.weekProgressBar}>
@@ -783,6 +844,43 @@ export default function ProgramDetailScreen() {
           </Pressable>
         </Animated.View>
       )}
+
+      <Modal visible={showDeleteModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Ionicons name="warning" size={40} color={Colors.colors.danger} />
+            <Text style={styles.modalTitle}>Delete Program</Text>
+            <Text style={styles.modalMessage}>
+              This will permanently delete "{program.title}" and all its exercises, progress, and associated data. This action cannot be undone.
+            </Text>
+            <Text style={styles.modalPrompt}>Type DELETE to confirm:</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={deleteInput}
+              onChangeText={setDeleteInput}
+              placeholder="Type DELETE"
+              placeholderTextColor={Colors.colors.textMuted}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              accessibilityLabel="Type DELETE to confirm program deletion"
+            />
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setShowDeleteModal(false)} accessibilityLabel="Cancel" accessibilityRole="button">
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalDeleteBtn, deleteInput !== 'DELETE' && styles.modalDeleteBtnDisabled]}
+                onPress={handleDeleteProgram}
+                disabled={deleteInput !== 'DELETE' || deleting}
+                accessibilityLabel="Delete program permanently"
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalDeleteText}>{deleting ? 'Deleting...' : 'Delete Forever'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -884,4 +982,37 @@ const styles = StyleSheet.create({
   saveBarText: { flex: 1, fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textSecondary },
   saveBarButton: { backgroundColor: Colors.colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
   saveBarButtonText: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: '#fff' },
+  addWeekChip: {
+    paddingHorizontal: 10, paddingVertical: 7, borderRadius: 16,
+    borderWidth: 1, borderColor: Colors.colors.primary, borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: 24,
+  },
+  modalCard: {
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 28,
+    width: '100%', maxWidth: 360, alignItems: 'center', gap: 12,
+    borderWidth: 1, borderColor: Colors.colors.border,
+  },
+  modalTitle: { fontFamily: 'Rubik_700Bold', fontSize: 22, color: Colors.colors.danger },
+  modalMessage: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+  modalPrompt: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: Colors.colors.text, marginTop: 8 },
+  modalInput: {
+    fontFamily: 'Rubik_600SemiBold', fontSize: 18, color: Colors.colors.danger, textAlign: 'center',
+    backgroundColor: Colors.colors.surface, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12,
+    width: '100%', borderWidth: 1, borderColor: Colors.colors.border, letterSpacing: 4,
+  },
+  modalButtons: { flexDirection: 'row', gap: 12, marginTop: 8, width: '100%' },
+  modalCancelBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 12,
+    backgroundColor: Colors.colors.surfaceLight,
+  },
+  modalCancelText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.text },
+  modalDeleteBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 12,
+    backgroundColor: Colors.colors.danger,
+  },
+  modalDeleteBtnDisabled: { opacity: 0.4 },
+  modalDeleteText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: '#fff' },
 });

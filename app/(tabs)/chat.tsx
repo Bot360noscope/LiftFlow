@@ -181,7 +181,7 @@ export default function ChatTab() {
           <Text style={styles.errorText}>{sendError}</Text>
         </View>
       ) : null}
-      <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 8) }]}>
+      <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom + (Platform.OS === 'web' ? 84 : 50), Platform.OS === 'web' ? 34 : 8) }]}>
         <TextInput
           style={styles.input}
           value={input}
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerTitle: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text },
-  messagesList: { padding: 16, flexGrow: 1 },
+  messagesList: { padding: 16, flexGrow: 1, paddingBottom: 4 },
   bubble: { maxWidth: '80%', padding: 12, borderRadius: 16, marginBottom: 8 },
   myBubble: {
     alignSelf: 'flex-end', backgroundColor: Colors.colors.primary,

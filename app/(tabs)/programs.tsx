@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, ActivityIndicator } from "react-native";
-import { confirmAction } from "@/lib/confirm";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, ActivityIndicator, Modal, TextInput } from "react-native";
+import { showAlert } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback } from "react";
@@ -32,12 +32,30 @@ export default function ProgramsScreen() {
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
-  const handleDelete = (id: string, title: string) => {
-    confirmAction("Delete Program", `Delete "${title}"? This cannot be undone.`, async () => {
-      await deleteProgram(id);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deletingProgram, setDeletingProgram] = useState<{ id: string; title: string } | null>(null);
+
+  const openDeleteModal = (id: string, title: string) => {
+    setDeletingProgram({ id, title });
+    setDeleteInput('');
+    setShowDeleteModal(true);
+  };
+
+  const handleDelete = async () => {
+    if (deleteInput !== 'DELETE' || !deletingProgram) return;
+    setDeleting(true);
+    try {
+      await deleteProgram(deletingProgram.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setShowDeleteModal(false);
+      setDeletingProgram(null);
       loadData();
-    }, "Delete");
+    } catch (e: any) {
+      showAlert('Error', e.message || 'Failed to delete program');
+    }
+    setDeleting(false);
   };
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
@@ -126,7 +144,7 @@ export default function ProgramsScreen() {
                 accessibilityLabel={`Open program ${prog.title}`}
                 accessibilityRole="button"
                 onPress={() => router.push(`/program/${prog.id}`)}
-                onLongPress={() => handleDelete(prog.id, prog.title)}
+                onLongPress={() => openDeleteModal(prog.id, prog.title)}
               >
                 <View style={styles.cardTop}>
                   <View style={styles.cardTitleRow}>
@@ -177,6 +195,43 @@ export default function ProgramsScreen() {
           );
         })
       )}
+
+      <Modal visible={showDeleteModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Ionicons name="warning" size={40} color={Colors.colors.danger} />
+            <Text style={styles.modalTitle}>Delete Program</Text>
+            <Text style={styles.modalMessage}>
+              This will permanently delete "{deletingProgram?.title}" and all its exercises, progress, and associated data. This action cannot be undone.
+            </Text>
+            <Text style={styles.modalPrompt}>Type DELETE to confirm:</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={deleteInput}
+              onChangeText={setDeleteInput}
+              placeholder="Type DELETE"
+              placeholderTextColor={Colors.colors.textMuted}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              accessibilityLabel="Type DELETE to confirm program deletion"
+            />
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setShowDeleteModal(false)} accessibilityLabel="Cancel" accessibilityRole="button">
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalDeleteBtn, deleteInput !== 'DELETE' && styles.modalDeleteBtnDisabled]}
+                onPress={handleDelete}
+                disabled={deleteInput !== 'DELETE' || deleting}
+                accessibilityLabel="Delete program permanently"
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalDeleteText}>{deleting ? 'Deleting...' : 'Delete Forever'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -220,4 +275,32 @@ const styles = StyleSheet.create({
   progressBarBg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.colors.surfaceLight, overflow: 'hidden' as const },
   progressBarFill: { height: '100%' as const, borderRadius: 2, backgroundColor: Colors.colors.primary },
   progressText: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: Colors.colors.textSecondary, width: 32, textAlign: 'right' },
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: 24,
+  },
+  modalCard: {
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 28,
+    width: '100%', maxWidth: 360, alignItems: 'center', gap: 12,
+    borderWidth: 1, borderColor: Colors.colors.border,
+  },
+  modalTitle: { fontFamily: 'Rubik_700Bold', fontSize: 22, color: Colors.colors.danger },
+  modalMessage: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+  modalPrompt: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: Colors.colors.text, marginTop: 8 },
+  modalInput: {
+    fontFamily: 'Rubik_600SemiBold', fontSize: 18, color: Colors.colors.danger, textAlign: 'center',
+    backgroundColor: Colors.colors.surface, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12,
+    width: '100%', borderWidth: 1, borderColor: Colors.colors.border, letterSpacing: 4,
+  },
+  modalButtons: { flexDirection: 'row', gap: 12, marginTop: 8, width: '100%' },
+  modalCancelBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 12,
+    backgroundColor: Colors.colors.surfaceLight,
+  },
+  modalCancelText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.text },
+  modalDeleteBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 12,
+    backgroundColor: Colors.colors.danger,
+  },
+  modalDeleteBtnDisabled: { opacity: 0.4 },
+  modalDeleteText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: '#fff' },
 });
