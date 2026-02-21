@@ -280,7 +280,7 @@ export default function ProfileScreen() {
                 <View style={styles.planBadge}>
                   <Ionicons name={profile.plan === 'free' ? 'star-outline' : 'star'} size={16} color={profile.plan === 'free' ? Colors.colors.textMuted : '#FFD700'} />
                   <Text style={[styles.planBadgeText, profile.plan !== 'free' && { color: '#FFD700' }]}>
-                    {profile.plan === 'free' ? 'Free Plan' : profile.plan === 'saas' ? 'Premium' : profile.plan === 'enterprise' ? 'Enterprise' : profile.plan.charAt(0).toUpperCase() + profile.plan.slice(1)}
+                    {profile.plan === 'free' ? 'Free Plan' : profile.plan === 'tier_5' ? 'Starter Plan' : profile.plan === 'tier_10' ? 'Growth Plan' : profile.plan === 'saas' ? 'SaaS Plan' : profile.plan === 'enterprise' ? 'Enterprise' : profile.plan.charAt(0).toUpperCase() + profile.plan.slice(1)}
                   </Text>
                 </View>
                 <Pressable

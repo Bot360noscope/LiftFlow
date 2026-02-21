@@ -319,7 +319,7 @@ export default function HomeScreen() {
                   color={profile?.plan !== 'free' ? '#FFD700' : Colors.colors.textMuted}
                 />
                 <Text style={[styles.planBadgeText, profile?.plan !== 'free' && styles.planBadgeTextPremium]}>
-                  {profile?.plan !== 'free' ? 'Premium' : 'Free'}
+                  {profile?.plan === 'free' ? 'Free' : profile?.plan === 'tier_5' ? 'Starter' : profile?.plan === 'tier_10' ? 'Growth' : profile?.plan === 'saas' ? 'SaaS' : 'Premium'}
                 </Text>
               </View>
             )}
