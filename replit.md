@@ -29,7 +29,8 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - POST /api/upload-video, GET /api/videos/:filename, POST /api/videos/:filename/viewed
 - GET /api/messages?coachId=X&clientProfileId=Y, POST /api/messages
 - GET /api/clients/search?coachId=X&q=query
-- POST /api/seed-demo, POST /api/join-coach
+- POST /api/seed-demo, POST /api/join-coach, POST /api/leave-coach, POST /api/remove-client
+- POST /api/webhooks/payment (Stripe webhook for subscription updates)
 
 ## Key Data Model
 - **Program exercises**: Stored as JSONB array of WorkoutWeek → WorkoutDay → Exercise objects
