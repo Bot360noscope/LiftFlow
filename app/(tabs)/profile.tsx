@@ -10,7 +10,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import NetworkError from "@/components/NetworkError";
 import { confirmAction, showAlert } from "@/lib/confirm";
-import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, seedDemoData, deleteAccount, getCachedProfile, getCachedPRs, getCachedPrograms, getCachedClients, type UserProfile } from "@/lib/storage";
+import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, seedDemoData, deleteAccount, getCachedProfile, getCachedPRs, getCachedPrograms, getCachedClients, leaveCoach, getMyCoach, type UserProfile } from "@/lib/storage";
 import { useAuth } from "@/lib/auth-context";
 import { uploadAvatar, deleteAvatar, getAvatarUrl } from "@/lib/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -63,6 +63,10 @@ export default function ProfileScreen() {
   const [deleting, setDeleting] = useState(false);
 
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [myCoach, setMyCoach] = useState<{ coachId: string; coachName: string } | null>(null);
+  const [showRemoveCoachModal, setShowRemoveCoachModal] = useState(false);
+  const [removeCoachInput, setRemoveCoachInput] = useState('');
+  const [removingCoach, setRemovingCoach] = useState(false);
 
   const [loading, setLoading] = useState(!getCachedProfile());
   const [error, setError] = useState(false);
@@ -106,6 +110,14 @@ export default function ProfileScreen() {
       setProfile(p);
       setNameInput(p.name);
       setStats({ prs: prs.length, programs: progs.length, clients: cl.length });
+      if (p.role === 'client') {
+        try {
+          const coach = await getMyCoach();
+          setMyCoach(coach);
+        } catch { setMyCoach(null); }
+      } else {
+        setMyCoach(null);
+      }
       setError(false);
     } catch (e) {
       setError(true);
@@ -152,6 +164,22 @@ export default function ProfileScreen() {
     setProfile(updated);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     loadData();
+  };
+
+  const handleRemoveCoach = async () => {
+    if (removeCoachInput !== 'REMOVE') return;
+    setRemovingCoach(true);
+    try {
+      await leaveCoach();
+      setMyCoach(null);
+      setShowRemoveCoachModal(false);
+      setRemoveCoachInput('');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showAlert("Coach Removed", "You've been disconnected from your coach. You can join a new coach anytime.");
+    } catch (e: any) {
+      showAlert('Error', e.message || 'Failed to remove coach');
+    }
+    setRemovingCoach(false);
   };
 
   const handleDeleteAccount = async () => {
@@ -303,6 +331,20 @@ export default function ProfileScreen() {
             </View>
             <Ionicons name="swap-horizontal" size={20} color={Colors.colors.textMuted} />
           </Pressable>
+
+          {!isCoach && myCoach && (
+            <Pressable style={[styles.settingItem, styles.dangerItem]} onPress={() => { setRemoveCoachInput(''); setShowRemoveCoachModal(true); }} accessibilityLabel="Remove coach" accessibilityRole="button">
+              <View style={styles.settingLeft}>
+                <View style={[styles.settingIcon, { backgroundColor: Colors.colors.dangerLight }]}>
+                  <Ionicons name="person-remove" size={18} color={Colors.colors.danger} />
+                </View>
+                <View style={styles.settingTextWrap}>
+                  <Text style={[styles.settingLabel, { color: Colors.colors.danger }]} numberOfLines={1}>Remove Coach</Text>
+                  <Text style={styles.settingValue} numberOfLines={2}>Disconnect from {myCoach.coachName}</Text>
+                </View>
+              </View>
+            </Pressable>
+          )}
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(300).duration(400)}>
@@ -392,6 +434,43 @@ export default function ProfileScreen() {
 
         <Text style={styles.version}>LiftFlow v1.0.0</Text>
       </ScrollView>
+
+      <Modal visible={showRemoveCoachModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Ionicons name="person-remove" size={40} color={Colors.colors.danger} />
+            <Text style={styles.modalTitle}>Remove Coach</Text>
+            <Text style={styles.modalMessage}>
+              This will disconnect you from {myCoach?.coachName || 'your coach'}. Your chat messages will be deleted and program assignments will be removed. This action cannot be undone.
+            </Text>
+            <Text style={styles.modalPrompt}>Type REMOVE to confirm:</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={removeCoachInput}
+              onChangeText={setRemoveCoachInput}
+              placeholder="Type REMOVE"
+              placeholderTextColor={Colors.colors.textMuted}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              accessibilityLabel="Type REMOVE to confirm coach removal"
+            />
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setShowRemoveCoachModal(false)} accessibilityLabel="Cancel" accessibilityRole="button">
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalDeleteBtn, removeCoachInput !== 'REMOVE' && styles.modalDeleteBtnDisabled]}
+                onPress={handleRemoveCoach}
+                disabled={removeCoachInput !== 'REMOVE' || removingCoach}
+                accessibilityLabel="Remove coach permanently"
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalDeleteText}>{removingCoach ? 'Removing...' : 'Remove Coach'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={showDeleteModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
