@@ -10,6 +10,9 @@ export const profiles = pgTable("profiles", {
   weightUnit: text("weight_unit").notNull().default('kg'),
   coachCode: text("coach_code").notNull(),
   avatarUrl: text("avatar_url").notNull().default(''),
+  plan: text("plan").notNull().default('free'),
+  planUserLimit: integer("plan_user_limit").notNull().default(1),
+  planExpiresAt: timestamp("plan_expires_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

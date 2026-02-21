@@ -975,6 +975,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setInterval(cleanupExpiredVideos, 60 * 60 * 1000);
   cleanupExpiredVideos();
 
+  app.post("/api/webhooks/payment", async (req, res) => {
+    try {
+      const { webhookSecret, email, plan, durationDays, userCount, tier, status } = req.body;
+
+      const expectedSecret = process.env.LIFTFLOW_WEBHOOK_SECRET;
+      if (!expectedSecret || webhookSecret !== expectedSecret) {
+        return res.status(401).json({ success: false, error: "Invalid webhook secret" });
+      }
+
+      if (!email) {
+        return res.status(400).json({ success: false, error: "Missing email" });
+      }
+
+      const resolvedTier = tier || plan || 'free';
+      const resolvedUserLimit = userCount || (resolvedTier === 'enterprise' ? 999 : 1);
+
+      const user = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      if (user.length === 0) {
+        return res.status(404).json({ success: false, error: "User not found" });
+      }
+
+      const userProfile = await db.select().from(profiles).where(eq(profiles.id, user[0].profileId)).limit(1);
+      if (userProfile.length === 0) {
+        return res.status(404).json({ success: false, error: "Profile not found" });
+      }
+
+      if (status === 'cancelled' || resolvedTier === 'free') {
+        await db.update(profiles).set({
+          plan: 'free',
+          planUserLimit: 1,
+          planExpiresAt: null,
+        }).where(eq(profiles.id, userProfile[0].id));
+      } else {
+        const expiresAt = durationDays
+          ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)
+          : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+
+        await db.update(profiles).set({
+          plan: resolvedTier,
+          planUserLimit: resolvedUserLimit,
+          planExpiresAt: expiresAt,
+        }).where(eq(profiles.id, userProfile[0].id));
+      }
+
+      console.log(`[Payment Webhook] Updated plan for ${email}: ${resolvedTier}, limit: ${resolvedUserLimit}`);
+      res.json({ success: true, email, plan: resolvedTier });
+    } catch (e: any) {
+      console.error('[Payment Webhook] Error:', e);
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

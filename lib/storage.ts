@@ -54,6 +54,8 @@ export interface UserProfile {
   weightUnit: 'kg' | 'lbs';
   coachCode: string;
   avatarUrl: string;
+  plan: string;
+  planUserLimit: number;
 }
 
 export interface ClientInfo {
@@ -141,6 +143,8 @@ function mapProfile(profile: any): UserProfile {
     weightUnit: (profile.weightUnit || profile.weight_unit) as 'kg' | 'lbs',
     coachCode: profile.coachCode || profile.coach_code,
     avatarUrl: profile.avatarUrl || profile.avatar_url || '',
+    plan: profile.plan || 'free',
+    planUserLimit: profile.planUserLimit || profile.plan_user_limit || 1,
   };
 }
 

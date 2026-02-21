@@ -303,15 +303,29 @@ export default function HomeScreen() {
               {profile?.name ? `Welcome, ${profile.name}` : 'Welcome to LiftFlow'}
             </Text>
           </View>
-          <Pressable
-            style={styles.roleChip}
-            accessibilityLabel={`Role: ${isCoach ? 'Coach' : 'Client'}. View profile`}
-            accessibilityRole="button"
-            onPress={() => router.push('/(tabs)/profile')}
-          >
-            <Ionicons name={isCoach ? 'school' : 'fitness'} size={14} color={Colors.colors.primary} />
-            <Text style={styles.roleChipText}>{isCoach ? 'Coach' : 'Client'}</Text>
-          </Pressable>
+          <View style={styles.roleChipRow}>
+            {isCoach && (
+              <View style={[styles.planBadge, profile?.plan !== 'free' && styles.planBadgePremium]}>
+                <Ionicons
+                  name={profile?.plan !== 'free' ? 'star' : 'star-outline'}
+                  size={12}
+                  color={profile?.plan !== 'free' ? '#FFD700' : Colors.colors.textMuted}
+                />
+                <Text style={[styles.planBadgeText, profile?.plan !== 'free' && styles.planBadgeTextPremium]}>
+                  {profile?.plan !== 'free' ? 'Premium' : 'Free'}
+                </Text>
+              </View>
+            )}
+            <Pressable
+              style={styles.roleChip}
+              accessibilityLabel={`Role: ${isCoach ? 'Coach' : 'Client'}. View profile`}
+              accessibilityRole="button"
+              onPress={() => router.push('/(tabs)/profile')}
+            >
+              <Ionicons name={isCoach ? 'school' : 'fitness'} size={14} color={Colors.colors.primary} />
+              <Text style={styles.roleChipText}>{isCoach ? 'Coach' : 'Client'}</Text>
+            </Pressable>
+          </View>
         </View>
       </Animated.View>
 
@@ -531,6 +545,17 @@ const styles = StyleSheet.create({
   greetingLeft: { flex: 1 },
   greeting: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.text },
   greetingSub: { fontFamily: 'Rubik_400Regular', fontSize: 15, color: Colors.colors.textSecondary, marginTop: 4 },
+  roleChipRow: { flexDirection: 'column', alignItems: 'flex-end', gap: 6 },
+  planBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: Colors.colors.surface, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10,
+    borderWidth: 1, borderColor: Colors.colors.border,
+  },
+  planBadgePremium: {
+    backgroundColor: 'rgba(255, 215, 0, 0.1)', borderColor: 'rgba(255, 215, 0, 0.3)',
+  },
+  planBadgeText: { fontFamily: 'Rubik_500Medium', fontSize: 11, color: Colors.colors.textMuted },
+  planBadgeTextPremium: { color: '#FFD700' },
   roleChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: 'rgba(232,81,47,0.1)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
