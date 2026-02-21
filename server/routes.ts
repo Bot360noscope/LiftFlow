@@ -167,49 +167,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [profile] = await db.select().from(profiles).where(eq(profiles.id, req.params.id));
       if (!profile) return res.status(404).json({ error: "Not found" });
 
-      const user = await db.select().from(users).where(eq(users.profileId, req.params.id)).limit(1);
-      if (user.length > 0) {
-        try {
-          const [payment] = await db.select().from(paymentUsers).where(eq(paymentUsers.email, user[0].email));
-          if (payment && payment.stripeSubscriptionId) {
-            const tier = payment.tier || 'tier_5';
-            const planName = tier === 'tier_5' ? 'tier_5'
-              : tier === 'tier_10' ? 'tier_10'
-              : tier === 'saas' ? 'enterprise'
-              : tier;
-            const userLimit = payment.userCount
-              ? payment.userCount
-              : tier === 'tier_5' ? 5
-              : tier === 'tier_10' ? 10
-              : tier === 'saas' || tier === 'enterprise' ? 999
-              : 5;
-
-            if (profile.plan !== planName || profile.planUserLimit !== userLimit) {
-              const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-              await db.update(profiles).set({
-                plan: planName,
-                planUserLimit: userLimit,
-                planExpiresAt: expiresAt,
-              }).where(eq(profiles.id, req.params.id));
-              profile.plan = planName;
-              profile.planUserLimit = userLimit;
-              profile.planExpiresAt = expiresAt;
-            }
-          } else if (profile.plan !== 'free') {
-            await db.update(profiles).set({
-              plan: 'free',
-              planUserLimit: 1,
-              planExpiresAt: null,
-            }).where(eq(profiles.id, req.params.id));
-            profile.plan = 'free';
-            profile.planUserLimit = 1;
-            profile.planExpiresAt = null;
-          }
-        } catch (paymentErr) {
-          console.log('[Profile] payment_users table not available, skipping sync');
-        }
-      }
-
       res.json(profile);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
