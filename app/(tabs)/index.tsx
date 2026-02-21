@@ -134,7 +134,7 @@ function NotificationItem({ notification, onDelete }: { notification: AppNotific
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onDelete(notification.id);
         if (notification.type === 'chat') {
-          router.push('/chat');
+          router.push('/conversation');
         } else if (notification.programId) {
           router.push(`/program/${notification.programId}`);
         }

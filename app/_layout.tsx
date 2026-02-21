@@ -33,7 +33,7 @@ function RootLayoutNav() {
       <Stack.Screen name="create-program" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="join-coach" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="client/[id]" options={{ headerShown: false, presentation: "card" }} />
-      <Stack.Screen name="chat" options={{ headerShown: false, presentation: "card" }} />
+      <Stack.Screen name="conversation" options={{ headerShown: false, presentation: "card" }} />
     </Stack>
   );
 }

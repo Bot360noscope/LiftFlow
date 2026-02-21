@@ -181,7 +181,7 @@ export default function ChatTab() {
                   activeOpacity={0.6}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push({ pathname: '/chat', params: { coachId: profile.id, clientProfileId: client.clientProfileId || '', clientName: client.name } });
+                    router.push({ pathname: '/conversation', params: { coachId: profile.id, clientProfileId: client.clientProfileId || '', clientName: client.name } });
                   }}
                   accessibilityLabel={`Chat with ${client.name}`}
                   accessibilityRole="button"

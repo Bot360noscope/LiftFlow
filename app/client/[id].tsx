@@ -107,7 +107,7 @@ export default function ClientDetailScreen() {
           hitSlop={8}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push({ pathname: '/chat', params: { clientId: id, clientName: displayName, clientProfileId: client?.clientProfileId || '' } });
+            router.push({ pathname: '/conversation', params: { clientId: id, clientName: displayName, clientProfileId: client?.clientProfileId || '' } });
           }}
         >
           <Ionicons name="chatbubbles-outline" size={22} color={Colors.colors.primary} />
