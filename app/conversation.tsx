@@ -111,8 +111,8 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={90}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
     >
       <View style={[styles.header, { paddingTop: insets.top + webTopInset + 8 }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
