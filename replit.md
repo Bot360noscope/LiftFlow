@@ -12,7 +12,7 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **Theme**: Dark mode with energetic orange/red palette (#E8512F)
 
 ## Database Schema (shared/schema.ts)
-- **profiles**: id, name, role (coach/client), weightUnit, coachCode, createdAt
+- **profiles**: id, name, role (coach/client), weightUnit, coachCode, plan, planUserLimit, planExpiresAt, createdAt
 - **programs**: id, profileId, clientId, title, totalWeeks, daysPerWeek, rowCount, shareCode, exercises (JSONB), createdAt, updatedAt
 - **clients**: id, coachId, name, email, joinedAt
 - **prs**: id, profileId, liftType, weight, date
@@ -42,8 +42,9 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **Programs** (tabs/programs.tsx): List of all programs with share codes, progress bars
 - **Program Detail** (program/[id].tsx): Excel-style spreadsheet with week selector, day columns, exercise rows. Video recording via native camera
 - **Progress** (tabs/progress.tsx): PR tracking for squat/bench/deadlift with estimated total
-- **Profile** (tabs/profile.tsx): Name, role toggle, weight unit, coach code, "Load Demo Data" button
-- **Chat** (chat.tsx): Real-time messaging between coach and client with message bubbles, auto-refresh
+- **Profile** (tabs/profile.tsx): Name, role toggle, weight unit, coach code, plan card (Free/Premium with client count), "Load Demo Data" button
+- **Chat Tab** (tabs/chat.tsx): Coach sees client list, client sees direct chat. Coach taps client to open conversation
+- **Conversation** (conversation.tsx): Standalone chat screen between coach and specific client, auto-refresh
 - **Client Detail** (client/[id].tsx): Client's programs with "New Program" button, chat button in header
 - **Create Program** (create-program.tsx): Configure weeks/days/rows or use quick-start template
 - **Add PR** (add-pr.tsx): Log personal records
