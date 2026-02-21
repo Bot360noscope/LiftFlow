@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, KeyboardAvoidingView, ActivityIndicator, Image, ScrollView } from "react-native";
+import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, KeyboardAvoidingView, ActivityIndicator, Image, ScrollView, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -175,9 +175,10 @@ export default function ChatTab() {
             {sortedClients.map((client, idx) => {
               const latest = latestMsgs[client.clientProfileId || ''];
               return (
-                <Pressable
+                <TouchableOpacity
                   key={client.id}
-                  style={({ pressed }) => [styles.clientRow, pressed && { opacity: 0.7 }]}
+                  style={styles.clientRow}
+                  activeOpacity={0.6}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     router.push({ pathname: '/chat', params: { coachId: profile.id, clientProfileId: client.clientProfileId || '', clientName: client.name } });
@@ -206,7 +207,7 @@ export default function ChatTab() {
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={Colors.colors.textMuted} />
-                </Pressable>
+                </TouchableOpacity>
               );
             })}
           </ScrollView>
