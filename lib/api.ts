@@ -8,12 +8,7 @@ function getBaseUrl(): string {
     return '';
   }
 
-  const domain = process.env.EXPO_PUBLIC_DOMAIN || '';
-  if (domain) {
-    const cleaned = domain.replace(/:\d+$/, '');
-    return `https://${cleaned}`;
-  }
-  return 'http://localhost:5000';
+  return 'https://new-liftflow-for-render-hosting-backend.onrender.com';
 }
 
 const BASE = getBaseUrl();
