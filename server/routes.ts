@@ -327,6 +327,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "You already have a coach. Remove your current coach before joining a new one." });
       }
 
+      const coachProfile = await db.select().from(profiles).where(eq(profiles.id, coach.id)).limit(1);
+      if (coachProfile.length > 0) {
+        const plan = coachProfile[0].plan || 'free';
+        const limit = coachProfile[0].planUserLimit || 1;
+        const currentClients = await db.select().from(clients).where(eq(clients.coachId, coach.id));
+        if (currentClients.length >= limit) {
+          const planName = plan === 'free' ? 'Free' : plan === 'saas' ? 'Premium' : plan.charAt(0).toUpperCase() + plan.slice(1);
+          return res.status(403).json({ error: `This coach has reached their ${planName} plan limit of ${limit} client${limit !== 1 ? 's' : ''}. The coach needs to upgrade their plan to accept more clients.` });
+        }
+      }
+
       const [client] = await db.insert(clients).values({
         id: randomUUID(),
         coachId: coach.id,
