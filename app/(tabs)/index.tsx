@@ -344,17 +344,11 @@ export default function HomeScreen() {
 
       <Animated.View entering={FadeInDown.delay(150).duration(400)}>
         <View style={styles.statsRow}>
-          {isCoach ? (
+          {isCoach && (
             <>
-              <StatCard icon="people" label="Clients" value={String(clients.length)} color={Colors.colors.primary} />
-              <StatCard icon="barbell" label="Active Programs" value={String(activePrograms.length)} color={Colors.colors.accent} />
-              <StatCard icon="notifications" label="Needs Review" value={String(unreadNotifs.length)} color={Colors.colors.warning} />
-            </>
-          ) : (
-            <>
-              <StatCard icon="barbell" label="Programs" value={String(programs.length)} color={Colors.colors.primary} />
-              <StatCard icon="checkmark-circle" label="Active" value={String(activePrograms.length)} color={Colors.colors.success} />
-              <StatCard icon="trophy" label="PRs" value={String(prs.length)} color={Colors.colors.accent} />
+              <StatCard icon="people" label="Clients" value={String(clients.length)} color={Colors.colors.textMuted} />
+              <StatCard icon="barbell" label="Active Programs" value={String(activePrograms.length)} color={Colors.colors.textMuted} />
+              <StatCard icon="notifications" label="Needs Review" value={String(unreadNotifs.length)} color={Colors.colors.textMuted} />
             </>
           )}
         </View>
