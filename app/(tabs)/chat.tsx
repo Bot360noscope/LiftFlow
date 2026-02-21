@@ -20,6 +20,7 @@ export default function ChatTab() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [hasCoach, setHasCoach] = useState(false);
+  const [sendError, setSendError] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
   useFocusEffect(
@@ -71,6 +72,7 @@ export default function ChatTab() {
   const handleSend = async () => {
     if (!input.trim() || !coachId || !clientProfileId || sending) return;
     setSending(true);
+    setSendError('');
     const text = input.trim();
     setInput('');
     try {
@@ -79,6 +81,7 @@ export default function ChatTab() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (e: any) {
       setInput(text);
+      setSendError(e.message || 'Failed to send');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
     setSending(false);
@@ -172,6 +175,12 @@ export default function ChatTab() {
         }
       />
 
+      {sendError ? (
+        <View style={styles.errorBar}>
+          <Ionicons name="warning" size={14} color={Colors.colors.danger} />
+          <Text style={styles.errorText}>{sendError}</Text>
+        </View>
+      ) : null}
       <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 8) }]}>
         <TextInput
           style={styles.input}
@@ -244,4 +253,9 @@ const styles = StyleSheet.create({
   emptySubtitle: { fontFamily: 'Rubik_400Regular', fontSize: 15, color: Colors.colors.textMuted, textAlign: 'center', lineHeight: 22 },
   emptyMessages: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 12 },
   emptyMessagesText: { fontFamily: 'Rubik_400Regular', fontSize: 15, color: Colors.colors.textMuted },
+  errorBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)', borderTopWidth: 1, borderTopColor: 'rgba(255, 59, 48, 0.2)',
+  },
+  errorText: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.danger, flex: 1 },
 });

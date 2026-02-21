@@ -18,6 +18,7 @@ export default function ChatScreen() {
   const [clientProfileId, setClientProfileId] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sendError, setSendError] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function ChatScreen() {
   const handleSend = async () => {
     if (!input.trim() || !coachId || !clientProfileId || sending) return;
     setSending(true);
+    setSendError('');
     const text = input.trim();
     setInput('');
     try {
@@ -80,8 +82,10 @@ export default function ChatScreen() {
       setMessages(prev => [...prev, msg]);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-    } catch (e) {
+    } catch (e: any) {
       setInput(text);
+      setSendError(e.message || 'Failed to send');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
     setSending(false);
   };
@@ -153,6 +157,12 @@ export default function ChatScreen() {
             }
           />
 
+          {sendError ? (
+            <View style={styles.errorBar}>
+              <Ionicons name="warning" size={14} color={Colors.colors.danger} />
+              <Text style={styles.errorText}>{sendError}</Text>
+            </View>
+          ) : null}
           <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 12) }]}>
             <TextInput
               style={styles.textInput}
@@ -237,4 +247,9 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   sendBtnDisabled: { backgroundColor: Colors.colors.surfaceLight },
+  errorBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)', borderTopWidth: 1, borderTopColor: 'rgba(255, 59, 48, 0.2)',
+  },
+  errorText: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.danger, flex: 1 },
 });

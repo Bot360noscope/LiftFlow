@@ -12,6 +12,23 @@ import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.SESSION_SECRET || 'liftflow-dev-secret';
 
+const BLOCKED_WORDS = [
+  'fuck', 'shit', 'ass', 'bitch', 'damn', 'crap', 'dick', 'piss',
+  'bastard', 'cunt', 'asshole', 'motherfucker', 'bullshit',
+  'dumbass', 'jackass', 'wtf', 'stfu', 'fck', 'f\\*ck', 'sh\\*t',
+  'b\\*tch', 'a\\*s', 'fuk', 'fuq', 'azz', 'biatch',
+];
+
+const blockedRegex = new RegExp(
+  BLOCKED_WORDS.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'),
+  'i'
+);
+
+function containsProfanity(text: string): boolean {
+  const normalized = text.replace(/[0@]/g, 'o').replace(/[1!|]/g, 'i').replace(/3/g, 'e').replace(/\$/g, 's').replace(/[_\-.\s]+/g, '');
+  return blockedRegex.test(text) || blockedRegex.test(normalized);
+}
+
 function generateToken(userId: string, profileId: string): string {
   return jwt.sign({ userId, profileId }, JWT_SECRET, { expiresIn: '30d' });
 }
@@ -416,6 +433,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/messages", async (req, res) => {
     try {
       const { coachId, clientProfileId, senderRole, text: msgText } = req.body;
+      if (containsProfanity(msgText)) {
+        return res.status(400).json({ error: "Message contains inappropriate language. Please rephrase." });
+      }
       const [msg] = await db.insert(messages).values({
         id: randomUUID(),
         coachId,
