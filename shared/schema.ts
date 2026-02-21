@@ -93,6 +93,16 @@ export const videoUploads = pgTable("video_uploads", {
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 });
 
+export const paymentUsers = pgTable("payment_users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").unique(),
+  tier: text("tier"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  userCount: integer("user_count"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertProfileSchema = createInsertSchema(profiles);
 export const insertProgramSchema = createInsertSchema(programs);
 export const insertClientSchema = createInsertSchema(clients);
