@@ -22,7 +22,7 @@ function StatCard({ icon, label, value, color }: { icon: string; label: string; 
         <Ionicons name={icon as any} size={18} color={color} />
       </View>
       <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{label}</Text>
+      <Text style={styles.statLabel} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>{label}</Text>
     </View>
   );
 }
@@ -347,8 +347,8 @@ export default function HomeScreen() {
           {isCoach && (
             <>
               <StatCard icon="people" label="Clients" value={String(clients.length)} color={Colors.colors.textMuted} />
-              <StatCard icon="barbell" label="Active Programs" value={String(activePrograms.length)} color={Colors.colors.textMuted} />
-              <StatCard icon="notifications" label="Needs Review" value={String(unreadNotifs.length)} color={Colors.colors.textMuted} />
+              <StatCard icon="barbell" label="Active" value={String(activePrograms.length)} color={Colors.colors.textMuted} />
+              <StatCard icon="notifications" label="Review" value={String(unreadNotifs.length)} color={Colors.colors.textMuted} />
             </>
           )}
         </View>
