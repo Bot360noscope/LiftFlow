@@ -175,39 +175,38 @@ export default function ChatTab() {
             {sortedClients.map((client, idx) => {
               const latest = latestMsgs[client.clientProfileId || ''];
               return (
-                <Animated.View key={client.id} entering={FadeInDown.delay(idx * 40).duration(250)}>
-                  <Pressable
-                    style={styles.clientRow}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push({ pathname: '/chat', params: { coachId: profile.id, clientProfileId: client.clientProfileId, clientName: client.name } });
-                    }}
-                    accessibilityLabel={`Chat with ${client.name}`}
-                    accessibilityRole="button"
-                  >
-                    {client.avatarUrl ? (
-                      <Image source={{ uri: getAvatarUrl(client.avatarUrl) }} style={styles.clientAvatar} />
-                    ) : (
-                      <View style={styles.clientAvatarFallback}>
-                        <Text style={styles.clientAvatarText}>{(client.name || '?')[0].toUpperCase()}</Text>
-                      </View>
-                    )}
-                    <View style={styles.clientInfo}>
-                      <View style={styles.clientNameRow}>
-                        <Text style={styles.clientName} numberOfLines={1}>{client.name || 'Client'}</Text>
-                        {latest && (
-                          <Text style={styles.clientTime}>{formatTime(latest.createdAt)}</Text>
-                        )}
-                      </View>
-                      <Text style={styles.clientLastMsg} numberOfLines={1}>
-                        {latest
-                          ? `${latest.senderRole === 'coach' ? 'You: ' : ''}${latest.text}`
-                          : 'No messages yet'}
-                      </Text>
+                <Pressable
+                  key={client.id}
+                  style={({ pressed }) => [styles.clientRow, pressed && { opacity: 0.7 }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push({ pathname: '/chat', params: { coachId: profile.id, clientProfileId: client.clientProfileId || '', clientName: client.name } });
+                  }}
+                  accessibilityLabel={`Chat with ${client.name}`}
+                  accessibilityRole="button"
+                >
+                  {client.avatarUrl ? (
+                    <Image source={{ uri: getAvatarUrl(client.avatarUrl) }} style={styles.clientAvatar} />
+                  ) : (
+                    <View style={styles.clientAvatarFallback}>
+                      <Text style={styles.clientAvatarText}>{(client.name || '?')[0].toUpperCase()}</Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color={Colors.colors.textMuted} />
-                  </Pressable>
-                </Animated.View>
+                  )}
+                  <View style={styles.clientInfo}>
+                    <View style={styles.clientNameRow}>
+                      <Text style={styles.clientName} numberOfLines={1}>{client.name || 'Client'}</Text>
+                      {latest && (
+                        <Text style={styles.clientTime}>{formatTime(latest.createdAt)}</Text>
+                      )}
+                    </View>
+                    <Text style={styles.clientLastMsg} numberOfLines={1}>
+                      {latest
+                        ? `${latest.senderRole === 'coach' ? 'You: ' : ''}${latest.text}`
+                        : 'No messages yet'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.colors.textMuted} />
+                </Pressable>
               );
             })}
           </ScrollView>
