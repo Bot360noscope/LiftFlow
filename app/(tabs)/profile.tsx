@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 16,
     marginBottom: 8, borderWidth: 1, borderColor: Colors.colors.border,
   },
-  dangerItem: { borderColor: 'rgba(255, 59, 48, 0.2)' },
+  dangerItem: { borderWidth: 2, borderColor: 'rgba(255, 59, 48, 0.4)' },
   settingLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   settingIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   settingTextWrap: { flex: 1 },
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 16,
-    marginTop: 24, borderWidth: 1, borderColor: 'rgba(255, 59, 48, 0.2)',
+    marginTop: 24, borderWidth: 2, borderColor: 'rgba(255, 59, 48, 0.4)',
   },
   logoutText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.danger },
   legalSection: { marginTop: 20, gap: 6 },
