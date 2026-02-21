@@ -144,7 +144,7 @@ function mapProfile(profile: any): UserProfile {
     coachCode: profile.coachCode || profile.coach_code,
     avatarUrl: profile.avatarUrl || profile.avatar_url || '',
     plan: profile.plan || 'free',
-    planUserLimit: profile.planUserLimit || profile.plan_user_limit || 1,
+    planUserLimit: profile.plan_user_limit != null ? profile.plan_user_limit : (profile.planUserLimit != null ? profile.planUserLimit : 1),
   };
 }
 
