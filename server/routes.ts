@@ -1062,8 +1062,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? Number(rawCount)
         : resolvedTier === 'tier_5' ? 5
         : resolvedTier === 'tier_10' ? 10
-        : resolvedTier === 'saas' || resolvedTier === 'premium' || resolvedTier === 'enterprise' ? 999
-        : 1;
+        : resolvedTier === 'enterprise' ? 999
+        : 15;
 
       const user = await db.select().from(users).where(eq(users.email, email)).limit(1);
       if (user.length === 0) {
