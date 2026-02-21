@@ -47,3 +47,6 @@ yarn-error.*
 .vercel
 
 .env
+
+# Attached assets (uploaded files, too large for GitHub)
+attached_assets/
