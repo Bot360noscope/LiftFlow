@@ -481,6 +481,13 @@ export async function getMyCoach(): Promise<{ coachId: string; coachName: string
   return { coachId: data.coachId || data.coach_id, coachName: data.coachName || data.coach_name || 'Coach' };
 }
 
+export type LatestMessages = Record<string, { text: string; senderRole: string; createdAt: string }>;
+
+export async function getLatestMessages(): Promise<LatestMessages> {
+  const profile = await getProfile();
+  return apiGet<LatestMessages>(`/api/messages/latest?coachId=${profile.id}`);
+}
+
 export async function searchClients(query: string): Promise<ClientInfo[]> {
   const profile = await getProfile();
   const data = await apiGet<any[]>(`/api/clients/search?coachId=${profile.id}&q=${encodeURIComponent(query)}`);

@@ -9,9 +9,9 @@ import Colors from "@/constants/colors";
 import NetworkError from "@/components/NetworkError";
 import {
   getProfile, getPrograms, getPRs, getBestPR, getClients, getNotifications,
-  clearAllNotifications, deleteNotification,
+  clearAllNotifications, deleteNotification, getLatestMessages,
   getCachedProfile, getCachedPrograms, getCachedPRs, getCachedClients, getCachedNotifications,
-  type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification,
+  type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification, type LatestMessages,
 } from "@/lib/storage";
 import { getAvatarUrl } from "@/lib/api";
 
@@ -191,6 +191,7 @@ export default function HomeScreen() {
   const [clients, setClients] = useState<ClientInfo[]>(getCachedClients());
   const [notifications, setNotifications] = useState<AppNotification[]>(getCachedNotifications());
   const [clientSearch, setClientSearch] = useState('');
+  const [latestMsgs, setLatestMsgs] = useState<LatestMessages>({});
   const [loading, setLoading] = useState(!getCachedProfile());
   const [error, setError] = useState(false);
 
@@ -198,16 +199,18 @@ export default function HomeScreen() {
     try {
       const p = await getProfile();
       setProfile(p);
-      const [progs, prData, cl, notifs] = await Promise.all([
+      const [progs, prData, cl, notifs, latest] = await Promise.all([
         getPrograms().catch(() => [] as Program[]),
         getPRs().catch(() => [] as LiftPR[]),
         getClients().catch(() => [] as ClientInfo[]),
         getNotifications().catch(() => [] as AppNotification[]),
+        p.role === 'coach' ? getLatestMessages().catch(() => ({} as LatestMessages)) : Promise.resolve({} as LatestMessages),
       ]);
       setPrograms(progs);
       setPRs(prData);
       setClients(cl);
       setNotifications(notifs);
+      setLatestMsgs(latest);
       setError(false);
     } catch (e) {
       setError(true);
@@ -254,9 +257,17 @@ export default function HomeScreen() {
     ? notifications.filter(n => n.fromRole === 'client' && n.type !== 'completion')
     : notifications;
   const recentNotifs = clientNotifs.slice(0, 5);
+  const sortedClients = isCoach ? [...clients].sort((a, b) => {
+    const aMsg = latestMsgs[a.clientProfileId || ''];
+    const bMsg = latestMsgs[b.clientProfileId || ''];
+    if (aMsg && bMsg) return new Date(bMsg.createdAt).getTime() - new Date(aMsg.createdAt).getTime();
+    if (aMsg) return -1;
+    if (bMsg) return 1;
+    return 0;
+  }) : clients;
   const filteredClients = clientSearch.trim()
-    ? clients.filter(c => c.name.toLowerCase().includes(clientSearch.trim().toLowerCase()))
-    : clients;
+    ? sortedClients.filter(c => c.name.toLowerCase().includes(clientSearch.trim().toLowerCase()))
+    : sortedClients;
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 84 : 0;

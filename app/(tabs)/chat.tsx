@@ -1,16 +1,32 @@
-import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, KeyboardAvoidingView, ActivityIndicator } from "react-native";
+import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, KeyboardAvoidingView, ActivityIndicator, Image, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
-import { getProfile, getMessages, sendMessage, getMyCoach, type ChatMessage, type UserProfile } from "@/lib/storage";
+import { getProfile, getMessages, sendMessage, getMyCoach, getClients, getLatestMessages, type ChatMessage, type UserProfile, type ClientInfo, type LatestMessages } from "@/lib/storage";
+import { getAvatarUrl } from "@/lib/api";
+
+function formatTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'now';
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffHrs = Math.floor(diffMin / 60);
+  if (diffHrs < 24) return `${diffHrs}h`;
+  const diffDays = Math.floor(diffHrs / 24);
+  if (diffDays < 7) return `${diffDays}d`;
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
 
 export default function ChatTab() {
   const insets = useSafeAreaInsets();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
+  const webBottomInset = Platform.OS === 'web' ? 84 : 0;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -23,6 +39,9 @@ export default function ChatTab() {
   const [sendError, setSendError] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
+  const [coachClients, setCoachClients] = useState<ClientInfo[]>([]);
+  const [latestMsgs, setLatestMsgs] = useState<LatestMessages>({});
+
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -33,6 +52,13 @@ export default function ChatTab() {
           setProfile(prof);
 
           if (prof.role === 'coach') {
+            const [cls, latest] = await Promise.all([
+              getClients().catch(() => [] as ClientInfo[]),
+              getLatestMessages().catch(() => ({} as LatestMessages)),
+            ]);
+            if (!active) return;
+            setCoachClients(cls);
+            setLatestMsgs(latest);
             setLoading(false);
             return;
           }
@@ -68,6 +94,17 @@ export default function ChatTab() {
     }, 3000);
     return () => clearInterval(interval);
   }, [coachId, clientProfileId]);
+
+  useEffect(() => {
+    if (profile?.role !== 'coach') return;
+    const interval = setInterval(async () => {
+      try {
+        const latest = await getLatestMessages();
+        setLatestMsgs(latest);
+      } catch {}
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [profile?.role]);
 
   const handleSend = async () => {
     if (!input.trim() || !coachId || !clientProfileId || sending) return;
@@ -108,18 +145,73 @@ export default function ChatTab() {
   }
 
   if (profile?.role === 'coach') {
+    const sortedClients = [...coachClients].sort((a, b) => {
+      const aMsg = latestMsgs[a.clientProfileId || ''];
+      const bMsg = latestMsgs[b.clientProfileId || ''];
+      if (aMsg && bMsg) return new Date(bMsg.createdAt).getTime() - new Date(aMsg.createdAt).getTime();
+      if (aMsg) return -1;
+      if (bMsg) return 1;
+      return 0;
+    });
+
     return (
       <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Chat</Text>
         </View>
-        <View style={styles.emptyContainer}>
-          <Animated.View entering={FadeInDown.duration(400)} style={styles.emptyContent}>
-            <Ionicons name="chatbubbles-outline" size={56} color={Colors.colors.textMuted} />
-            <Text style={styles.emptyTitle}>Coach Chat</Text>
-            <Text style={styles.emptySubtitle}>Open a client's profile and tap the chat button to message them.</Text>
-          </Animated.View>
-        </View>
+        {sortedClients.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Animated.View entering={FadeInDown.duration(400)} style={styles.emptyContent}>
+              <Ionicons name="chatbubbles-outline" size={56} color={Colors.colors.textMuted} />
+              <Text style={styles.emptyTitle}>No Clients Yet</Text>
+              <Text style={styles.emptySubtitle}>Once clients join with your coach code, they'll appear here for messaging.</Text>
+            </Animated.View>
+          </View>
+        ) : (
+          <ScrollView
+            contentContainerStyle={{ paddingBottom: insets.bottom + webBottomInset + 20 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {sortedClients.map((client, idx) => {
+              const latest = latestMsgs[client.clientProfileId || ''];
+              return (
+                <Animated.View key={client.id} entering={FadeInDown.delay(idx * 40).duration(250)}>
+                  <Pressable
+                    style={styles.clientRow}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push({ pathname: '/chat', params: { coachId: profile.id, clientProfileId: client.clientProfileId, clientName: client.name } });
+                    }}
+                    accessibilityLabel={`Chat with ${client.name}`}
+                    accessibilityRole="button"
+                  >
+                    {client.avatarUrl ? (
+                      <Image source={{ uri: getAvatarUrl(client.avatarUrl) }} style={styles.clientAvatar} />
+                    ) : (
+                      <View style={styles.clientAvatarFallback}>
+                        <Text style={styles.clientAvatarText}>{(client.name || '?')[0].toUpperCase()}</Text>
+                      </View>
+                    )}
+                    <View style={styles.clientInfo}>
+                      <View style={styles.clientNameRow}>
+                        <Text style={styles.clientName} numberOfLines={1}>{client.name || 'Client'}</Text>
+                        {latest && (
+                          <Text style={styles.clientTime}>{formatTime(latest.createdAt)}</Text>
+                        )}
+                      </View>
+                      <Text style={styles.clientLastMsg} numberOfLines={1}>
+                        {latest
+                          ? `${latest.senderRole === 'coach' ? 'You: ' : ''}${latest.text}`
+                          : 'No messages yet'}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={Colors.colors.textMuted} />
+                  </Pressable>
+                </Animated.View>
+              );
+            })}
+          </ScrollView>
+        )}
       </View>
     );
   }
@@ -258,4 +350,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 59, 48, 0.1)', borderTopWidth: 1, borderTopColor: 'rgba(255, 59, 48, 0.2)',
   },
   errorText: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.danger, flex: 1 },
+  clientRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: Colors.colors.border,
+  },
+  clientAvatar: { width: 48, height: 48, borderRadius: 24 },
+  clientAvatarFallback: {
+    width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.colors.surfaceLight,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  clientAvatarText: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.primary },
+  clientInfo: { flex: 1 },
+  clientNameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  clientName: { fontFamily: 'Rubik_600SemiBold', fontSize: 16, color: Colors.colors.text, flex: 1 },
+  clientTime: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, marginLeft: 8 },
+  clientLastMsg: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textMuted, marginTop: 2 },
 });

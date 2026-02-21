@@ -430,6 +430,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  app.get("/api/messages/latest", async (req, res) => {
+    try {
+      const coachId = req.query.coachId as string;
+      if (!coachId) return res.status(400).json({ error: "coachId required" });
+      const allCoachClients = await db.select().from(clients).where(eq(clients.coachId, coachId));
+      const result: Record<string, { text: string; senderRole: string; createdAt: string }> = {};
+      for (const c of allCoachClients) {
+        const [latest] = await db.select().from(messages)
+          .where(and(eq(messages.coachId, coachId), eq(messages.clientProfileId, c.clientProfileId)))
+          .orderBy(desc(messages.createdAt))
+          .limit(1);
+        if (latest) {
+          result[c.clientProfileId] = {
+            text: latest.text,
+            senderRole: latest.senderRole,
+            createdAt: latest.createdAt.toISOString(),
+          };
+        }
+      }
+      res.json(result);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.post("/api/messages", async (req, res) => {
     try {
       const { coachId, clientProfileId, senderRole, text: msgText } = req.body;
