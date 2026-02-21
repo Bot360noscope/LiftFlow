@@ -322,6 +322,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       if (existing.length > 0) return res.json({ coach: { id: coach.id, name: coach.name }, client: existing[0] });
 
+      const anyCoach = await db.select().from(clients).where(eq(clients.clientProfileId, clientProfileId));
+      if (anyCoach.length > 0) {
+        return res.status(400).json({ error: "You already have a coach. Remove your current coach before joining a new one." });
+      }
+
       const [client] = await db.insert(clients).values({
         id: randomUUID(),
         coachId: coach.id,
@@ -329,6 +334,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: clientName || 'Client',
       }).returning();
       res.json({ coach: { id: coach.id, name: coach.name }, client });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/leave-coach", async (req, res) => {
+    try {
+      const { clientProfileId } = req.body;
+      if (!clientProfileId) return res.status(400).json({ error: "clientProfileId required" });
+      await db.delete(clients).where(eq(clients.clientProfileId, clientProfileId));
+      await db.delete(messages).where(eq(messages.clientProfileId, clientProfileId));
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/remove-client", async (req, res) => {
+    try {
+      const { coachId, clientId } = req.body;
+      if (!coachId || !clientId) return res.status(400).json({ error: "coachId and clientId required" });
+      const clientRecord = await db.select().from(clients).where(
+        and(eq(clients.id, clientId), eq(clients.coachId, coachId))
+      );
+      if (clientRecord.length === 0) return res.status(404).json({ error: "Client not found" });
+      const clientProfileId = clientRecord[0].clientProfileId;
+      await db.delete(clients).where(eq(clients.id, clientId));
+      await db.delete(messages).where(
+        and(eq(messages.coachId, coachId), eq(messages.clientProfileId, clientProfileId))
+      );
+      const clientPrograms = await db.select().from(programs).where(
+        and(eq(programs.coachId, coachId), eq(programs.clientId, clientId))
+      );
+      for (const prog of clientPrograms) {
+        await db.update(programs).set({ clientId: null }).where(eq(programs.id, prog.id));
+      }
+      res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 

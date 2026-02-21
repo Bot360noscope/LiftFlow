@@ -344,8 +344,9 @@ export async function addClient(client: Omit<ClientInfo, 'joinedAt'>): Promise<v
   });
 }
 
-export async function removeClient(id: string): Promise<void> {
-  await apiDelete(`/api/clients/${id}`);
+export async function removeClient(clientId: string): Promise<void> {
+  const profile = await getProfile();
+  await apiPost('/api/remove-client', { coachId: profile.id, clientId });
 }
 
 export async function getNotifications(): Promise<AppNotification[]> {
@@ -483,6 +484,11 @@ export async function getMyCoach(): Promise<{ coachId: string; coachName: string
   const data = await apiGet<any>(`/api/my-coach?clientProfileId=${profile.id}`);
   if (!data) return null;
   return { coachId: data.coachId || data.coach_id, coachName: data.coachName || data.coach_name || 'Coach' };
+}
+
+export async function leaveCoach(): Promise<void> {
+  const profile = await getProfile();
+  await apiPost('/api/leave-coach', { clientProfileId: profile.id });
 }
 
 export type LatestMessages = Record<string, { text: string; senderRole: string; createdAt: string }>;
