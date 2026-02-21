@@ -286,8 +286,7 @@ export default function ProfileScreen() {
                 <Pressable
                   style={styles.upgradeBtnSmall}
                   onPress={() => {
-                    const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
-                    WebBrowser.openBrowserAsync('https://liftflow-payment.replit.app');
+                    WebBrowser.openBrowserAsync('https://liftflowpay.manus.space');
                   }}
                 >
                   <Text style={styles.upgradeBtnSmallText}>{profile.plan === 'free' ? 'Upgrade' : 'Manage'}</Text>
