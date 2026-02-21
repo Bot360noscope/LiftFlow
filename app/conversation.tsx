@@ -1,10 +1,9 @@
-import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, Keyboard } from "react-native";
+import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, Keyboard, InputAccessoryView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import Colors from "@/constants/colors";
 import { getProfile, getMessages, sendMessage, getMyCoach, type ChatMessage, type UserProfile } from "@/lib/storage";
 
@@ -20,12 +19,18 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sendError, setSendError] = useState('');
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    const showSub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));
-    const hideSub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardVisible(false));
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
     return () => { showSub.remove(); hideSub.remove(); };
   }, []);
 
@@ -102,6 +107,12 @@ export default function ChatScreen() {
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const noCoach = !loading && !coachId && !isCoach;
 
+  const bottomPadding = Platform.OS === 'web'
+    ? 34
+    : keyboardHeight > 0
+      ? keyboardHeight - insets.bottom
+      : insets.bottom || 12;
+
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isMe = item.senderRole === profile?.role;
     const time = new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -117,11 +128,7 @@ export default function ChatScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior="padding"
-      keyboardVerticalOffset={0}
-    >
+    <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + webTopInset + 8 }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={Colors.colors.text} />
@@ -156,6 +163,8 @@ export default function ChatScreen() {
             renderItem={renderMessage}
             contentContainerStyle={[styles.messagesList, { paddingBottom: 12 }]}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
             ListEmptyComponent={
               <View style={styles.emptyChat}>
                 <Ionicons name="chatbubbles-outline" size={40} color={Colors.colors.textMuted} />
@@ -171,7 +180,7 @@ export default function ChatScreen() {
               <Text style={styles.errorText}>{sendError}</Text>
             </View>
           ) : null}
-          <View style={[styles.inputRow, { paddingBottom: keyboardVisible ? 4 : Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 12) }]}>
+          <View style={[styles.inputRow, { paddingBottom: Math.max(bottomPadding, 8) }]}>
             <TextInput
               style={styles.textInput}
               placeholder="Type a message..."
@@ -193,7 +202,7 @@ export default function ChatScreen() {
           </View>
         </>
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
