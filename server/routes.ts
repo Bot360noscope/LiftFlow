@@ -198,15 +198,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const profile = await db.select().from(profiles).where(eq(profiles.id, profileId));
       if (!profile.length) return res.status(404).json({ error: "Profile not found" });
 
-      const clientRecords = await db.select().from(clients).where(eq(clients.clientProfileId, profileId));
-      const clientRecordIds = clientRecords.map(c => c.id);
+      const role = profile[0].role;
 
-      const conditions = [eq(programs.coachId, profileId)];
-      if (clientRecordIds.length > 0) {
-        conditions.push(inArray(programs.clientId, clientRecordIds));
+      let result;
+      if (role === 'coach') {
+        result = await db.select().from(programs).where(eq(programs.coachId, profileId)).orderBy(desc(programs.createdAt));
+      } else {
+        const clientRecords = await db.select().from(clients).where(eq(clients.clientProfileId, profileId));
+        const clientRecordIds = clientRecords.map(c => c.id);
+        if (clientRecordIds.length > 0) {
+          result = await db.select().from(programs).where(inArray(programs.clientId, clientRecordIds)).orderBy(desc(programs.createdAt));
+        } else {
+          result = [];
+        }
       }
-
-      const result = await db.select().from(programs).where(or(...conditions)).orderBy(desc(programs.createdAt));
       res.json(result);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
