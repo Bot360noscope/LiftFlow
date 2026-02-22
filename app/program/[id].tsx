@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Lin
 import { confirmAction, showAlert } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useState, useEffect, useMemo } from "react";
+import { useCallback, useState, useEffect, useMemo, useRef } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -174,11 +174,21 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExe
     });
   };
 
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isCoach) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      onUpdate({ clientNotes, isCompleted });
+    }, 1000);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, [clientNotes, isCompleted]);
+
   const handleToggleComplete = () => {
     const newVal = !isCompleted;
     setIsCompleted(newVal);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onUpdate({ ...exercise, name, repsSets, weight, rpe, notes, clientNotes, coachComment, isCompleted: newVal });
   };
 
   return (
@@ -310,21 +320,6 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExe
             </View>
           </View>
 
-          {!isCoach && (
-            <Pressable
-              style={[styles.completionToggle, isCompleted && styles.completionToggleActive]}
-              onPress={handleToggleComplete}
-            >
-              <Ionicons
-                name={isCompleted ? "checkmark-circle" : "ellipse-outline"}
-                size={22}
-                color={isCompleted ? Colors.colors.success : Colors.colors.textMuted}
-              />
-              <Text style={[styles.completionText, isCompleted && { color: Colors.colors.success }]}>
-                {isCompleted ? 'Completed' : 'Mark as completed'}
-              </Text>
-            </Pressable>
-          )}
           {isCoach && exercise.isCompleted && (
             <View style={[styles.completionToggle, styles.completionToggleActive]}>
               <Ionicons name="checkmark-circle" size={22} color={Colors.colors.success} />
@@ -344,7 +339,6 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExe
               style={[styles.fieldInput, { minHeight: 50 }]}
               value={clientNotes}
               onChangeText={setClientNotes}
-              onBlur={saveChanges}
               placeholder="How it felt, feedback..."
               placeholderTextColor={Colors.colors.textMuted}
               multiline
@@ -386,6 +380,22 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExe
           {isCoach && !!exercise.videoUrl && (
             <VideoPlayerInline videoUrl={exercise.videoUrl} isCoach={true} />
           )}
+
+          {!isCoach && (
+            <Pressable
+              style={[styles.completionToggle, isCompleted && styles.completionToggleActive]}
+              onPress={handleToggleComplete}
+            >
+              <Ionicons
+                name={isCompleted ? "checkmark-circle" : "ellipse-outline"}
+                size={22}
+                color={isCompleted ? Colors.colors.success : Colors.colors.textMuted}
+              />
+              <Text style={[styles.completionText, isCompleted && { color: Colors.colors.success }]}>
+                {isCompleted ? 'Completed' : 'Mark as completed'}
+              </Text>
+            </Pressable>
+          )}
         </View>
       )}
     </View>
@@ -401,6 +411,7 @@ export default function ProgramDetailScreen() {
   const [hasChanges, setHasChanges] = useState(false);
   const [isCoach, setIsCoach] = useState(true);
   const [profileId, setProfileId] = useState('');
+  const clientAutoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -412,6 +423,16 @@ export default function ProgramDetailScreen() {
       });
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!isCoach && hasChanges && program) {
+      if (clientAutoSaveRef.current) clearTimeout(clientAutoSaveRef.current);
+      clientAutoSaveRef.current = setTimeout(() => {
+        save();
+      }, 2000);
+      return () => { if (clientAutoSaveRef.current) clearTimeout(clientAutoSaveRef.current); };
+    }
+  }, [hasChanges, isCoach, program]);
 
   const save = useCallback(async () => {
     if (!program) return;
@@ -458,18 +479,6 @@ export default function ProgramDetailScreen() {
                   type: 'video',
                   title: 'Form Check Video',
                   message: `Video uploaded for ${ex.name}`,
-                  programId: program.id,
-                  programTitle: program.title,
-                  exerciseName: ex.name,
-                  fromRole: 'client',
-                });
-              }
-              if (ex.isCompleted && !oldEx.isCompleted) {
-                addNotification({
-                  targetProfileId,
-                  type: 'completion',
-                  title: 'Exercise Completed',
-                  message: `${ex.name} marked as completed`,
                   programId: program.id,
                   programTitle: program.title,
                   exerciseName: ex.name,

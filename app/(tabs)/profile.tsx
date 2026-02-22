@@ -343,8 +343,8 @@ export default function ProfileScreen() {
                 <Ionicons name={isCoach ? 'school' : 'fitness'} size={18} color={Colors.colors.textMuted} />
               </View>
               <View style={styles.settingTextWrap}>
-                <Text style={styles.settingLabel} numberOfLines={1}>Role</Text>
-                <Text style={styles.settingValue} numberOfLines={1}>{isCoach ? 'Coach' : 'Athlete'}</Text>
+                <Text style={styles.settingLabel} numberOfLines={1}>Switch Role</Text>
+                <Text style={styles.settingValue} numberOfLines={1}>Currently: {isCoach ? 'Coach' : 'Athlete'} — Tap to switch</Text>
               </View>
             </View>
             <Ionicons name="swap-horizontal" size={20} color={Colors.colors.textMuted} />
