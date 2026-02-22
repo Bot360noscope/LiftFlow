@@ -8,7 +8,7 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **Backend**: Express serving on port 5000 (landing page + REST API)
 - **Database**: PostgreSQL via Drizzle ORM (shared/schema.ts)
 - **Data Flow**: Frontend → lib/storage.ts (API client) → Express API → PostgreSQL
-- **Video**: expo-image-picker for native camera recording, multer for server-side upload handling, auto-cleanup (3 days after coach views, 7 days if unviewed)
+- **Video/File Storage**: Cloudflare R2 (S3-compatible) via @aws-sdk/client-s3. Videos and avatars stored in R2 bucket `liftflow-uploads` under `videos/` and `avatars/` prefixes. Multer with memory storage for upload handling, auto-cleanup (3 days after coach views, 7 days if unviewed). R2 client helper in server/r2.ts
 - **Theme**: Dark mode with energetic orange/red palette (#E8512F)
 
 ## Database Schema (shared/schema.ts)
