@@ -105,17 +105,16 @@ export default function ProgramsScreen() {
           <Text style={styles.emptyDesc}>
             {role === 'coach'
               ? 'Create a program and share it with clients'
-              : 'Ask your coach for a program share code to get started'}
+              : 'Create your own program or join a coach to get started'}
           </Text>
-          {role === 'coach' ? (
-            <Pressable style={styles.createBtn} onPress={() => router.push('/create-program')} accessibilityLabel="Create program" accessibilityRole="button">
-              <Ionicons name="add-circle" size={18} color="#fff" />
-              <Text style={styles.createBtnText}>Create Program</Text>
-            </Pressable>
-          ) : (
-            <Pressable style={styles.createBtn} onPress={() => router.push('/join-coach')} accessibilityLabel="Join a coach" accessibilityRole="button">
-              <Ionicons name="people" size={18} color="#fff" />
-              <Text style={styles.createBtnText}>Join Coach</Text>
+          <Pressable style={styles.createBtn} onPress={() => router.push('/create-program')} accessibilityLabel="Create program" accessibilityRole="button">
+            <Ionicons name="add-circle" size={18} color="#fff" />
+            <Text style={styles.createBtnText}>{role === 'coach' ? 'Create Program' : 'Create My Program'}</Text>
+          </Pressable>
+          {role === 'client' && (
+            <Pressable style={[styles.createBtn, styles.secondaryBtn]} onPress={() => router.push('/join-coach')} accessibilityLabel="Join a coach" accessibilityRole="button">
+              <Ionicons name="people" size={18} color={Colors.colors.primary} />
+              <Text style={[styles.createBtnText, styles.secondaryBtnText]}>Join a Coach</Text>
             </Pressable>
           )}
         </View>
@@ -254,6 +253,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.colors.primary, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, marginTop: 8,
   },
   createBtnText: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: '#fff' },
+  secondaryBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.colors.primary },
+  secondaryBtnText: { color: Colors.colors.primary },
   programCard: {
     backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 16,
     borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 12,
