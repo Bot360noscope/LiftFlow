@@ -342,17 +342,15 @@ export default function HomeScreen() {
         </Animated.View>
       )}
 
-      <Animated.View entering={FadeInDown.delay(150).duration(400)}>
-        <View style={styles.statsRow}>
-          {isCoach && (
-            <>
-              <StatCard icon="people" label="Clients" value={String(clients.length)} color={Colors.colors.textMuted} />
-              <StatCard icon="barbell" label="Active" value={String(activePrograms.length)} color={Colors.colors.textMuted} />
-              <StatCard icon="notifications" label="Review" value={String(unreadNotifs.length)} color={Colors.colors.textMuted} />
-            </>
-          )}
-        </View>
-      </Animated.View>
+      {isCoach && (
+        <Animated.View entering={FadeInDown.delay(150).duration(400)}>
+          <View style={styles.statsRow}>
+            <StatCard icon="people" label="Clients" value={String(clients.length)} color={Colors.colors.textMuted} />
+            <StatCard icon="barbell" label="Active" value={String(activePrograms.length)} color={Colors.colors.textMuted} />
+            <StatCard icon="notifications" label="Review" value={String(unreadNotifs.length)} color={Colors.colors.textMuted} />
+          </View>
+        </Animated.View>
+      )}
 
       {isCoach ? (
         <>
@@ -436,56 +434,7 @@ export default function HomeScreen() {
         </>
       ) : (
         <>
-          {prs.length > 0 && (
-            <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-              <Text style={styles.sectionTitle}>Best Lifts</Text>
-              <View style={styles.prRow}>
-                {bestSquat && (
-                  <View style={[styles.prCard, { borderColor: Colors.colors.squat }]}>
-                    <Text style={[styles.prLift, { color: Colors.colors.squat }]}>Squat</Text>
-                    <Text style={styles.prWeight}>{bestSquat.weight}</Text>
-                    <Text style={styles.prUnit}>{bestSquat.unit}</Text>
-                  </View>
-                )}
-                {bestBench && (
-                  <View style={[styles.prCard, { borderColor: Colors.colors.bench }]}>
-                    <Text style={[styles.prLift, { color: Colors.colors.bench }]}>Bench</Text>
-                    <Text style={styles.prWeight}>{bestBench.weight}</Text>
-                    <Text style={styles.prUnit}>{bestBench.unit}</Text>
-                  </View>
-                )}
-                {bestDeadlift && (
-                  <View style={[styles.prCard, { borderColor: Colors.colors.deadlift }]}>
-                    <Text style={[styles.prLift, { color: Colors.colors.deadlift }]}>Deadlift</Text>
-                    <Text style={styles.prWeight}>{bestDeadlift.weight}</Text>
-                    <Text style={styles.prUnit}>{bestDeadlift.unit}</Text>
-                  </View>
-                )}
-              </View>
-            </Animated.View>
-          )}
-
-          {recentNotifs.length > 0 && (
-            <Animated.View entering={FadeInDown.delay(220).duration(400)}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Recent Activity</Text>
-                <Pressable
-                  style={styles.clearBtn}
-                  onPress={handleClearAllNotifications}
-                  hitSlop={8}
-                  accessibilityLabel="Clear all notifications"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="close" size={16} color={Colors.colors.textMuted} />
-                </Pressable>
-              </View>
-              {recentNotifs.map(n => (
-                <NotificationItem key={n.id} notification={n} onDelete={handleDeleteNotification} />
-              ))}
-            </Animated.View>
-          )}
-
-          <Animated.View entering={FadeInDown.delay(250).duration(400)}>
+          <Animated.View entering={FadeInDown.delay(200).duration(400)}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Programs</Text>
               <Pressable
