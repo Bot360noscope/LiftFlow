@@ -496,10 +496,30 @@ function updateManifests(manifests, timestamp, baseUrl, assetsByHash) {
   console.log("Manifests updated");
 }
 
+async function installDependencies() {
+  console.log("Installing npm dependencies...");
+  return new Promise((resolve, reject) => {
+    const proc = spawn("npm", ["install", "--legacy-peer-deps"], {
+      stdio: "inherit",
+    });
+    proc.on("close", (code) => {
+      if (code === 0) {
+        console.log("Dependencies installed successfully");
+        resolve();
+      } else {
+        reject(new Error(`npm install failed with exit code ${code}`));
+      }
+    });
+    proc.on("error", reject);
+  });
+}
+
 async function main() {
   console.log("Building static Expo Go deployment...");
 
   setupSignalHandlers();
+
+  await installDependencies();
 
   const domain = getDeploymentDomain();
   const baseUrl = `https://${domain}`;
