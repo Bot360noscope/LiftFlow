@@ -499,7 +499,7 @@ function updateManifests(manifests, timestamp, baseUrl, assetsByHash) {
 async function installDependencies() {
   console.log("Installing npm dependencies...");
   return new Promise((resolve, reject) => {
-    const proc = spawn("npm", ["install", "--legacy-peer-deps"], {
+    const proc = spawn("npm", ["ci", "--legacy-peer-deps"], {
       stdio: "inherit",
     });
     proc.on("close", (code) => {
@@ -507,7 +507,7 @@ async function installDependencies() {
         console.log("Dependencies installed successfully");
         resolve();
       } else {
-        reject(new Error(`npm install failed with exit code ${code}`));
+        reject(new Error(`npm ci failed with exit code ${code}`));
       }
     });
     proc.on("error", reject);
