@@ -129,10 +129,11 @@ function VideoRecordButton({ exercise, onVideoRecorded, programId, coachId, uplo
   );
 }
 
-function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId }: {
+function ExerciseRow({ exercise, index, isCoach, isOwnProgram, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId }: {
   exercise: Exercise;
   index: number;
   isCoach: boolean;
+  isOwnProgram: boolean;
   onUpdate: (updates: Partial<Exercise>) => void;
   onDelete: () => void;
   prevWeekExercise?: Exercise | null;
@@ -177,13 +178,17 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExe
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (isCoach) return;
+    if (isCoach && !isOwnProgram) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
-      onUpdate({ clientNotes, isCompleted });
+      if (isOwnProgram) {
+        onUpdate({ name, repsSets, weight, rpe, notes, clientNotes, isCompleted });
+      } else {
+        onUpdate({ clientNotes, isCompleted });
+      }
     }, 1000);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
-  }, [clientNotes, isCompleted]);
+  }, [clientNotes, isCompleted, ...(isOwnProgram ? [name, repsSets, weight, rpe, notes] : [])]);
 
   const handleToggleComplete = () => {
     const newVal = !isCompleted;
@@ -202,7 +207,7 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExe
         }}
       >
         <View style={styles.exerciseHeaderLeft}>
-          {!isCoach ? (
+          {(!isCoach || isOwnProgram) ? (
             <Pressable onPress={handleToggleComplete} hitSlop={6}>
               <Ionicons
                 name={isCompleted ? "checkmark-circle" : "ellipse-outline"}
@@ -346,27 +351,31 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExe
             />
           )}
 
-          <Text style={styles.fieldLabel}>
-            <Ionicons name="school-outline" size={12} color={Colors.colors.accent} /> Coach Comment
-          </Text>
-          {isCoach ? (
-            <TextInput
-              style={[styles.fieldInput, styles.coachInput, { minHeight: 50 }]}
-              value={coachComment}
-              onChangeText={setCoachComment}
-              onBlur={saveChanges}
-              placeholder="Instructions/feedback..."
-              placeholderTextColor={Colors.colors.textMuted}
-              multiline
-              textAlignVertical="top"
-            />
-          ) : (
-            <View style={[styles.fieldInput, styles.coachInput, styles.readOnlyField]}>
-              <Text style={styles.readOnlyText}>{coachComment || 'No coach comments yet'}</Text>
-            </View>
+          {!isOwnProgram && (
+            <>
+              <Text style={styles.fieldLabel}>
+                <Ionicons name="school-outline" size={12} color={Colors.colors.accent} /> Coach Comment
+              </Text>
+              {isCoach ? (
+                <TextInput
+                  style={[styles.fieldInput, styles.coachInput, { minHeight: 50 }]}
+                  value={coachComment}
+                  onChangeText={setCoachComment}
+                  onBlur={saveChanges}
+                  placeholder="Instructions/feedback..."
+                  placeholderTextColor={Colors.colors.textMuted}
+                  multiline
+                  textAlignVertical="top"
+                />
+              ) : (
+                <View style={[styles.fieldInput, styles.coachInput, styles.readOnlyField]}>
+                  <Text style={styles.readOnlyText}>{coachComment || 'No coach comments yet'}</Text>
+                </View>
+              )}
+            </>
           )}
 
-          {!isCoach && (
+          {(!isCoach || isOwnProgram) && (
             <VideoRecordButton
               exercise={exercise}
               programId={programId}
@@ -381,7 +390,7 @@ function ExerciseRow({ exercise, index, isCoach, onUpdate, onDelete, prevWeekExe
             <VideoPlayerInline videoUrl={exercise.videoUrl} isCoach={true} />
           )}
 
-          {!isCoach && (
+          {(!isCoach || isOwnProgram) && (
             <Pressable
               style={[styles.completionToggle, isCompleted && styles.completionToggleActive]}
               onPress={handleToggleComplete}
@@ -410,6 +419,7 @@ export default function ProgramDetailScreen() {
   const [activeDay, setActiveDay] = useState(1);
   const [hasChanges, setHasChanges] = useState(false);
   const [isCoach, setIsCoach] = useState(true);
+  const [isOwnProgram, setIsOwnProgram] = useState(false);
   const [profileId, setProfileId] = useState('');
   const clientAutoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -417,8 +427,9 @@ export default function ProgramDetailScreen() {
     if (id) {
       Promise.all([getProgram(id), getProfile()]).then(([p, prof]) => {
         if (p) setProgram(p);
-        const isOwnProgram = p && p.coachId === prof.id;
-        setIsCoach(prof.role === 'coach' || !!isOwnProgram);
+        const ownProgram = p && p.coachId === prof.id && prof.role === 'client';
+        setIsOwnProgram(!!ownProgram);
+        setIsCoach(prof.role === 'coach' || !!ownProgram);
         setProfileId(prof.id);
         deleteNotificationsByProgram(id).catch(() => {});
       });
@@ -826,6 +837,7 @@ export default function ProgramDetailScreen() {
                 exercise={ex}
                 index={idx}
                 isCoach={isCoach}
+                isOwnProgram={isOwnProgram}
                 onUpdate={(updates) => updateExercise(ex.id, updates)}
                 onDelete={() => deleteExercise(ex.id)}
                 prevWeekExercise={prevWeekDay?.exercises[idx] || null}
