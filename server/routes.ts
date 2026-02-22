@@ -6,9 +6,9 @@ import { eq, desc, and, or, inArray, ilike, lt, isNull, isNotNull } from "drizzl
 import { randomUUID } from "crypto";
 import multer from "multer";
 import path from "path";
-import fs from "fs";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { uploadToR2, getFromR2, deleteFromR2 } from "./r2";
 
 const JWT_SECRET = process.env.SESSION_SECRET || 'liftflow-dev-secret';
 
@@ -39,19 +39,7 @@ function verifyToken(token: string): { userId: string; profileId: string } | nul
   } catch { return null; }
 }
 
-const uploadsDir = path.resolve(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname) || '.mp4';
-    cb(null, `${randomUUID()}${ext}`);
-  },
-});
-const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
 
 function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -579,12 +567,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/upload-video", upload.single("video"), async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-      const videoUrl = `/api/videos/${req.file.filename}`;
+      const ext = path.extname(req.file.originalname) || '.mp4';
+      const filename = `${randomUUID()}${ext}`;
+      const key = `videos/${filename}`;
+      await uploadToR2(key, req.file.buffer, req.file.mimetype || 'video/mp4');
+      const videoUrl = `/api/videos/${filename}`;
       const { programId, exerciseId, uploadedBy, coachId } = req.body;
       if (programId && exerciseId && uploadedBy && coachId) {
         await db.insert(videoUploads).values({
           id: randomUUID(),
-          filename: req.file.filename,
+          filename,
           programId,
           exerciseId,
           uploadedBy,
@@ -595,10 +587,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
-  app.get("/api/videos/:filename", (req, res) => {
-    const filePath = path.join(uploadsDir, req.params.filename);
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Not found" });
-    res.sendFile(filePath);
+  app.get("/api/videos/:filename", async (req, res) => {
+    try {
+      const key = `videos/${req.params.filename}`;
+      const result = await getFromR2(key);
+      if (!result) return res.status(404).json({ error: "Not found" });
+      res.setHeader('Content-Type', result.contentType || 'video/mp4');
+      result.body.pipe(res);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   app.post("/api/videos/:filename/viewed", async (req, res) => {
@@ -616,15 +612,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/upload-avatar", upload.single("avatar"), async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-      const avatarUrl = `/api/avatars/${req.file.filename}`;
+      const ext = path.extname(req.file.originalname) || '.jpg';
+      const filename = `${randomUUID()}${ext}`;
+      const key = `avatars/${filename}`;
+      await uploadToR2(key, req.file.buffer, req.file.mimetype || 'image/jpeg');
+      const avatarUrl = `/api/avatars/${filename}`;
       const { profileId } = req.body;
       if (profileId) {
         const existing = await db.select().from(profiles).where(eq(profiles.id, profileId));
         if (existing.length > 0 && existing[0].avatarUrl) {
           const oldFilename = existing[0].avatarUrl.split('/').pop();
           if (oldFilename) {
-            const oldPath = path.join(uploadsDir, oldFilename);
-            if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+            await deleteFromR2(`avatars/${oldFilename}`);
           }
         }
         await db.update(profiles).set({ avatarUrl }).where(eq(profiles.id, profileId));
@@ -633,10 +632,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
-  app.get("/api/avatars/:filename", (req, res) => {
-    const filePath = path.join(uploadsDir, req.params.filename);
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Not found" });
-    res.sendFile(filePath);
+  app.get("/api/avatars/:filename", async (req, res) => {
+    try {
+      const key = `avatars/${req.params.filename}`;
+      const result = await getFromR2(key);
+      if (!result) return res.status(404).json({ error: "Not found" });
+      res.setHeader('Content-Type', result.contentType || 'image/jpeg');
+      result.body.pipe(res);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   app.delete("/api/avatar/:profileId", async (req, res) => {
@@ -646,8 +649,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existing.length > 0 && existing[0].avatarUrl) {
         const filename = existing[0].avatarUrl.split('/').pop();
         if (filename) {
-          const filePath = path.join(uploadsDir, filename);
-          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+          await deleteFromR2(`avatars/${filename}`);
         }
         await db.update(profiles).set({ avatarUrl: '' }).where(eq(profiles.id, profileId));
       }
@@ -782,16 +784,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (profile?.avatarUrl) {
         const avatarFilename = profile.avatarUrl.split('/').pop();
         if (avatarFilename) {
-          const avatarPath = path.join(uploadsDir, avatarFilename);
-          if (fs.existsSync(avatarPath)) fs.unlinkSync(avatarPath);
+          await deleteFromR2(`avatars/${avatarFilename}`);
         }
       }
 
       const userVideos = await db.select().from(videoUploads).where(eq(videoUploads.uploadedBy, profileId));
       const coachVideos = await db.select().from(videoUploads).where(eq(videoUploads.coachId, profileId));
       for (const vid of [...userVideos, ...coachVideos]) {
-        const vidPath = path.join(uploadsDir, vid.filename);
-        if (fs.existsSync(vidPath)) fs.unlinkSync(vidPath);
+        await deleteFromR2(`videos/${vid.filename}`);
       }
       if (userVideos.length > 0) {
         await db.delete(videoUploads).where(eq(videoUploads.uploadedBy, profileId));
@@ -1003,10 +1003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const toDelete = [...viewedExpired, ...unviewedExpired];
 
       for (const record of toDelete) {
-        const filePath = path.join(uploadsDir, record.filename);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
+        await deleteFromR2(`videos/${record.filename}`);
 
         const allPrograms = await db.select().from(programs)
           .where(eq(programs.id, record.programId));
