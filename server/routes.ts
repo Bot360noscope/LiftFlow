@@ -206,11 +206,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         const clientRecords = await db.select().from(clients).where(eq(clients.clientProfileId, profileId));
         const clientRecordIds = clientRecords.map(c => c.id);
+        const conditions = [
+          and(eq(programs.coachId, profileId), isNull(programs.clientId)),
+        ];
         if (clientRecordIds.length > 0) {
-          result = await db.select().from(programs).where(inArray(programs.clientId, clientRecordIds)).orderBy(desc(programs.createdAt));
-        } else {
-          result = [];
+          conditions.push(inArray(programs.clientId, clientRecordIds));
         }
+        result = await db.select().from(programs).where(or(...conditions)).orderBy(desc(programs.createdAt));
       }
       res.json(result);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
