@@ -8,20 +8,6 @@ import * as Crypto from "expo-crypto";
 import Colors from "@/constants/colors";
 import { addProgram, getProfile, getClients, type Exercise, type WorkoutWeek, type WorkoutDay, type ClientInfo } from "@/lib/storage";
 
-const CLIENT_TEMPLATES = [
-  { label: 'Blank Program', icon: 'create-outline' as const, weeks: 4, days: 3, exercises: 4, title: '', desc: '' },
-  { label: 'Push / Pull / Legs', icon: 'barbell-outline' as const, weeks: 8, days: 6, exercises: 5, title: 'Push Pull Legs', desc: '6-day PPL split' },
-  { label: 'Upper / Lower', icon: 'body-outline' as const, weeks: 6, days: 4, exercises: 5, title: 'Upper Lower Split', desc: '4-day upper/lower split' },
-  { label: 'Full Body 3x', icon: 'fitness-outline' as const, weeks: 4, days: 3, exercises: 6, title: 'Full Body', desc: '3-day full body program' },
-];
-
-const COACH_TEMPLATES = [
-  { label: 'Blank', icon: 'create-outline' as const, weeks: 4, days: 3, exercises: 4, title: '', desc: '' },
-  { label: 'PPL', icon: 'barbell-outline' as const, weeks: 8, days: 6, exercises: 5, title: 'Push Pull Legs', desc: '6-day PPL split' },
-  { label: 'U/L', icon: 'body-outline' as const, weeks: 6, days: 4, exercises: 5, title: 'Upper Lower Split', desc: '4-day upper/lower split' },
-  { label: 'Full Body', icon: 'fitness-outline' as const, weeks: 4, days: 3, exercises: 6, title: 'Full Body', desc: '3-day full body program' },
-  { label: '5/3/1', icon: 'trending-up-outline' as const, weeks: 4, days: 4, exercises: 4, title: '5/3/1 Program', desc: 'Wendler 5/3/1 strength program' },
-];
 
 function buildWeeks(numWeeks: number, numDays: number, numExercises: number): WorkoutWeek[] {
   const programWeeks: WorkoutWeek[] = [];
@@ -78,7 +64,6 @@ export default function CreateProgramScreen() {
   const [saving, setSaving] = useState(false);
   const [profileId, setProfileId] = useState('');
   const [role, setRole] = useState<'coach' | 'client'>('coach');
-  const [selectedTemplate, setSelectedTemplate] = useState(-1);
   const [clientList, setClientList] = useState<ClientInfo[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(clientId || null);
   const [selectedClientName, setSelectedClientName] = useState<string>(clientName || '');
@@ -92,20 +77,6 @@ export default function CreateProgramScreen() {
       }
     });
   }, []);
-
-  const applyTemplate = useCallback((idx: number) => {
-    const templates = role === 'coach' ? COACH_TEMPLATES : CLIENT_TEMPLATES;
-    const t = templates[idx];
-    setSelectedTemplate(idx);
-    setWeeks(String(t.weeks));
-    setDaysPerWeek(String(t.days));
-    setExercisesPerDay(String(t.exercises));
-    if (t.title) {
-      setTitle(t.title);
-      setDescription(t.desc);
-    }
-    Haptics.selectionAsync();
-  }, [role]);
 
   const handleCreate = useCallback(async () => {
     if (!title.trim()) return;
@@ -135,7 +106,6 @@ export default function CreateProgramScreen() {
   }, [title, description, weeks, daysPerWeek, exercisesPerDay, profileId, selectedClientId]);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
-  const templates = role === 'coach' ? COACH_TEMPLATES : CLIENT_TEMPLATES;
   const isCoach = role === 'coach';
   const headerTitle = clientName
     ? `Program for ${clientName}`
@@ -154,28 +124,6 @@ export default function CreateProgramScreen() {
       </View>
 
       <ScrollView style={styles.scrollContent} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
-        {!isCoach && (
-          <View style={styles.clientBanner}>
-            <Ionicons name="fitness" size={20} color={Colors.colors.primary} />
-            <Text style={styles.clientBannerText}>Create your own personal training program</Text>
-          </View>
-        )}
-
-        <Text style={styles.sectionTitle}>Quick Start</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.templateScroll} contentContainerStyle={styles.templateScrollContent}>
-          {templates.map((t, idx) => (
-            <Pressable
-              key={idx}
-              style={[styles.templateCard, selectedTemplate === idx && styles.templateCardSelected]}
-              onPress={() => applyTemplate(idx)}
-            >
-              <Ionicons name={t.icon} size={22} color={selectedTemplate === idx ? Colors.colors.primary : Colors.colors.textSecondary} />
-              <Text style={[styles.templateLabel, selectedTemplate === idx && styles.templateLabelSelected]}>{t.label}</Text>
-              <Text style={styles.templateMeta}>{t.weeks}w · {t.days}d</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
         <Text style={styles.label}>{isCoach ? 'Program Name' : 'What do you want to call it?'}</Text>
         <TextInput
           style={styles.input}
@@ -206,7 +154,7 @@ export default function CreateProgramScreen() {
           <>
             <Text style={styles.sectionTitle}>Assign to Client</Text>
             <Text style={styles.assignHint}>Optional — leave unassigned to use as a template</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.templateScroll} contentContainerStyle={styles.templateScrollContent}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.clientChipScroll} contentContainerStyle={styles.clientChipScrollContent}>
               <Pressable
                 style={[styles.clientChip, !selectedClientId && styles.clientChipSelected]}
                 onPress={() => { setSelectedClientId(null); setSelectedClientName(''); Haptics.selectionAsync(); }}
@@ -254,24 +202,10 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16 },
   headerTitle: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text },
   scrollContent: { paddingHorizontal: 20 },
-  clientBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: Colors.colors.surfaceLight, borderRadius: 12, padding: 14, marginBottom: 8,
-    borderWidth: 1, borderColor: Colors.colors.border,
-  },
-  clientBannerText: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: Colors.colors.text, flex: 1 },
   sectionTitle: { fontFamily: 'Rubik_700Bold', fontSize: 16, color: Colors.colors.text, marginTop: 20, marginBottom: 8 },
   assignHint: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, marginBottom: 8 },
-  templateScroll: { marginBottom: 4 },
-  templateScrollContent: { gap: 10, paddingRight: 4 },
-  templateCard: {
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: Colors.colors.border, alignItems: 'center', width: 100, gap: 6,
-  },
-  templateCardSelected: { borderColor: Colors.colors.primary, backgroundColor: 'rgba(232, 81, 47, 0.08)' },
-  templateLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 12, color: Colors.colors.textSecondary, textAlign: 'center' },
-  templateLabelSelected: { color: Colors.colors.primary },
-  templateMeta: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted },
+  clientChipScroll: { marginBottom: 4 },
+  clientChipScrollContent: { gap: 10, paddingRight: 4 },
   clientChip: {
     backgroundColor: Colors.colors.backgroundCard, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10,
     borderWidth: 1, borderColor: Colors.colors.border,
