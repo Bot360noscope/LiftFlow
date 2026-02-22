@@ -417,7 +417,8 @@ export default function ProgramDetailScreen() {
     if (id) {
       Promise.all([getProgram(id), getProfile()]).then(([p, prof]) => {
         if (p) setProgram(p);
-        setIsCoach(prof.role === 'coach');
+        const isOwnProgram = p && p.coachId === prof.id;
+        setIsCoach(prof.role === 'coach' || !!isOwnProgram);
         setProfileId(prof.id);
         deleteNotificationsByProgram(id).catch(() => {});
       });
