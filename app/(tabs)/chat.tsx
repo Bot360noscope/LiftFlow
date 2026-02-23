@@ -8,6 +8,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { getProfile, getMessages, sendMessage, getMyCoach, getClients, getLatestMessages, getNotifications, markNotificationRead, type ChatMessage, type UserProfile, type ClientInfo, type LatestMessages } from "@/lib/storage";
 import { getAvatarUrl } from "@/lib/api";
+import { addWSListener } from "@/lib/websocket";
 
 function formatTime(dateStr: string): string {
   const date = new Date(dateStr);
@@ -104,24 +105,44 @@ export default function ChatTab() {
 
   useEffect(() => {
     if (!coachId || !clientProfileId) return;
+    const removeListener = addWSListener((event: any) => {
+      if ((event.type === 'new_message' || event.type === 'message_sent') && event.message) {
+        const m = event.message;
+        if (m.coachId === coachId && m.clientProfileId === clientProfileId) {
+          setMessages(prev => {
+            if (prev.some(p => p.id === m.id)) return prev;
+            return [...prev, m];
+          });
+        }
+      }
+    });
     const interval = setInterval(async () => {
       try {
         const msgs = await getMessages(coachId, clientProfileId);
         setMessages(msgs);
       } catch {}
-    }, 5000);
-    return () => clearInterval(interval);
+    }, 15000);
+    return () => { removeListener(); clearInterval(interval); };
   }, [coachId, clientProfileId]);
 
   useEffect(() => {
     if (profile?.role !== 'coach') return;
+    const removeListener = addWSListener((event: any) => {
+      if (event.type === 'new_message' && event.message) {
+        const m = event.message;
+        setLatestMsgs(prev => ({
+          ...prev,
+          [m.clientProfileId]: { text: m.text, senderRole: m.senderRole, createdAt: m.createdAt },
+        }));
+      }
+    });
     const interval = setInterval(async () => {
       try {
         const latest = await getLatestMessages();
         setLatestMsgs(latest);
       } catch {}
-    }, 10000);
-    return () => clearInterval(interval);
+    }, 30000);
+    return () => { removeListener(); clearInterval(interval); };
   }, [profile?.role]);
 
   const handleSend = async () => {

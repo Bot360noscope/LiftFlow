@@ -8,6 +8,9 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **Backend**: Express serving on port 5000 (landing page + REST API)
 - **Database**: PostgreSQL via Drizzle ORM (shared/schema.ts)
 - **Data Flow**: Frontend → lib/storage.ts (API client) → Express API → PostgreSQL
+- **WebSocket**: Real-time messaging and notifications via ws library on /ws path. Server: server/websocket.ts broadcasts events. Client: lib/websocket.ts manages connection, auto-reconnect, and event listeners. Events: new_message, message_sent, new_notification
+- **Polling**: Home screen polls /api/dashboard every 10 seconds. Chat screens use 15-30s fallback polling with WebSocket as primary. Tab badge uses 10s polling + WebSocket
+- **Caching**: All data cached in AsyncStorage (lib/storage.ts persistCache/loadCacheFromDisk). App loads instantly from cache, refreshes in background
 - **Video/File Storage**: Cloudflare R2 (S3-compatible) via @aws-sdk/client-s3. Videos and avatars stored in R2 bucket `liftflow-uploads` under `videos/` and `avatars/` prefixes. Multer with memory storage for upload handling, auto-cleanup (3 days after coach views, 7 days if unviewed). R2 client helper in server/r2.ts
 - **Theme**: Dark mode with energetic orange/red palette (#E8512F)
 

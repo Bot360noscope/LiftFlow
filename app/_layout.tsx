@@ -10,7 +10,8 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
-import { loadCacheFromDisk } from "@/lib/storage";
+import { loadCacheFromDisk, getCachedProfile } from "@/lib/storage";
+import { connectWebSocket, disconnectWebSocket } from "@/lib/websocket";
 import AuthScreen from "./auth";
 import OnboardingScreen from "./onboarding";
 import Colors from "@/constants/colors";
@@ -46,10 +47,15 @@ function AppContent() {
 
   useEffect(() => {
     if (isLoggedIn) {
-      loadCacheFromDisk();
+      loadCacheFromDisk().then(() => {
+        const cached = getCachedProfile();
+        if (cached?.id) connectWebSocket(cached.id);
+      });
       AsyncStorage.getItem("liftflow_onboarding_done").then((val) => {
         setHasOnboarded(val === "true");
       });
+    } else {
+      disconnectWebSocket();
     }
   }, [isLoggedIn]);
 

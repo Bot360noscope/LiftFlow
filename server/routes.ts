@@ -12,6 +12,7 @@ import { uploadToR2, getFromR2, deleteFromR2, getPresignedUploadUrl, downloadFro
 import { execFile } from "child_process";
 import { promises as fs } from "fs";
 import os from "os";
+import { broadcastToProfile } from "./websocket";
 
 const JWT_SECRET = process.env.SESSION_SECRET || 'liftflow-dev-secret';
 
@@ -498,6 +499,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         exerciseName,
         fromRole,
       }).returning();
+      broadcastToProfile(profileId, { type: 'new_notification', notification: notif });
       res.json(notif);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -584,7 +586,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         senderName = clientProfile?.name || 'Client';
       }
 
-      await db.insert(notifications).values({
+      const [notif] = await db.insert(notifications).values({
         id: randomUUID(),
         profileId: targetProfileId,
         type: 'chat',
@@ -594,6 +596,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         programTitle: clientProfileId,
         exerciseName: senderName,
         fromRole: senderRole,
+      }).returning();
+
+      broadcastToProfile(targetProfileId, {
+        type: 'new_message',
+        message: msg,
+        notification: notif,
+      });
+
+      broadcastToProfile(senderRole === 'coach' ? coachId : clientProfileId, {
+        type: 'message_sent',
+        message: msg,
       });
 
       res.json(msg);
@@ -1289,5 +1302,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+
+  const { setupWebSocket } = await import("./websocket");
+  setupWebSocket(httpServer);
+
   return httpServer;
 }

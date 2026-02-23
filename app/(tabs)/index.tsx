@@ -14,6 +14,7 @@ import {
   type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification, type LatestMessages,
 } from "@/lib/storage";
 import { getAvatarUrl } from "@/lib/api";
+import { connectWebSocket, addWSListener } from "@/lib/websocket";
 
 function StatCard({ icon, label, value, color }: { icon: string; label: string; value: string; color: string }) {
   return (
@@ -214,6 +215,7 @@ export default function HomeScreen() {
       setNotifications(data.notifications);
       setLatestMsgs(data.latestMessages);
       setError(false);
+      if (data.profile?.id) connectWebSocket(data.profile.id);
     } catch (e) {
       if (!getCachedProfile()) setError(true);
     } finally {
@@ -224,11 +226,20 @@ export default function HomeScreen() {
   useFocusEffect(useCallback(() => {
     focusedRef.current = true;
     refreshDashboard();
+    const removeListener = addWSListener((event: any) => {
+      if (event.type === 'new_message' && event.notification) {
+        setNotifications(prev => [event.notification, ...prev]);
+      }
+      if (event.type === 'new_notification' && event.notification) {
+        setNotifications(prev => [event.notification, ...prev]);
+      }
+    });
     pollRef.current = setInterval(() => {
       if (focusedRef.current) refreshDashboard();
-    }, 5000);
+    }, 10000);
     return () => {
       focusedRef.current = false;
+      removeListener();
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, [refreshDashboard]));

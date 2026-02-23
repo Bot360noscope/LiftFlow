@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useState, useEffect, useCallback } from "react";
 import Colors from "@/constants/colors";
 import { getUnreadNotificationCount, getCachedNotifications } from "@/lib/storage";
+import { addWSListener } from "@/lib/websocket";
 
 export default function TabLayout() {
   const isWeb = Platform.OS === "web";
@@ -21,8 +22,15 @@ export default function TabLayout() {
 
   useEffect(() => {
     checkUnread();
+    const removeListener = addWSListener((event: any) => {
+      if ((event.type === 'new_message' || event.type === 'new_notification') && event.notification) {
+        if (event.notification.type === 'chat') {
+          setHasUnreadChat(true);
+        }
+      }
+    });
     const interval = setInterval(checkUnread, 10000);
-    return () => clearInterval(interval);
+    return () => { removeListener(); clearInterval(interval); };
   }, [checkUnread]);
 
   return (

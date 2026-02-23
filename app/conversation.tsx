@@ -6,6 +6,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { getProfile, getMessages, sendMessage, getMyCoach, type ChatMessage, type UserProfile } from "@/lib/storage";
+import { addWSListener } from "@/lib/websocket";
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
@@ -80,8 +81,29 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (!coachId || !clientProfileId) return;
-    const interval = setInterval(loadMessages, 3000);
-    return () => clearInterval(interval);
+    const removeListener = addWSListener((event: any) => {
+      if (event.type === 'new_message' && event.message) {
+        const m = event.message;
+        if (m.coachId === coachId && m.clientProfileId === clientProfileId) {
+          setMessages(prev => {
+            if (prev.some(p => p.id === m.id)) return prev;
+            return [...prev, m];
+          });
+          setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+        }
+      }
+      if (event.type === 'message_sent' && event.message) {
+        const m = event.message;
+        if (m.coachId === coachId && m.clientProfileId === clientProfileId) {
+          setMessages(prev => {
+            if (prev.some(p => p.id === m.id)) return prev;
+            return [...prev, m];
+          });
+        }
+      }
+    });
+    const interval = setInterval(loadMessages, 15000);
+    return () => { removeListener(); clearInterval(interval); };
   }, [coachId, clientProfileId, loadMessages]);
 
   const handleSend = async () => {
