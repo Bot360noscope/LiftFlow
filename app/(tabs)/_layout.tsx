@@ -2,21 +2,34 @@ import { Tabs } from "expo-router";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Colors from "@/constants/colors";
-import { getUnreadNotificationCount, getCachedNotifications, pushCachedNotification, type AppNotification } from "@/lib/storage";
+import { getUnreadNotificationCount, getCachedNotifications, pushCachedNotification, getNotifications, type AppNotification } from "@/lib/storage";
 import { addWSListener } from "@/lib/websocket";
 
 export default function TabLayout() {
   const isWeb = Platform.OS === "web";
   const isIOS = Platform.OS === "ios";
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
+  const wsUnreadRef = useRef(false);
+  const pollCountRef = useRef(0);
 
   const checkUnread = useCallback(async () => {
     try {
-      const cached = getCachedNotifications();
-      const notifs = cached.length > 0 ? cached : [];
-      setHasUnreadChat(notifs.some(n => n.type === 'chat' && !n.read));
+      if (wsUnreadRef.current) {
+        setHasUnreadChat(true);
+        return;
+      }
+      pollCountRef.current += 1;
+      if (pollCountRef.current % 3 === 0) {
+        const notifs = await getNotifications();
+        const hasChat = notifs.some(n => n.type === 'chat' && !n.read);
+        setHasUnreadChat(hasChat);
+        if (hasChat) wsUnreadRef.current = true;
+      } else {
+        const cached = getCachedNotifications();
+        setHasUnreadChat(cached.some(n => n.type === 'chat' && !n.read));
+      }
     } catch {}
   }, []);
 
@@ -38,6 +51,7 @@ export default function TabLayout() {
           fromRole: n.fromRole || n.from_role,
         });
         if (n.type === 'chat') {
+          wsUnreadRef.current = true;
           setHasUnreadChat(true);
         }
       }
@@ -96,6 +110,11 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="chat"
+        listeners={{
+          tabPress: () => {
+            wsUnreadRef.current = false;
+          },
+        }}
         options={{
           title: "Chat",
           tabBarIcon: ({ color, size }) => (

@@ -55,6 +55,7 @@ export default function ChatTab() {
 
   const [coachClients, setCoachClients] = useState<ClientInfo[]>([]);
   const [latestMsgs, setLatestMsgs] = useState<LatestMessages>({});
+  const [unreadClientIds, setUnreadClientIds] = useState<Set<string>>(new Set());
 
   useFocusEffect(
     useCallback(() => {
@@ -65,22 +66,28 @@ export default function ChatTab() {
           if (!active) return;
           setProfile(prof);
 
-          getNotifications().then(notifs => {
-            const unreadChat = notifs.filter(n => n.type === 'chat' && !n.read);
-            unreadChat.forEach(n => markNotificationRead(n.id).catch(() => {}));
-          }).catch(() => {});
-
           if (prof.role === 'coach') {
-            const [cls, latest] = await Promise.all([
+            const [cls, latest, notifs] = await Promise.all([
               getClients().catch(() => [] as ClientInfo[]),
               getLatestMessages().catch(() => ({} as LatestMessages)),
+              getNotifications().catch(() => []),
             ]);
             if (!active) return;
             setCoachClients(cls);
             setLatestMsgs(latest);
+            const unreadIds = new Set<string>();
+            notifs.filter(n => n.type === 'chat' && !n.read && n.fromRole === 'client').forEach(n => {
+              if (n.programTitle) unreadIds.add(n.programTitle);
+            });
+            setUnreadClientIds(unreadIds);
             setLoading(false);
             return;
           }
+
+          getNotifications().then(notifs => {
+            const unreadChat = notifs.filter(n => n.type === 'chat' && !n.read);
+            unreadChat.forEach(n => markNotificationRead(n.id).catch(() => {}));
+          }).catch(() => {});
 
           const coachInfo = await getMyCoach();
           if (!active) return;
@@ -134,14 +141,25 @@ export default function ChatTab() {
           ...prev,
           [m.clientProfileId]: { text: m.text, senderRole: m.senderRole, createdAt: m.createdAt },
         }));
+        if (m.senderRole === 'client') {
+          setUnreadClientIds(prev => new Set(prev).add(m.clientProfileId));
+        }
       }
     });
     const interval = setInterval(async () => {
       try {
-        const latest = await getLatestMessages();
+        const [latest, notifs] = await Promise.all([
+          getLatestMessages(),
+          getNotifications(),
+        ]);
         setLatestMsgs(latest);
+        const unreadIds = new Set<string>();
+        notifs.filter(n => n.type === 'chat' && !n.read && n.fromRole === 'client').forEach(n => {
+          if (n.programTitle) unreadIds.add(n.programTitle);
+        });
+        setUnreadClientIds(unreadIds);
       } catch {}
-    }, 30000);
+    }, 15000);
     return () => { removeListener(); clearInterval(interval); };
   }, [profile?.role]);
 
@@ -213,6 +231,7 @@ export default function ChatTab() {
           >
             {sortedClients.map((client, idx) => {
               const latest = latestMsgs[client.clientProfileId || ''];
+              const hasUnread = unreadClientIds.has(client.clientProfileId || '');
               return (
                 <TouchableOpacity
                   key={client.id}
@@ -220,32 +239,40 @@ export default function ChatTab() {
                   activeOpacity={0.6}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setUnreadClientIds(prev => {
+                      const next = new Set(prev);
+                      next.delete(client.clientProfileId || '');
+                      return next;
+                    });
                     router.push({ pathname: '/conversation', params: { coachId: profile.id, clientProfileId: client.clientProfileId || '', clientName: client.name } });
                   }}
                   accessibilityLabel={`Chat with ${client.name}`}
                   accessibilityRole="button"
                 >
-                  {client.avatarUrl ? (
-                    <Image source={{ uri: getAvatarUrl(client.avatarUrl) }} style={styles.clientAvatar} />
-                  ) : (
-                    <View style={styles.clientAvatarFallback}>
-                      <Text style={styles.clientAvatarText}>{(client.name || '?')[0].toUpperCase()}</Text>
-                    </View>
-                  )}
+                  <View>
+                    {client.avatarUrl ? (
+                      <Image source={{ uri: getAvatarUrl(client.avatarUrl) }} style={styles.clientAvatar} />
+                    ) : (
+                      <View style={styles.clientAvatarFallback}>
+                        <Text style={styles.clientAvatarText}>{(client.name || '?')[0].toUpperCase()}</Text>
+                      </View>
+                    )}
+                    {hasUnread && <View style={styles.unreadDot} />}
+                  </View>
                   <View style={styles.clientInfo}>
                     <View style={styles.clientNameRow}>
-                      <Text style={styles.clientName} numberOfLines={1}>{client.name || 'Client'}</Text>
+                      <Text style={[styles.clientName, hasUnread && { color: Colors.colors.text }]} numberOfLines={1}>{client.name || 'Client'}</Text>
                       {latest && (
-                        <Text style={styles.clientTime}>{formatTime(latest.createdAt)}</Text>
+                        <Text style={[styles.clientTime, hasUnread && { color: Colors.colors.primary }]}>{formatTime(latest.createdAt)}</Text>
                       )}
                     </View>
-                    <Text style={styles.clientLastMsg} numberOfLines={1}>
+                    <Text style={[styles.clientLastMsg, hasUnread && { color: Colors.colors.textSecondary, fontFamily: 'Rubik_600SemiBold' }]} numberOfLines={1}>
                       {latest
                         ? `${latest.senderRole === 'coach' ? 'You: ' : ''}${latest.text}`
                         : 'No messages yet'}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color={Colors.colors.textMuted} />
+                  <Ionicons name="chevron-forward" size={16} color={hasUnread ? Colors.colors.primary : Colors.colors.textMuted} />
                 </TouchableOpacity>
               );
             })}
@@ -410,4 +437,16 @@ const styles = StyleSheet.create({
   clientName: { fontFamily: 'Rubik_600SemiBold', fontSize: 16, color: Colors.colors.text, flex: 1 },
   clientTime: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, marginLeft: 8 },
   clientLastMsg: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textMuted, marginTop: 2 },
+  unreadDot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: Colors.colors.primary,
+    borderWidth: 2,
+    borderColor: Colors.colors.background,
+    zIndex: 1,
+  },
 });

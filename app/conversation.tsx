@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
-import { getProfile, getMessages, sendMessage, getMyCoach, type ChatMessage, type UserProfile } from "@/lib/storage";
+import { getProfile, getMessages, sendMessage, getMyCoach, getNotifications, markNotificationRead, type ChatMessage, type UserProfile } from "@/lib/storage";
 import { addWSListener } from "@/lib/websocket";
 
 export default function ChatScreen() {
@@ -63,6 +63,10 @@ export default function ChatScreen() {
         if (resolvedCoachId && resolvedClientProfileId) {
           const msgs = await getMessages(resolvedCoachId, resolvedClientProfileId);
           setMessages(msgs);
+          getNotifications().then(notifs => {
+            notifs.filter(n => n.type === 'chat' && !n.read && n.programTitle === resolvedClientProfileId)
+              .forEach(n => markNotificationRead(n.id).catch(() => {}));
+          }).catch(() => {});
         }
       } catch (e) {
         console.warn('Chat init error:', e);
