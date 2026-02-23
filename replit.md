@@ -56,7 +56,7 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **Permissions**: NSCameraUsageDescription, NSPhotoLibraryUsageDescription, NSMicrophoneUsageDescription set in app.json
 - **Account Deletion**: Full data cleanup including avatar files, video files, and all DB records
 - **Accessibility**: accessibilityLabel and accessibilityRole on key interactive elements across all screens
-- **Video Recording**: 45-second max for form check videos
+- **Video Recording**: 60-second max for form check videos (unlimited recording, must trim to 60s before upload), delete video button available
 
 ## User Preferences
 - Fonts: Rubik (400, 500, 600, 700)
