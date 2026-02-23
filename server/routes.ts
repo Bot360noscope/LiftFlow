@@ -1221,6 +1221,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/dashboard", async (req, res) => {
+    try {
+      const profileId = req.query.profileId as string;
+      if (!profileId) return res.status(400).json({ error: "profileId required" });
+
+      const [[profile], allPrograms, allPRs, allNotifs] = await Promise.all([
+        db.select().from(profiles).where(eq(profiles.id, profileId)),
+        db.select().from(programs),
+        db.select().from(prs).where(eq(prs.profileId, profileId)),
+        db.select().from(notifications).where(eq(notifications.profileId, profileId)).orderBy(desc(notifications.createdAt)),
+      ]);
+
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+      let userPrograms;
+      if (profile.role === 'coach') {
+        userPrograms = allPrograms.filter(p => p.coachId === profileId);
+      } else {
+        const clientRecords = await db.select().from(clients).where(eq(clients.clientProfileId, profileId));
+        const clientRecordIds = new Set(clientRecords.map(c => c.id));
+        userPrograms = allPrograms.filter(p =>
+          (p.coachId === profileId && !p.clientId) ||
+          (p.clientId && clientRecordIds.has(p.clientId))
+        );
+      }
+
+      let coachClients: any[] = [];
+      let latestMessages: Record<string, any> = {};
+      if (profile.role === 'coach') {
+        const clientResults = await db.select({
+          id: clients.id,
+          coachId: clients.coachId,
+          clientProfileId: clients.clientProfileId,
+          name: clients.name,
+          joinedAt: clients.joinedAt,
+          avatarUrl: profiles.avatarUrl,
+        }).from(clients)
+          .leftJoin(profiles, eq(clients.clientProfileId, profiles.id))
+          .where(eq(clients.coachId, profileId))
+          .orderBy(desc(clients.joinedAt));
+        coachClients = clientResults.map(c => ({ ...c, avatarUrl: c.avatarUrl || '' }));
+
+        const allMsgs = await db.select().from(messages)
+          .where(eq(messages.coachId, profileId))
+          .orderBy(desc(messages.createdAt));
+        for (const m of allMsgs) {
+          if (!latestMessages[m.clientProfileId]) {
+            latestMessages[m.clientProfileId] = {
+              text: m.text,
+              senderRole: m.senderRole,
+              createdAt: m.createdAt.toISOString(),
+            };
+          }
+        }
+      }
+
+      res.json({
+        profile,
+        programs: userPrograms,
+        prs: allPRs,
+        notifications: allNotifs,
+        clients: coachClients,
+        latestMessages,
+      });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -559,6 +559,67 @@ export async function getLatestMessages(): Promise<LatestMessages> {
   return apiGet<LatestMessages>(`/api/messages/latest?coachId=${profileId}`);
 }
 
+export interface DashboardData {
+  profile: UserProfile;
+  programs: Program[];
+  prs: LiftPR[];
+  notifications: AppNotification[];
+  clients: ClientInfo[];
+  latestMessages: LatestMessages;
+}
+
+export async function getDashboard(): Promise<DashboardData> {
+  const profileId = await requireProfileId();
+  const data = await apiGet<any>(`/api/dashboard?profileId=${profileId}`);
+  const profile = mapProfile(data.profile);
+  cache.profile = profile;
+  cache.profileFetchedAt = Date.now();
+  const progs = (data.programs || []).map(mapProgram);
+  cache.programs = progs;
+  cache.programsFetchedAt = Date.now();
+  const prData = (data.prs || []).map((p: any) => ({
+    id: p.id,
+    liftType: (p.liftType || p.lift_type) as 'squat' | 'deadlift' | 'bench',
+    weight: p.weight,
+    unit: p.unit || 'kg',
+    date: p.date,
+    notes: p.notes || '',
+  }));
+  cache.prs = prData;
+  cache.prsFetchedAt = Date.now();
+  const notifs = (data.notifications || []).map((n: any) => ({
+    id: n.id,
+    type: n.type as AppNotification['type'],
+    title: n.title,
+    message: n.message,
+    read: n.read ?? n.is_read ?? false,
+    createdAt: n.createdAt || n.created_at,
+    programId: n.programId || n.program_id,
+    programTitle: n.programTitle || n.program_title,
+    exerciseName: n.exerciseName || n.exercise_name,
+    fromRole: n.fromRole || n.from_role,
+  }));
+  cache.notifications = notifs;
+  cache.notificationsFetchedAt = Date.now();
+  const cls = (data.clients || []).map((c: any) => ({
+    id: c.id,
+    name: c.name,
+    joinedAt: c.joinedAt || c.joined_at,
+    clientProfileId: c.clientProfileId || c.client_profile_id,
+    avatarUrl: c.avatarUrl || c.avatar_url || '',
+  }));
+  cache.clients = cls;
+  cache.clientsFetchedAt = Date.now();
+  return {
+    profile,
+    programs: progs,
+    prs: prData,
+    notifications: notifs,
+    clients: cls,
+    latestMessages: data.latestMessages || {},
+  };
+}
+
 export async function searchClients(query: string): Promise<ClientInfo[]> {
   const profileId = await requireProfileId();
   const data = await apiGet<any[]>(`/api/clients/search?coachId=${profileId}&q=${encodeURIComponent(query)}`);
