@@ -350,18 +350,6 @@ export default function ProfileScreen() {
             <Ionicons name="swap-horizontal" size={20} color={Colors.colors.textMuted} />
           </Pressable>
 
-          <Pressable style={styles.settingItem} onPress={toggleUnit} accessibilityLabel="Toggle weight unit" accessibilityRole="button">
-            <View style={styles.settingLeft}>
-              <View style={[styles.settingIcon, { backgroundColor: 'rgba(102, 102, 102, 0.12)' }]}>
-                <Ionicons name="scale" size={18} color={Colors.colors.textMuted} />
-              </View>
-              <View style={styles.settingTextWrap}>
-                <Text style={styles.settingLabel} numberOfLines={1}>Weight Unit</Text>
-                <Text style={styles.settingValue} numberOfLines={1}>{profile.weightUnit === 'kg' ? 'Kilograms (kg)' : 'Pounds (lbs)'}</Text>
-              </View>
-            </View>
-            <Ionicons name="swap-horizontal" size={20} color={Colors.colors.textMuted} />
-          </Pressable>
 
           {!isCoach && myCoach && (
             <Pressable style={[styles.settingItem, styles.dangerItem]} onPress={() => { setRemoveCoachInput(''); setShowRemoveCoachModal(true); }} accessibilityLabel="Remove coach" accessibilityRole="button">
