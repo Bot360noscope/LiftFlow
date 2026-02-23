@@ -88,7 +88,10 @@ export interface ChatMessage {
   createdAt: string;
 }
 
+export type LatestMessages = Record<string, { text: string; senderRole: string; createdAt: string }>;
+
 const PROFILE_ID_KEY = 'liftflow_profile_id';
+const CACHE_KEY = 'liftflow_cache_v2';
 
 const cache: {
   profile: UserProfile | null;
@@ -96,22 +99,26 @@ const cache: {
   prs: LiftPR[];
   clients: ClientInfo[];
   notifications: AppNotification[];
+  latestMessages: LatestMessages;
   profileFetchedAt: number;
   programsFetchedAt: number;
   prsFetchedAt: number;
   clientsFetchedAt: number;
   notificationsFetchedAt: number;
+  loaded: boolean;
 } = {
   profile: null,
   programs: [],
   prs: [],
   clients: [],
   notifications: [],
+  latestMessages: {},
   profileFetchedAt: 0,
   programsFetchedAt: 0,
   prsFetchedAt: 0,
   clientsFetchedAt: 0,
   notificationsFetchedAt: 0,
+  loaded: false,
 };
 
 const STALE_MS = 10000;
@@ -122,11 +129,42 @@ function isFresh(fetchedAt: number): boolean {
 
 let profileInflight: Promise<UserProfile> | null = null;
 
+function persistCache() {
+  const data = {
+    profile: cache.profile,
+    programs: cache.programs,
+    prs: cache.prs,
+    clients: cache.clients,
+    notifications: cache.notifications,
+    latestMessages: cache.latestMessages,
+  };
+  AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data)).catch(() => {});
+}
+
+export async function loadCacheFromDisk(): Promise<void> {
+  if (cache.loaded) return;
+  try {
+    const raw = await AsyncStorage.getItem(CACHE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data.profile) cache.profile = data.profile;
+      if (data.programs?.length) cache.programs = data.programs;
+      if (data.prs?.length) cache.prs = data.prs;
+      if (data.clients?.length) cache.clients = data.clients;
+      if (data.notifications?.length) cache.notifications = data.notifications;
+      if (data.latestMessages) cache.latestMessages = data.latestMessages;
+    }
+  } catch {}
+  cache.loaded = true;
+}
+
 export function getCachedProfile(): UserProfile | null { return cache.profile; }
 export function getCachedPrograms(): Program[] { return cache.programs; }
 export function getCachedPRs(): LiftPR[] { return cache.prs; }
 export function getCachedClients(): ClientInfo[] { return cache.clients; }
 export function getCachedNotifications(): AppNotification[] { return cache.notifications; }
+export function getCachedLatestMessages(): LatestMessages { return cache.latestMessages; }
+export function isCacheLoaded(): boolean { return cache.loaded; }
 
 export function clearCache() {
   cache.profile = null;
@@ -134,12 +172,15 @@ export function clearCache() {
   cache.prs = [];
   cache.clients = [];
   cache.notifications = [];
+  cache.latestMessages = {};
   cache.profileFetchedAt = 0;
   cache.programsFetchedAt = 0;
   cache.prsFetchedAt = 0;
   cache.clientsFetchedAt = 0;
   cache.notificationsFetchedAt = 0;
+  cache.loaded = false;
   profileInflight = null;
+  AsyncStorage.removeItem(CACHE_KEY).catch(() => {});
 }
 
 async function requireProfileId(): Promise<string> {
@@ -198,6 +239,7 @@ async function _fetchProfile(): Promise<UserProfile> {
       const result = mapProfile(await apiGet<any>(`/api/profiles/${storedId}`));
       cache.profile = result;
       cache.profileFetchedAt = Date.now();
+      persistCache();
       return result;
     } catch {
     }
@@ -211,6 +253,7 @@ async function _fetchProfile(): Promise<UserProfile> {
   const result = mapProfile(profile);
   cache.profile = result;
   cache.profileFetchedAt = Date.now();
+  persistCache();
   return result;
 }
 
@@ -221,6 +264,7 @@ export function invalidateProfileCache() {
 export async function saveProfile(profile: UserProfile): Promise<void> {
   cache.profile = profile;
   cache.profileFetchedAt = Date.now();
+  persistCache();
   await setProfileId(profile.id);
   await apiPut(`/api/profiles/${profile.id}`, {
     name: profile.name,
@@ -257,6 +301,7 @@ export async function getPrograms(): Promise<Program[]> {
   const result = data.map(mapProgram);
   cache.programs = result;
   cache.programsFetchedAt = Date.now();
+  persistCache();
   return result;
 }
 
@@ -331,6 +376,8 @@ export async function getPRs(): Promise<LiftPR[]> {
     notes: p.notes,
   }));
   cache.prs = result;
+  cache.prsFetchedAt = Date.now();
+  persistCache();
   return result;
 }
 
@@ -376,6 +423,7 @@ export async function getClients(): Promise<ClientInfo[]> {
   }));
   cache.clients = result;
   cache.clientsFetchedAt = Date.now();
+  persistCache();
   return result;
 }
 
@@ -418,6 +466,8 @@ export async function getNotifications(): Promise<AppNotification[]> {
     read: n.read,
   }));
   cache.notifications = result;
+  cache.notificationsFetchedAt = Date.now();
+  persistCache();
   return result;
 }
 
@@ -552,8 +602,6 @@ export async function leaveCoach(): Promise<void> {
   await apiPost('/api/leave-coach', { clientProfileId: profileId });
 }
 
-export type LatestMessages = Record<string, { text: string; senderRole: string; createdAt: string }>;
-
 export async function getLatestMessages(): Promise<LatestMessages> {
   const profileId = await requireProfileId();
   return apiGet<LatestMessages>(`/api/messages/latest?coachId=${profileId}`);
@@ -610,13 +658,15 @@ export async function getDashboard(): Promise<DashboardData> {
   }));
   cache.clients = cls;
   cache.clientsFetchedAt = Date.now();
+  cache.latestMessages = data.latestMessages || {};
+  persistCache();
   return {
     profile,
     programs: progs,
     prs: prData,
     notifications: notifs,
     clients: cls,
-    latestMessages: data.latestMessages || {},
+    latestMessages: cache.latestMessages,
   };
 }
 

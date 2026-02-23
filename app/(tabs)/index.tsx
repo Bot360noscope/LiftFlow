@@ -1,16 +1,16 @@
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, ActivityIndicator, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import NetworkError from "@/components/NetworkError";
 import {
-  getProfile, getPrograms, getPRs, getBestPR, getClients, getNotifications,
-  clearAllNotifications, deleteNotification, markNotificationRead, getLatestMessages,
-  getCachedProfile, getCachedPrograms, getCachedPRs, getCachedClients, getCachedNotifications,
+  getDashboard, getBestPR,
+  clearAllNotifications, deleteNotification, markNotificationRead,
+  getCachedProfile, getCachedPrograms, getCachedPRs, getCachedClients, getCachedNotifications, getCachedLatestMessages,
   type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification, type LatestMessages,
 } from "@/lib/storage";
 import { getAvatarUrl } from "@/lib/api";
@@ -198,37 +198,40 @@ export default function HomeScreen() {
   const [clients, setClients] = useState<ClientInfo[]>(getCachedClients());
   const [notifications, setNotifications] = useState<AppNotification[]>(getCachedNotifications());
   const [clientSearch, setClientSearch] = useState('');
-  const [latestMsgs, setLatestMsgs] = useState<LatestMessages>({});
+  const [latestMsgs, setLatestMsgs] = useState<LatestMessages>(getCachedLatestMessages());
   const [loading, setLoading] = useState(!getCachedProfile());
   const [error, setError] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const focusedRef = useRef(true);
 
-  const loadData = useCallback(async () => {
+  const refreshDashboard = useCallback(async () => {
     try {
-      const p = await getProfile();
-      setProfile(p);
-      const [progs, prData, cl, notifs, latest] = await Promise.all([
-        getPrograms().catch(() => [] as Program[]),
-        getPRs().catch(() => [] as LiftPR[]),
-        getClients().catch(() => [] as ClientInfo[]),
-        getNotifications().catch(() => [] as AppNotification[]),
-        p.role === 'coach' ? getLatestMessages().catch(() => ({} as LatestMessages)) : Promise.resolve({} as LatestMessages),
-      ]);
-      setPrograms(progs);
-      setPRs(prData);
-      setClients(cl);
-      setNotifications(notifs);
-      setLatestMsgs(latest);
+      const data = await getDashboard();
+      setProfile(data.profile);
+      setPrograms(data.programs);
+      setPRs(data.prs);
+      setClients(data.clients);
+      setNotifications(data.notifications);
+      setLatestMsgs(data.latestMessages);
       setError(false);
     } catch (e) {
-      setError(true);
+      if (!getCachedProfile()) setError(true);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useFocusEffect(useCallback(() => {
-    loadData();
-  }, [loadData]));
+    focusedRef.current = true;
+    refreshDashboard();
+    pollRef.current = setInterval(() => {
+      if (focusedRef.current) refreshDashboard();
+    }, 5000);
+    return () => {
+      focusedRef.current = false;
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [refreshDashboard]));
 
   const handleMarkNotificationRead = async (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
@@ -277,7 +280,7 @@ export default function HomeScreen() {
   }
 
   if (error && !getCachedProfile()) {
-    return <NetworkError onRetry={loadData} />;
+    return <NetworkError onRetry={refreshDashboard} />;
   }
 
   return (

@@ -10,6 +10,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { loadCacheFromDisk } from "@/lib/storage";
 import AuthScreen from "./auth";
 import OnboardingScreen from "./onboarding";
 import Colors from "@/constants/colors";
@@ -45,6 +46,7 @@ function AppContent() {
 
   useEffect(() => {
     if (isLoggedIn) {
+      loadCacheFromDisk();
       AsyncStorage.getItem("liftflow_onboarding_done").then((val) => {
         setHasOnboarded(val === "true");
       });
