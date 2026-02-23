@@ -116,6 +116,10 @@ export async function apiDelete(path: string): Promise<void> {
 export async function uploadVideo(uri: string, meta?: { programId: string; exerciseId: string; uploadedBy: string; coachId: string }, trim?: { startTime: number; endTime: number }): Promise<string> {
   const authHeaders = await getAuthHeaders();
 
+  if (Platform.OS === 'web') {
+    return uploadVideoLegacy(uri, meta, trim);
+  }
+
   const urlRes = await fetch(`${BASE}/api/video-upload-url`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders },
@@ -123,14 +127,8 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   if (!urlRes.ok) throw new Error('Failed to get upload URL');
   const { uploadUrl, filename, videoUrl } = await urlRes.json();
 
-  let videoBlob: Blob;
-  if (Platform.OS === 'web') {
-    const response = await fetch(uri);
-    videoBlob = await response.blob();
-  } else {
-    const response = await fetch(uri);
-    videoBlob = await response.blob();
-  }
+  const response = await fetch(uri);
+  const videoBlob = await response.blob();
 
   const putRes = await fetch(uploadUrl, {
     method: 'PUT',
@@ -170,6 +168,37 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   }
 
   return `${BASE}${finalVideoUrl}`;
+}
+
+async function uploadVideoLegacy(uri: string, meta?: { programId: string; exerciseId: string; uploadedBy: string; coachId: string }, trim?: { startTime: number; endTime: number }): Promise<string> {
+  const formData = new FormData();
+  const authHeaders = await getAuthHeaders();
+
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  formData.append('video', blob, 'video.mp4');
+
+  if (meta) {
+    formData.append('programId', meta.programId);
+    formData.append('exerciseId', meta.exerciseId);
+    formData.append('uploadedBy', meta.uploadedBy);
+    formData.append('coachId', meta.coachId);
+  }
+
+  if (trim) {
+    formData.append('trimStart', String(trim.startTime));
+    formData.append('trimEnd', String(trim.endTime));
+  }
+
+  const res = await fetch(`${BASE}/api/upload-video`, {
+    method: 'POST',
+    headers: { ...authHeaders },
+    body: formData,
+  });
+
+  if (!res.ok) throw new Error('Upload failed');
+  const data = await res.json();
+  return `${BASE}${data.videoUrl}`;
 }
 
 export function getVideoUrl(path: string): string {
