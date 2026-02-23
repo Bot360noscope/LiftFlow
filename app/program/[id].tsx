@@ -559,9 +559,15 @@ export default function ProgramDetailScreen() {
     if (!program) return;
     const oldProgram = await getProgram(program.id);
 
-    await updateProgram(program);
     setHasChanges(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    try {
+      await updateProgram(program);
+    } catch (e: any) {
+      setHasChanges(true);
+      showAlert('Save Error', 'Changes couldn\'t be saved. They\'ll retry automatically.');
+      return;
+    }
 
     if (oldProgram) {
       let targetProfileId: string | undefined;

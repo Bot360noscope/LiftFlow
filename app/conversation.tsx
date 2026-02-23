@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, Keyboard, InputAccessoryView } from "react-native";
+import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, Keyboard, KeyboardAvoidingView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -20,20 +20,7 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sendError, setSendError] = useState('');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const flatListRef = useRef<FlatList>(null);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => { showSub.remove(); hideSub.remove(); };
-  }, []);
 
   useEffect(() => {
     (async () => {
@@ -133,12 +120,6 @@ export default function ChatScreen() {
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const noCoach = !loading && !coachId && !isCoach;
 
-  const bottomPadding = Platform.OS === 'web'
-    ? 34
-    : keyboardHeight > 0
-      ? (Platform.OS === 'ios' ? keyboardHeight + 5 : 10)
-      : Math.max(insets.bottom, 12);
-
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isMe = item.senderRole === profile?.role;
     const time = new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -154,7 +135,11 @@ export default function ChatScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
       <View style={[styles.header, { paddingTop: insets.top + webTopInset + 8 }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={Colors.colors.text} />
@@ -206,7 +191,7 @@ export default function ChatScreen() {
               <Text style={styles.errorText}>{sendError}</Text>
             </View>
           ) : null}
-          <View style={[styles.inputRow, { paddingBottom: Math.max(bottomPadding, 8) }]}>
+          <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 12) }]}>
             <TextInput
               style={styles.textInput}
               placeholder="Type a message..."
@@ -228,7 +213,7 @@ export default function ChatScreen() {
           </View>
         </>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

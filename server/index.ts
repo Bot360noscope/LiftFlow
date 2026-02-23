@@ -1,4 +1,5 @@
 import express from "express";
+import compression from "compression";
 import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { initializeDatabase } from "./db";
@@ -255,6 +256,7 @@ function setupErrorHandler(app: express.Application) {
 
 (async () => {
   setupCors(app);
+  app.use(compression());
   setupBodyParsing(app);
   setupRequestLogging(app);
 
