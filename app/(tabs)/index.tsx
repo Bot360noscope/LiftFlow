@@ -9,7 +9,7 @@ import Colors from "@/constants/colors";
 import NetworkError from "@/components/NetworkError";
 import {
   getDashboard, getBestPR,
-  clearAllNotifications, deleteNotification, markNotificationRead,
+  clearAllNotifications, deleteNotification,
   getCachedProfile, getCachedPrograms, getCachedPRs, getCachedClients, getCachedNotifications, getCachedLatestMessages,
   type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification, type LatestMessages,
 } from "@/lib/storage";
@@ -118,7 +118,7 @@ function ProgramCard({ program }: { program: Program }) {
   );
 }
 
-function NotificationItem({ notification, onMarkRead }: { notification: AppNotification; onMarkRead: (id: string) => void }) {
+function NotificationItem({ notification, onDismiss }: { notification: AppNotification; onDismiss: (id: string) => void }) {
   const icon = notification.type === 'video' ? 'videocam' :
     notification.type === 'notes' ? 'chatbubble' :
     notification.type === 'comment' ? 'school' :
@@ -133,7 +133,7 @@ function NotificationItem({ notification, onMarkRead }: { notification: AppNotif
       style={[styles.notifItem, !notification.read && styles.notifItemUnread]}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        if (!notification.read) onMarkRead(notification.id);
+        onDismiss(notification.id);
         if (notification.type === 'chat') {
           router.push({
             pathname: '/conversation',
@@ -144,7 +144,12 @@ function NotificationItem({ notification, onMarkRead }: { notification: AppNotif
             },
           });
         } else if (notification.programId) {
-          router.push(`/program/${notification.programId}`);
+          router.push({
+            pathname: `/program/${notification.programId}`,
+            params: {
+              highlightExercise: notification.exerciseName || '',
+            },
+          });
         }
       }}
     >
@@ -254,9 +259,9 @@ export default function HomeScreen() {
     };
   }, [refreshDashboard]));
 
-  const handleMarkNotificationRead = async (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    try { await markNotificationRead(id); } catch (e) { console.warn('Failed to mark notification read:', e); }
+  const handleDismissNotification = async (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    try { await deleteNotification(id); } catch (e) { console.warn('Failed to delete notification:', e); }
   };
 
   const handleClearAllNotifications = async () => {
@@ -440,7 +445,7 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
               {recentNotifs.map(n => (
-                <NotificationItem key={n.id} notification={n} onMarkRead={handleMarkNotificationRead} />
+                <NotificationItem key={n.id} notification={n} onDismiss={handleDismissNotification} />
               ))}
             </Animated.View>
           )}

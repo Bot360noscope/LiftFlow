@@ -180,7 +180,7 @@ function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programI
   );
 }
 
-function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId }: {
+function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId, initialExpanded }: {
   exercise: Exercise;
   index: number;
   isCoach: boolean;
@@ -191,8 +191,9 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   programId: string;
   coachId: string;
   profileId: string;
+  initialExpanded?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(initialExpanded || false);
   const [name, setName] = useState(exercise.name);
   const [repsSets, setRepsSets] = useState(exercise.repsSets);
   const [weight, setWeight] = useState(exercise.weight);
@@ -469,7 +470,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
 
 export default function ProgramDetailScreen() {
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, highlightExercise } = useLocalSearchParams<{ id: string; highlightExercise?: string }>();
   const [program, setProgram] = useState<Program | null>(null);
   const [activeWeek, setActiveWeek] = useState(1);
   const [activeDay, setActiveDay] = useState(1);
@@ -477,12 +478,33 @@ export default function ProgramDetailScreen() {
   const [isCoach, setIsCoach] = useState(true);
   const [isShared, setIsShared] = useState(false);
   const [profileId, setProfileId] = useState('');
+  const [highlightedExerciseId, setHighlightedExerciseId] = useState<string | null>(null);
   const clientAutoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (id) {
       Promise.all([getProgram(id), getProfile()]).then(([p, prof]) => {
-        if (p) setProgram(p);
+        if (p) {
+          setProgram(p);
+          if (highlightExercise) {
+            let matched = false;
+            for (const week of [...p.weeks].reverse()) {
+              if (matched) break;
+              for (const day of week.days) {
+                const found = day.exercises.find(
+                  ex => ex.name && ex.name.toLowerCase() === highlightExercise.toLowerCase()
+                );
+                if (found) {
+                  setActiveWeek(week.weekNumber);
+                  setActiveDay(day.dayNumber);
+                  setHighlightedExerciseId(found.id);
+                  matched = true;
+                  break;
+                }
+              }
+            }
+          }
+        }
         const shared = !!p?.clientId;
         setIsShared(shared);
         setIsCoach(prof.role === 'coach');
@@ -927,6 +949,7 @@ export default function ProgramDetailScreen() {
                 programId={program.id}
                 coachId={program.coachId}
                 profileId={profileId}
+                initialExpanded={ex.id === highlightedExerciseId}
               />
             </Animated.View>
           ))
