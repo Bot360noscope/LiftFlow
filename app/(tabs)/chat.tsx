@@ -6,7 +6,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
-import { getProfile, getMessages, sendMessage, getMyCoach, getClients, getLatestMessages, type ChatMessage, type UserProfile, type ClientInfo, type LatestMessages } from "@/lib/storage";
+import { getProfile, getMessages, sendMessage, getMyCoach, getClients, getLatestMessages, getNotifications, markNotificationRead, type ChatMessage, type UserProfile, type ClientInfo, type LatestMessages } from "@/lib/storage";
 import { getAvatarUrl } from "@/lib/api";
 
 function formatTime(dateStr: string): string {
@@ -63,6 +63,11 @@ export default function ChatTab() {
           const prof = await getProfile();
           if (!active) return;
           setProfile(prof);
+
+          getNotifications().then(notifs => {
+            const unreadChat = notifs.filter(n => n.type === 'chat' && !n.read);
+            unreadChat.forEach(n => markNotificationRead(n.id).catch(() => {}));
+          }).catch(() => {});
 
           if (prof.role === 'coach') {
             const [cls, latest] = await Promise.all([

@@ -2,12 +2,27 @@ import { Tabs } from "expo-router";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Colors from "@/constants/colors";
+import { getNotifications } from "@/lib/storage";
 
 export default function TabLayout() {
   const isWeb = Platform.OS === "web";
   const isIOS = Platform.OS === "ios";
+  const [hasUnreadChat, setHasUnreadChat] = useState(false);
+
+  const checkUnread = useCallback(async () => {
+    try {
+      const notifs = await getNotifications();
+      setHasUnreadChat(notifs.some(n => n.type === 'chat' && !n.read));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    checkUnread();
+    const interval = setInterval(checkUnread, 5000);
+    return () => clearInterval(interval);
+  }, [checkUnread]);
 
   return (
     <Tabs
@@ -62,7 +77,12 @@ export default function TabLayout() {
         options={{
           title: "Chat",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles" size={size} color={color} />
+            <View>
+              <Ionicons name="chatbubbles" size={size} color={color} />
+              {hasUnreadChat && (
+                <View style={styles.chatBadge} />
+              )}
+            </View>
           ),
         }}
       />
@@ -87,3 +107,17 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  chatBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.colors.primary,
+    borderWidth: 1.5,
+    borderColor: Colors.colors.tabBar,
+  },
+});
