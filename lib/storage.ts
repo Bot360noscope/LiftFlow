@@ -405,6 +405,11 @@ export async function deleteNotificationsByProgram(programId: string): Promise<v
   await apiDelete(`/api/notifications/by-program/${programId}?profileId=${profile.id}`);
 }
 
+export async function markNotificationsReadByProgram(programId: string): Promise<void> {
+  const profile = await getProfile();
+  await apiPut(`/api/notifications/read-by-program/${programId}?profileId=${profile.id}`);
+}
+
 export async function getUnreadNotificationCount(): Promise<number> {
   const notifications = await getNotifications();
   return notifications.filter(n => !n.read).length;

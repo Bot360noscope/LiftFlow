@@ -848,6 +848,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  app.put("/api/notifications/read-by-program/:programId", async (req, res) => {
+    try {
+      const profileId = req.query.profileId as string;
+      if (!profileId) return res.status(400).json({ error: "profileId required" });
+      await db.update(notifications).set({ read: true }).where(
+        and(eq(notifications.profileId, profileId), eq(notifications.programId, req.params.programId))
+      );
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   const legalPageStyle = `
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap');

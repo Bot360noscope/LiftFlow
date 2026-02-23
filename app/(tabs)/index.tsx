@@ -9,7 +9,7 @@ import Colors from "@/constants/colors";
 import NetworkError from "@/components/NetworkError";
 import {
   getProfile, getPrograms, getPRs, getBestPR, getClients, getNotifications,
-  clearAllNotifications, deleteNotification, getLatestMessages,
+  clearAllNotifications, deleteNotification, markNotificationRead, getLatestMessages,
   getCachedProfile, getCachedPrograms, getCachedPRs, getCachedClients, getCachedNotifications,
   type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification, type LatestMessages,
 } from "@/lib/storage";
@@ -117,7 +117,7 @@ function ProgramCard({ program }: { program: Program }) {
   );
 }
 
-function NotificationItem({ notification, onDelete }: { notification: AppNotification; onDelete: (id: string) => void }) {
+function NotificationItem({ notification, onMarkRead }: { notification: AppNotification; onMarkRead: (id: string) => void }) {
   const icon = notification.type === 'video' ? 'videocam' :
     notification.type === 'notes' ? 'chatbubble' :
     notification.type === 'comment' ? 'school' :
@@ -132,7 +132,7 @@ function NotificationItem({ notification, onDelete }: { notification: AppNotific
       style={[styles.notifItem, !notification.read && styles.notifItemUnread]}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onDelete(notification.id);
+        if (!notification.read) onMarkRead(notification.id);
         if (notification.type === 'chat') {
           router.push({
             pathname: '/conversation',
@@ -241,9 +241,9 @@ export default function HomeScreen() {
     };
   }, [loadData]));
 
-  const handleDeleteNotification = async (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-    try { await deleteNotification(id); } catch (e) { console.warn('Failed to delete notification:', e); }
+  const handleMarkNotificationRead = async (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    try { await markNotificationRead(id); } catch (e) { console.warn('Failed to mark notification read:', e); }
   };
 
   const handleClearAllNotifications = async () => {
@@ -427,7 +427,7 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
               {recentNotifs.map(n => (
-                <NotificationItem key={n.id} notification={n} onDelete={handleDeleteNotification} />
+                <NotificationItem key={n.id} notification={n} onMarkRead={handleMarkNotificationRead} />
               ))}
             </Animated.View>
           )}

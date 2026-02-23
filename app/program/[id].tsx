@@ -10,7 +10,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import * as Crypto from "expo-crypto";
-import { getProgram, updateProgram, deleteProgram, getProfile, getClients, addNotification, deleteNotificationsByProgram, getPRs, addPR, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type LiftPR } from "@/lib/storage";
+import { getProgram, updateProgram, deleteProgram, getProfile, getClients, addNotification, markNotificationsReadByProgram, getPRs, addPR, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type LiftPR } from "@/lib/storage";
 import { uploadVideo, getVideoUrl, markVideoViewed } from "@/lib/api";
 
 function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
@@ -461,7 +461,7 @@ export default function ProgramDetailScreen() {
         setIsShared(shared);
         setIsCoach(prof.role === 'coach');
         setProfileId(prof.id);
-        deleteNotificationsByProgram(id).catch(() => {});
+        markNotificationsReadByProgram(id).catch(() => {});
       });
     }
   }, [id]);
