@@ -96,13 +96,31 @@ const cache: {
   prs: LiftPR[];
   clients: ClientInfo[];
   notifications: AppNotification[];
+  profileFetchedAt: number;
+  programsFetchedAt: number;
+  prsFetchedAt: number;
+  clientsFetchedAt: number;
+  notificationsFetchedAt: number;
 } = {
   profile: null,
   programs: [],
   prs: [],
   clients: [],
   notifications: [],
+  profileFetchedAt: 0,
+  programsFetchedAt: 0,
+  prsFetchedAt: 0,
+  clientsFetchedAt: 0,
+  notificationsFetchedAt: 0,
 };
+
+const STALE_MS = 10000;
+
+function isFresh(fetchedAt: number): boolean {
+  return Date.now() - fetchedAt < STALE_MS;
+}
+
+let profileInflight: Promise<UserProfile> | null = null;
 
 export function getCachedProfile(): UserProfile | null { return cache.profile; }
 export function getCachedPrograms(): Program[] { return cache.programs; }
@@ -116,6 +134,20 @@ export function clearCache() {
   cache.prs = [];
   cache.clients = [];
   cache.notifications = [];
+  cache.profileFetchedAt = 0;
+  cache.programsFetchedAt = 0;
+  cache.prsFetchedAt = 0;
+  cache.clientsFetchedAt = 0;
+  cache.notificationsFetchedAt = 0;
+  profileInflight = null;
+}
+
+async function requireProfileId(): Promise<string> {
+  if (cache.profile) return cache.profile.id;
+  const storedId = await getProfileId();
+  if (storedId) return storedId;
+  const p = await getProfile();
+  return p.id;
 }
 
 export function generateCode(): string {
@@ -149,11 +181,23 @@ function mapProfile(profile: any): UserProfile {
 }
 
 export async function getProfile(): Promise<UserProfile> {
+  if (cache.profile && isFresh(cache.profileFetchedAt)) return cache.profile;
+  if (profileInflight) return profileInflight;
+  profileInflight = _fetchProfile();
+  try {
+    return await profileInflight;
+  } finally {
+    profileInflight = null;
+  }
+}
+
+async function _fetchProfile(): Promise<UserProfile> {
   const storedId = await getProfileId();
   if (storedId) {
     try {
       const result = mapProfile(await apiGet<any>(`/api/profiles/${storedId}`));
       cache.profile = result;
+      cache.profileFetchedAt = Date.now();
       return result;
     } catch {
     }
@@ -166,11 +210,17 @@ export async function getProfile(): Promise<UserProfile> {
   await setProfileId(profile.id);
   const result = mapProfile(profile);
   cache.profile = result;
+  cache.profileFetchedAt = Date.now();
   return result;
+}
+
+export function invalidateProfileCache() {
+  cache.profileFetchedAt = 0;
 }
 
 export async function saveProfile(profile: UserProfile): Promise<void> {
   cache.profile = profile;
+  cache.profileFetchedAt = Date.now();
   await setProfileId(profile.id);
   await apiPut(`/api/profiles/${profile.id}`, {
     name: profile.name,
@@ -202,10 +252,11 @@ function mapProgram(p: any): Program {
 }
 
 export async function getPrograms(): Promise<Program[]> {
-  const profile = await getProfile();
-  const data = await apiGet<any[]>(`/api/programs?profileId=${profile.id}`);
+  const profileId = await requireProfileId();
+  const data = await apiGet<any[]>(`/api/programs?profileId=${profileId}`);
   const result = data.map(mapProgram);
   cache.programs = result;
+  cache.programsFetchedAt = Date.now();
   return result;
 }
 
@@ -269,8 +320,8 @@ export async function deleteProgram(id: string): Promise<void> {
 }
 
 export async function getPRs(): Promise<LiftPR[]> {
-  const profile = await getProfile();
-  const data = await apiGet<any[]>(`/api/prs?profileId=${profile.id}`);
+  const profileId = await requireProfileId();
+  const data = await apiGet<any[]>(`/api/prs?profileId=${profileId}`);
   const result = data.map(p => ({
     id: p.id,
     liftType: (p.liftType || p.lift_type) as 'squat' | 'deadlift' | 'bench',
@@ -284,9 +335,9 @@ export async function getPRs(): Promise<LiftPR[]> {
 }
 
 export async function addPR(pr: Omit<LiftPR, 'id'>): Promise<LiftPR> {
-  const profile = await getProfile();
+  const profileId = await requireProfileId();
   const result = await apiPost<any>('/api/prs', {
-    profileId: profile.id,
+    profileId,
     liftType: pr.liftType,
     weight: pr.weight,
     unit: pr.unit,
@@ -314,20 +365,22 @@ export function getBestPR(prs: LiftPR[], liftType: string): LiftPR | null {
 }
 
 export async function getClients(): Promise<ClientInfo[]> {
-  const profile = await getProfile();
-  const data = await apiGet<any[]>(`/api/clients?coachId=${profile.id}`);
+  const profileId = await requireProfileId();
+  const data = await apiGet<any[]>(`/api/clients?coachId=${profileId}`);
   const result = data.map(c => ({
     id: c.id,
     name: c.name,
     joinedAt: c.joinedAt || c.joined_at,
     clientProfileId: c.clientProfileId || c.client_profile_id,
+    avatarUrl: c.avatarUrl || c.avatar_url || '',
   }));
   cache.clients = result;
+  cache.clientsFetchedAt = Date.now();
   return result;
 }
 
 export async function joinCoach(code: string): Promise<{ coach: { id: string; name: string }; client: any }> {
-  const profile = await getProfile();
+  const profile = cache.profile || await getProfile();
   return apiPost('/api/join-coach', {
     code,
     clientProfileId: profile.id,
@@ -336,22 +389,22 @@ export async function joinCoach(code: string): Promise<{ coach: { id: string; na
 }
 
 export async function addClient(client: Omit<ClientInfo, 'joinedAt'>): Promise<void> {
-  const profile = await getProfile();
+  const profileId = await requireProfileId();
   await apiPost('/api/clients', {
-    coachId: profile.id,
+    coachId: profileId,
     clientProfileId: client.clientProfileId || client.id,
     name: client.name,
   });
 }
 
 export async function removeClient(clientId: string): Promise<void> {
-  const profile = await getProfile();
-  await apiPost('/api/remove-client', { coachId: profile.id, clientId });
+  const profileId = await requireProfileId();
+  await apiPost('/api/remove-client', { coachId: profileId, clientId });
 }
 
 export async function getNotifications(): Promise<AppNotification[]> {
-  const profile = await getProfile();
-  const data = await apiGet<any[]>(`/api/notifications?profileId=${profile.id}`);
+  const profileId = await requireProfileId();
+  const data = await apiGet<any[]>(`/api/notifications?profileId=${profileId}`);
   const result = data.map(n => ({
     id: n.id,
     type: n.type as AppNotification['type'],
@@ -369,9 +422,9 @@ export async function getNotifications(): Promise<AppNotification[]> {
 }
 
 export async function addNotification(notification: Omit<AppNotification, 'id' | 'createdAt' | 'read'> & { targetProfileId?: string }): Promise<void> {
-  const profile = await getProfile();
+  const profileId = await requireProfileId();
   await apiPost('/api/notifications', {
-    profileId: notification.targetProfileId || profile.id,
+    profileId: notification.targetProfileId || profileId,
     type: notification.type,
     title: notification.title,
     message: notification.message,
@@ -387,13 +440,13 @@ export async function markNotificationRead(id: string): Promise<void> {
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  const profile = await getProfile();
-  await apiPut(`/api/notifications/read-all?profileId=${profile.id}`);
+  const profileId = await requireProfileId();
+  await apiPut(`/api/notifications/read-all?profileId=${profileId}`);
 }
 
 export async function clearAllNotifications(): Promise<void> {
-  const profile = await getProfile();
-  await apiDelete(`/api/notifications?profileId=${profile.id}`);
+  const profileId = await requireProfileId();
+  await apiDelete(`/api/notifications?profileId=${profileId}`);
 }
 
 export async function deleteNotification(id: string): Promise<void> {
@@ -401,16 +454,19 @@ export async function deleteNotification(id: string): Promise<void> {
 }
 
 export async function deleteNotificationsByProgram(programId: string): Promise<void> {
-  const profile = await getProfile();
-  await apiDelete(`/api/notifications/by-program/${programId}?profileId=${profile.id}`);
+  const profileId = await requireProfileId();
+  await apiDelete(`/api/notifications/by-program/${programId}?profileId=${profileId}`);
 }
 
 export async function markNotificationsReadByProgram(programId: string): Promise<void> {
-  const profile = await getProfile();
-  await apiPut(`/api/notifications/read-by-program/${programId}?profileId=${profile.id}`);
+  const profileId = await requireProfileId();
+  await apiPut(`/api/notifications/read-by-program/${programId}?profileId=${profileId}`);
 }
 
 export async function getUnreadNotificationCount(): Promise<number> {
+  if (cache.notifications.length > 0 && isFresh(cache.notificationsFetchedAt)) {
+    return cache.notifications.filter(n => !n.read).length;
+  }
   const notifications = await getNotifications();
   return notifications.filter(n => !n.read).length;
 }
@@ -433,11 +489,11 @@ export async function getMessages(coachId: string, clientProfileId: string): Pro
 }
 
 export async function sendMessage(coachId: string, clientProfileId: string, text: string): Promise<ChatMessage> {
-  const profile = await getProfile();
+  const role = cache.profile?.role || (await getProfile()).role;
   const msg = await apiPost<any>('/api/messages', {
     coachId,
     clientProfileId,
-    senderRole: profile.role,
+    senderRole: role,
     text,
   });
   return {
@@ -485,27 +541,27 @@ export async function isAuthenticated(): Promise<boolean> {
 }
 
 export async function getMyCoach(): Promise<{ coachId: string; coachName: string } | null> {
-  const profile = await getProfile();
-  const data = await apiGet<any>(`/api/my-coach?clientProfileId=${profile.id}`);
+  const profileId = await requireProfileId();
+  const data = await apiGet<any>(`/api/my-coach?clientProfileId=${profileId}`);
   if (!data) return null;
   return { coachId: data.coachId || data.coach_id, coachName: data.coachName || data.coach_name || 'Coach' };
 }
 
 export async function leaveCoach(): Promise<void> {
-  const profile = await getProfile();
-  await apiPost('/api/leave-coach', { clientProfileId: profile.id });
+  const profileId = await requireProfileId();
+  await apiPost('/api/leave-coach', { clientProfileId: profileId });
 }
 
 export type LatestMessages = Record<string, { text: string; senderRole: string; createdAt: string }>;
 
 export async function getLatestMessages(): Promise<LatestMessages> {
-  const profile = await getProfile();
-  return apiGet<LatestMessages>(`/api/messages/latest?coachId=${profile.id}`);
+  const profileId = await requireProfileId();
+  return apiGet<LatestMessages>(`/api/messages/latest?coachId=${profileId}`);
 }
 
 export async function searchClients(query: string): Promise<ClientInfo[]> {
-  const profile = await getProfile();
-  const data = await apiGet<any[]>(`/api/clients/search?coachId=${profile.id}&q=${encodeURIComponent(query)}`);
+  const profileId = await requireProfileId();
+  const data = await apiGet<any[]>(`/api/clients/search?coachId=${profileId}&q=${encodeURIComponent(query)}`);
   return data.map(c => ({
     id: c.id,
     name: c.name,
