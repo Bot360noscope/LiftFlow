@@ -163,6 +163,13 @@ export function getCachedPrograms(): Program[] { return cache.programs; }
 export function getCachedPRs(): LiftPR[] { return cache.prs; }
 export function getCachedClients(): ClientInfo[] { return cache.clients; }
 export function getCachedNotifications(): AppNotification[] { return cache.notifications; }
+export function pushCachedNotification(notif: AppNotification): void {
+  if (cache.notifications.some(n => n.id === notif.id)) return;
+  cache.notifications = [notif, ...cache.notifications];
+}
+export function removeCachedNotification(id: string): void {
+  cache.notifications = cache.notifications.filter(n => n.id !== id);
+}
 export function getCachedLatestMessages(): LatestMessages { return cache.latestMessages; }
 export function isCacheLoaded(): boolean { return cache.loaded; }
 

@@ -9,7 +9,7 @@ import Colors from "@/constants/colors";
 import NetworkError from "@/components/NetworkError";
 import {
   getDashboard, getBestPR,
-  clearAllNotifications, deleteNotification,
+  clearAllNotifications, deleteNotification, removeCachedNotification,
   getCachedProfile, getCachedPrograms, getCachedPRs, getCachedClients, getCachedNotifications, getCachedLatestMessages,
   type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification, type LatestMessages,
 } from "@/lib/storage";
@@ -265,6 +265,7 @@ export default function HomeScreen() {
   const handleDismissNotification = async (id: string) => {
     dismissedIdsRef.current.add(id);
     setNotifications(prev => prev.filter(n => n.id !== id));
+    removeCachedNotification(id);
     try { await deleteNotification(id); } catch (e) { console.warn('Failed to delete notification:', e); }
   };
 

@@ -4,7 +4,7 @@ import { Platform, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState, useEffect, useCallback } from "react";
 import Colors from "@/constants/colors";
-import { getUnreadNotificationCount, getCachedNotifications } from "@/lib/storage";
+import { getUnreadNotificationCount, getCachedNotifications, pushCachedNotification, type AppNotification } from "@/lib/storage";
 import { addWSListener } from "@/lib/websocket";
 
 export default function TabLayout() {
@@ -24,7 +24,20 @@ export default function TabLayout() {
     checkUnread();
     const removeListener = addWSListener((event: any) => {
       if ((event.type === 'new_message' || event.type === 'new_notification') && event.notification) {
-        if (event.notification.type === 'chat') {
+        const n = event.notification;
+        pushCachedNotification({
+          id: n.id,
+          type: n.type,
+          title: n.title,
+          message: n.message,
+          read: false,
+          createdAt: n.createdAt || n.created_at,
+          programId: n.programId || n.program_id,
+          programTitle: n.programTitle || n.program_title,
+          exerciseName: n.exerciseName || n.exercise_name,
+          fromRole: n.fromRole || n.from_role,
+        });
+        if (n.type === 'chat') {
           setHasUnreadChat(true);
         }
       }
