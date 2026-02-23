@@ -113,7 +113,7 @@ export async function apiDelete(path: string): Promise<void> {
   }
 }
 
-export async function uploadVideo(uri: string, meta?: { programId: string; exerciseId: string; uploadedBy: string; coachId: string }): Promise<string> {
+export async function uploadVideo(uri: string, meta?: { programId: string; exerciseId: string; uploadedBy: string; coachId: string }, trim?: { startTime: number; endTime: number }): Promise<string> {
   const formData = new FormData();
   const authHeaders = await getAuthHeaders();
 
@@ -134,6 +134,11 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
     formData.append('exerciseId', meta.exerciseId);
     formData.append('uploadedBy', meta.uploadedBy);
     formData.append('coachId', meta.coachId);
+  }
+
+  if (trim) {
+    formData.append('trimStart', String(trim.startTime));
+    formData.append('trimEnd', String(trim.endTime));
   }
 
   const res = await fetch(`${BASE}/api/upload-video`, {
