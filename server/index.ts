@@ -213,6 +213,15 @@ function configureExpoAndLanding(app: express.Application) {
     next();
   });
 
+  app.get("/liftflow-full.zip", (_req, res) => {
+    const zipPath = path.resolve(process.cwd(), "liftflow-full.zip");
+    if (require("fs").existsSync(zipPath)) {
+      res.download(zipPath);
+    } else {
+      res.status(404).send("Not found");
+    }
+  });
+
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use(express.static(path.resolve(process.cwd(), "static-build")));
 
