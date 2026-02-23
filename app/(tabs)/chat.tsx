@@ -109,7 +109,7 @@ export default function ChatTab() {
         const msgs = await getMessages(coachId, clientProfileId);
         setMessages(msgs);
       } catch {}
-    }, 3000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [coachId, clientProfileId]);
 
@@ -120,7 +120,7 @@ export default function ChatTab() {
         const latest = await getLatestMessages();
         setLatestMsgs(latest);
       } catch {}
-    }, 5000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [profile?.role]);
 

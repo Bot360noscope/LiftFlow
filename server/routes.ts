@@ -224,11 +224,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
-  // Find coach by code
   app.get("/api/coaches/by-code/:code", async (req, res) => {
     try {
-      const allProfiles = await db.select().from(profiles);
-      const coach = allProfiles.find(p => p.coachCode === req.params.code.toUpperCase() && p.role === 'coach');
+      const [coach] = await db.select().from(profiles).where(
+        and(eq(profiles.coachCode, req.params.code.toUpperCase()), eq(profiles.role, 'coach'))
+      );
       if (!coach) return res.status(404).json({ error: "Coach not found" });
       res.json({ id: coach.id, name: coach.name, coachCode: coach.coachCode });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
@@ -315,15 +315,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const coachId = req.query.coachId as string;
       if (!coachId) return res.status(400).json({ error: "coachId required" });
-      const result = await db.select().from(clients).where(eq(clients.coachId, coachId)).orderBy(desc(clients.joinedAt));
-      const enriched = await Promise.all(result.map(async (c) => {
-        if (c.clientProfileId) {
-          const [prof] = await db.select({ avatarUrl: profiles.avatarUrl }).from(profiles).where(eq(profiles.id, c.clientProfileId));
-          return { ...c, avatarUrl: prof?.avatarUrl || '' };
-        }
-        return { ...c, avatarUrl: '' };
-      }));
-      res.json(enriched);
+      const result = await db.select({
+        id: clients.id,
+        coachId: clients.coachId,
+        clientProfileId: clients.clientProfileId,
+        name: clients.name,
+        joinedAt: clients.joinedAt,
+        avatarUrl: profiles.avatarUrl,
+      }).from(clients)
+        .leftJoin(profiles, eq(clients.clientProfileId, profiles.id))
+        .where(eq(clients.coachId, coachId))
+        .orderBy(desc(clients.joinedAt));
+      res.json(result.map(c => ({ ...c, avatarUrl: c.avatarUrl || '' })));
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -367,12 +370,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
-  // Join coach by code
   app.post("/api/join-coach", async (req, res) => {
     try {
       const { code, clientProfileId, clientName } = req.body;
-      const allProfiles = await db.select().from(profiles);
-      const coach = allProfiles.find(p => p.coachCode === code.toUpperCase() && p.role === 'coach');
+      const [coach] = await db.select().from(profiles).where(
+        and(eq(profiles.coachCode, code.toUpperCase()), eq(profiles.role, 'coach'))
+      );
       if (!coach) return res.status(404).json({ error: "Invalid coach code" });
 
       const existing = await db.select().from(clients).where(
@@ -385,10 +388,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "You already have a coach. Remove your current coach before joining a new one." });
       }
 
-      const coachProfile = await db.select().from(profiles).where(eq(profiles.id, coach.id)).limit(1);
-      if (coachProfile.length > 0) {
-        const plan = coachProfile[0].plan || 'free';
-        const limit = coachProfile[0].planUserLimit || 1;
+      {
+        const plan = coach.plan || 'free';
+        const limit = coach.planUserLimit || 1;
         const currentClients = await db.select().from(clients).where(eq(clients.coachId, coach.id));
         if (currentClients.length >= limit) {
           const planName = plan === 'free' ? 'Free' : plan === 'tier_5' ? 'Starter' : plan === 'tier_10' ? 'Growth' : plan === 'saas' ? 'SaaS' : plan.charAt(0).toUpperCase() + plan.slice(1);
@@ -541,18 +543,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const coachId = req.query.coachId as string;
       if (!coachId) return res.status(400).json({ error: "coachId required" });
-      const allCoachClients = await db.select().from(clients).where(eq(clients.coachId, coachId));
+      const allMessages = await db.select().from(messages)
+        .where(eq(messages.coachId, coachId))
+        .orderBy(desc(messages.createdAt));
       const result: Record<string, { text: string; senderRole: string; createdAt: string }> = {};
-      for (const c of allCoachClients) {
-        const [latest] = await db.select().from(messages)
-          .where(and(eq(messages.coachId, coachId), eq(messages.clientProfileId, c.clientProfileId)))
-          .orderBy(desc(messages.createdAt))
-          .limit(1);
-        if (latest) {
-          result[c.clientProfileId] = {
-            text: latest.text,
-            senderRole: latest.senderRole,
-            createdAt: latest.createdAt.toISOString(),
+      for (const m of allMessages) {
+        if (!result[m.clientProfileId]) {
+          result[m.clientProfileId] = {
+            text: m.text,
+            senderRole: m.senderRole,
+            createdAt: m.createdAt.toISOString(),
           };
         }
       }

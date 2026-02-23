@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, ActivityIndicator, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -226,19 +226,8 @@ export default function HomeScreen() {
     }
   }, []);
 
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
   useFocusEffect(useCallback(() => {
     loadData();
-    pollRef.current = setInterval(async () => {
-      try {
-        const notifs = await getNotifications();
-        setNotifications(notifs);
-      } catch (e) {}
-    }, 10000);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
   }, [loadData]));
 
   const handleMarkNotificationRead = async (id: string) => {

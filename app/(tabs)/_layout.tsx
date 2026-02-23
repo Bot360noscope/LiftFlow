@@ -4,7 +4,7 @@ import { Platform, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState, useEffect, useCallback } from "react";
 import Colors from "@/constants/colors";
-import { getNotifications } from "@/lib/storage";
+import { getUnreadNotificationCount, getCachedNotifications } from "@/lib/storage";
 
 export default function TabLayout() {
   const isWeb = Platform.OS === "web";
@@ -13,14 +13,15 @@ export default function TabLayout() {
 
   const checkUnread = useCallback(async () => {
     try {
-      const notifs = await getNotifications();
+      const cached = getCachedNotifications();
+      const notifs = cached.length > 0 ? cached : [];
       setHasUnreadChat(notifs.some(n => n.type === 'chat' && !n.read));
     } catch {}
   }, []);
 
   useEffect(() => {
     checkUnread();
-    const interval = setInterval(checkUnread, 5000);
+    const interval = setInterval(checkUnread, 10000);
     return () => clearInterval(interval);
   }, [checkUnread]);
 
