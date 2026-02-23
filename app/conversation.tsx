@@ -110,8 +110,8 @@ export default function ChatScreen() {
   const bottomPadding = Platform.OS === 'web'
     ? 34
     : keyboardHeight > 0
-      ? keyboardHeight + 5
-      : insets.bottom || 12;
+      ? (Platform.OS === 'ios' ? keyboardHeight + 5 : 10)
+      : Math.max(insets.bottom, 12);
 
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isMe = item.senderRole === profile?.role;

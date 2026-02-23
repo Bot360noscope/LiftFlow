@@ -246,12 +246,10 @@ export default function ChatTab() {
     );
   }
 
-  const tabBarHeight = Platform.OS === 'web' ? 84 : 50;
-  const bottomPadding = Platform.OS === 'web'
-    ? 34
-    : keyboardHeight > 0
-      ? keyboardHeight - tabBarHeight + 55
-      : insets.bottom + tabBarHeight;
+  const tabBarHeight = Platform.OS === 'web' ? 84 : 80;
+  const bottomPadding = keyboardHeight > 0
+    ? (Platform.OS === 'ios' ? keyboardHeight - tabBarHeight + 10 : 10)
+    : tabBarHeight + (Platform.OS === 'web' ? 0 : insets.bottom);
 
   return (
     <View
