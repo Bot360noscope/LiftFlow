@@ -129,11 +129,11 @@ function VideoRecordButton({ exercise, onVideoRecorded, programId, coachId, uplo
   );
 }
 
-function ExerciseRow({ exercise, index, isCoach, isOwnProgram, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId }: {
+function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId }: {
   exercise: Exercise;
   index: number;
   isCoach: boolean;
-  isOwnProgram: boolean;
+  isShared: boolean;
   onUpdate: (updates: Partial<Exercise>) => void;
   onDelete: () => void;
   prevWeekExercise?: Exercise | null;
@@ -162,15 +162,17 @@ function ExerciseRow({ exercise, index, isCoach, isOwnProgram, onUpdate, onDelet
     setIsCompleted(exercise.isCompleted);
   }, [exercise]);
 
+  const canEditAll = isCoach || !isShared;
+
   const saveChanges = () => {
     onUpdate({
-      name: isCoach ? name : exercise.name,
-      repsSets: isCoach ? repsSets : exercise.repsSets,
-      weight: isCoach ? weight : exercise.weight,
-      rpe: isCoach ? rpe : exercise.rpe,
+      name: canEditAll ? name : exercise.name,
+      repsSets: canEditAll ? repsSets : exercise.repsSets,
+      weight: canEditAll ? weight : exercise.weight,
+      rpe: canEditAll ? rpe : exercise.rpe,
       notes,
-      clientNotes: isCoach ? exercise.clientNotes : clientNotes,
-      coachComment: isCoach ? coachComment : exercise.coachComment,
+      clientNotes: (isCoach && isShared) ? exercise.clientNotes : clientNotes,
+      coachComment: (isCoach && isShared) ? coachComment : exercise.coachComment,
       isCompleted,
     });
   };
@@ -178,17 +180,17 @@ function ExerciseRow({ exercise, index, isCoach, isOwnProgram, onUpdate, onDelet
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (isCoach && !isOwnProgram) return;
+    if (isCoach && isShared) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
-      if (isOwnProgram) {
+      if (!isShared) {
         onUpdate({ name, repsSets, weight, rpe, notes, clientNotes, isCompleted });
       } else {
         onUpdate({ clientNotes, isCompleted });
       }
     }, 1000);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
-  }, [clientNotes, isCompleted, ...(isOwnProgram ? [name, repsSets, weight, rpe, notes] : [])]);
+  }, [clientNotes, isCompleted, ...(!isShared ? [name, repsSets, weight, rpe, notes] : [])]);
 
   const handleToggleComplete = () => {
     const newVal = !isCompleted;
@@ -202,12 +204,12 @@ function ExerciseRow({ exercise, index, isCoach, isOwnProgram, onUpdate, onDelet
         style={styles.exerciseHeader}
         onPress={() => setExpanded(!expanded)}
         onLongPress={() => {
-          if (!isCoach) return;
+          if (!canEditAll) return;
           confirmAction("Delete Exercise", `Remove "${exercise.name || 'this exercise'}"?`, onDelete, "Delete");
         }}
       >
         <View style={styles.exerciseHeaderLeft}>
-          {(!isCoach || isOwnProgram) ? (
+          {(!isCoach || !isShared) ? (
             <Pressable onPress={handleToggleComplete} hitSlop={6}>
               <Ionicons
                 name={isCompleted ? "checkmark-circle" : "ellipse-outline"}
@@ -247,7 +249,7 @@ function ExerciseRow({ exercise, index, isCoach, isOwnProgram, onUpdate, onDelet
       {expanded && (
         <View style={styles.exerciseExpanded}>
           <Text style={styles.fieldLabel}>Exercise Name</Text>
-          {isCoach ? (
+          {canEditAll ? (
             <TextInput
               style={styles.fieldInput}
               value={name}
@@ -267,7 +269,7 @@ function ExerciseRow({ exercise, index, isCoach, isOwnProgram, onUpdate, onDelet
           <View style={styles.fieldRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Sets x Reps</Text>
-              {isCoach ? (
+              {canEditAll ? (
                 <TextInput
                   style={[styles.fieldInput, !repsSets && prevWeekExercise?.repsSets ? styles.ghostedInput : null]}
                   value={repsSets}
@@ -286,7 +288,7 @@ function ExerciseRow({ exercise, index, isCoach, isOwnProgram, onUpdate, onDelet
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Weight</Text>
-              {isCoach ? (
+              {canEditAll ? (
                 <TextInput
                   style={styles.fieldInput}
                   value={weight}
@@ -305,7 +307,7 @@ function ExerciseRow({ exercise, index, isCoach, isOwnProgram, onUpdate, onDelet
             </View>
             <View style={{ width: 70 }}>
               <Text style={styles.fieldLabel}>RPE</Text>
-              {isCoach ? (
+              {canEditAll ? (
                 <TextInput
                   style={[styles.fieldInput, !rpe && prevWeekExercise?.rpe ? styles.ghostedInput : null]}
                   value={rpe}
@@ -325,7 +327,7 @@ function ExerciseRow({ exercise, index, isCoach, isOwnProgram, onUpdate, onDelet
             </View>
           </View>
 
-          {isCoach && exercise.isCompleted && (
+          {isCoach && isShared && exercise.isCompleted && (
             <View style={[styles.completionToggle, styles.completionToggleActive]}>
               <Ionicons name="checkmark-circle" size={22} color={Colors.colors.success} />
               <Text style={[styles.completionText, { color: Colors.colors.success }]}>Client completed this</Text>
@@ -333,9 +335,9 @@ function ExerciseRow({ exercise, index, isCoach, isOwnProgram, onUpdate, onDelet
           )}
 
           <Text style={styles.fieldLabel}>
-            <Ionicons name="chatbubble-outline" size={12} color={Colors.colors.textSecondary} /> Client Notes
+            <Ionicons name="chatbubble-outline" size={12} color={Colors.colors.textSecondary} /> {isShared ? 'Client Notes' : 'Notes'}
           </Text>
-          {isCoach ? (
+          {(isCoach && isShared) ? (
             <View style={[styles.fieldInput, styles.readOnlyField]}>
               <Text style={styles.readOnlyText}>{clientNotes || 'No client notes yet'}</Text>
             </View>
@@ -351,7 +353,7 @@ function ExerciseRow({ exercise, index, isCoach, isOwnProgram, onUpdate, onDelet
             />
           )}
 
-          {!isOwnProgram && (
+          {isShared && (
             <>
               <Text style={styles.fieldLabel}>
                 <Ionicons name="school-outline" size={12} color={Colors.colors.accent} /> Coach Comment
@@ -375,7 +377,7 @@ function ExerciseRow({ exercise, index, isCoach, isOwnProgram, onUpdate, onDelet
             </>
           )}
 
-          {(!isCoach || isOwnProgram) && (
+          {(!isCoach || !isShared) && (
             <VideoRecordButton
               exercise={exercise}
               programId={programId}
@@ -386,11 +388,11 @@ function ExerciseRow({ exercise, index, isCoach, isOwnProgram, onUpdate, onDelet
               }}
             />
           )}
-          {isCoach && !!exercise.videoUrl && (
+          {isCoach && isShared && !!exercise.videoUrl && (
             <VideoPlayerInline videoUrl={exercise.videoUrl} isCoach={true} />
           )}
 
-          {(!isCoach || isOwnProgram) && (
+          {(!isCoach || !isShared) && (
             <Pressable
               style={[styles.completionToggle, isCompleted && styles.completionToggleActive]}
               onPress={handleToggleComplete}
@@ -419,7 +421,7 @@ export default function ProgramDetailScreen() {
   const [activeDay, setActiveDay] = useState(1);
   const [hasChanges, setHasChanges] = useState(false);
   const [isCoach, setIsCoach] = useState(true);
-  const [isOwnProgram, setIsOwnProgram] = useState(false);
+  const [isShared, setIsShared] = useState(false);
   const [profileId, setProfileId] = useState('');
   const clientAutoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -427,9 +429,9 @@ export default function ProgramDetailScreen() {
     if (id) {
       Promise.all([getProgram(id), getProfile()]).then(([p, prof]) => {
         if (p) setProgram(p);
-        const ownProgram = p && p.coachId === prof.id && prof.role === 'client';
-        setIsOwnProgram(!!ownProgram);
-        setIsCoach(prof.role === 'coach' || !!ownProgram);
+        const shared = !!p?.clientId;
+        setIsShared(shared);
+        setIsCoach(prof.role === 'coach');
         setProfileId(prof.id);
         deleteNotificationsByProgram(id).catch(() => {});
       });
@@ -437,7 +439,7 @@ export default function ProgramDetailScreen() {
   }, [id]);
 
   useEffect(() => {
-    if (!isCoach && hasChanges && program) {
+    if (hasChanges && program && (!isCoach || !isShared)) {
       if (clientAutoSaveRef.current) clearTimeout(clientAutoSaveRef.current);
       clientAutoSaveRef.current = setTimeout(() => {
         save();
@@ -791,7 +793,7 @@ export default function ProgramDetailScreen() {
               </Text>
             </Pressable>
           ))}
-          {isCoach && (
+          {(isCoach || !isShared) && (
             <Pressable style={styles.addWeekChip} onPress={addWeek} accessibilityLabel="Add week" accessibilityRole="button">
               <Ionicons name="add" size={16} color={Colors.colors.primary} />
             </Pressable>
@@ -837,7 +839,7 @@ export default function ProgramDetailScreen() {
                 exercise={ex}
                 index={idx}
                 isCoach={isCoach}
-                isOwnProgram={isOwnProgram}
+                isShared={isShared}
                 onUpdate={(updates) => updateExercise(ex.id, updates)}
                 onDelete={() => deleteExercise(ex.id)}
                 prevWeekExercise={prevWeekDay?.exercises[idx] || null}
@@ -849,7 +851,7 @@ export default function ProgramDetailScreen() {
           ))
         )}
 
-        {isCoach && (
+        {(isCoach || !isShared) && (
           <Pressable style={styles.addExerciseBtn} onPress={addExercise}>
             <Ionicons name="add" size={16} color={Colors.colors.primary} />
             <Text style={styles.addExerciseText}>Add Exercise</Text>
