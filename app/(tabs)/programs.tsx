@@ -30,7 +30,13 @@ export default function ProgramsScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  useFocusEffect(useCallback(() => {
+    const cachedProfile = getCachedProfile();
+    if (cachedProfile) setRole(cachedProfile.role);
+    const cachedProgs = getCachedPrograms();
+    if (cachedProgs.length > 0) setPrograms(cachedProgs);
+    loadData();
+  }, [loadData]));
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');

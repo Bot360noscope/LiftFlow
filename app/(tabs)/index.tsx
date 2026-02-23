@@ -225,6 +225,16 @@ export default function HomeScreen() {
 
   useFocusEffect(useCallback(() => {
     focusedRef.current = true;
+    const cachedProfile = getCachedProfile();
+    if (cachedProfile) setProfile(cachedProfile);
+    const cachedPrograms = getCachedPrograms();
+    if (cachedPrograms.length > 0) setPrograms(cachedPrograms);
+    const cachedClients = getCachedClients();
+    if (cachedClients.length > 0) setClients(cachedClients);
+    const cachedNotifs = getCachedNotifications();
+    if (cachedNotifs.length > 0) setNotifications(cachedNotifs);
+    const cachedMsgs = getCachedLatestMessages();
+    if (Object.keys(cachedMsgs).length > 0) setLatestMsgs(cachedMsgs);
     refreshDashboard();
     const removeListener = addWSListener((event: any) => {
       if (event.type === 'new_message' && event.notification) {
