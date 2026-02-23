@@ -391,15 +391,17 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
           </Text>
           {(isCoach && isShared) ? (
             <View style={[styles.fieldInput, styles.readOnlyField]}>
-              <Text style={styles.readOnlyText}>{clientNotes || 'No client notes yet'}</Text>
+              <Text style={[styles.readOnlyText, !clientNotes && prevWeekExercise?.clientNotes ? styles.ghostText : null]}>
+                {clientNotes || prevWeekExercise?.clientNotes || 'No client notes yet'}
+              </Text>
             </View>
           ) : (
             <TextInput
               style={[styles.fieldInput, { minHeight: 50 }]}
               value={clientNotes}
               onChangeText={setClientNotes}
-              placeholder="How it felt, feedback..."
-              placeholderTextColor={Colors.colors.textMuted}
+              placeholder={prevWeekExercise?.clientNotes || "How it felt, feedback..."}
+              placeholderTextColor={prevWeekExercise?.clientNotes ? Colors.colors.textGhost : Colors.colors.textMuted}
               multiline
               textAlignVertical="top"
             />
@@ -416,14 +418,16 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
                   value={coachComment}
                   onChangeText={setCoachComment}
                   onBlur={saveChanges}
-                  placeholder="Instructions/feedback..."
-                  placeholderTextColor={Colors.colors.textMuted}
+                  placeholder={prevWeekExercise?.coachComment || "Instructions/feedback..."}
+                  placeholderTextColor={prevWeekExercise?.coachComment ? Colors.colors.textGhost : Colors.colors.textMuted}
                   multiline
                   textAlignVertical="top"
                 />
               ) : (
                 <View style={[styles.fieldInput, styles.coachInput, styles.readOnlyField]}>
-                  <Text style={styles.readOnlyText}>{coachComment || 'No coach comments yet'}</Text>
+                  <Text style={[styles.readOnlyText, !coachComment && prevWeekExercise?.coachComment ? styles.ghostText : null]}>
+                    {coachComment || prevWeekExercise?.coachComment || 'No coach comments yet'}
+                  </Text>
                 </View>
               )}
             </>
