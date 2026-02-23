@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "node:http";
 import { db } from "./db";
 import { profiles, programs, clients, prs, notifications, messages, users, videoUploads, paymentUsers } from "../shared/schema";
-import { eq, desc, and, or, inArray, ilike, lt, isNull, isNotNull } from "drizzle-orm";
+import { eq, desc, and, or, inArray, ilike, lt, gt, isNull, isNotNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import multer from "multer";
 import path from "path";
@@ -488,6 +488,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/notifications", async (req, res) => {
     try {
       const { profileId, type, title, message, programId, programTitle, exerciseName, fromRole } = req.body;
+      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const conditions = [
+        eq(notifications.profileId, profileId),
+        eq(notifications.type, type),
+        gt(notifications.createdAt, fiveMinAgo),
+      ];
+      if (programId) conditions.push(eq(notifications.programId, programId));
+      if (exerciseName) conditions.push(eq(notifications.exerciseName, exerciseName));
+      const existing = await db.select().from(notifications).where(and(...conditions)).limit(1);
+      if (existing.length > 0) {
+        const [updated] = await db.update(notifications).set({ message, title, read: false, createdAt: new Date() }).where(eq(notifications.id, existing[0].id)).returning();
+        broadcastToProfile(profileId, { type: 'new_notification', notification: updated });
+        return res.json(updated);
+      }
       const [notif] = await db.insert(notifications).values({
         id: randomUUID(),
         profileId,

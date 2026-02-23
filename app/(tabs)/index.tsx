@@ -210,6 +210,8 @@ export default function HomeScreen() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const focusedRef = useRef(true);
 
+  const dismissedIdsRef = useRef<Set<string>>(new Set());
+
   const refreshDashboard = useCallback(async () => {
     try {
       const data = await getDashboard();
@@ -217,7 +219,8 @@ export default function HomeScreen() {
       setPrograms(data.programs);
       setPRs(data.prs);
       setClients(data.clients);
-      setNotifications(data.notifications);
+      const filtered = data.notifications.filter((n: AppNotification) => !dismissedIdsRef.current.has(n.id));
+      setNotifications(filtered);
       setLatestMsgs(data.latestMessages);
       setError(false);
       if (data.profile?.id) connectWebSocket(data.profile.id);
@@ -260,6 +263,7 @@ export default function HomeScreen() {
   }, [refreshDashboard]));
 
   const handleDismissNotification = async (id: string) => {
+    dismissedIdsRef.current.add(id);
     setNotifications(prev => prev.filter(n => n.id !== id));
     try { await deleteNotification(id); } catch (e) { console.warn('Failed to delete notification:', e); }
   };
