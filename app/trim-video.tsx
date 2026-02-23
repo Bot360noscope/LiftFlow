@@ -8,6 +8,7 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { uploadVideo } from "@/lib/api";
 import { showAlert } from "@/lib/confirm";
+import { trimResult } from "@/lib/trim-result";
 
 const MAX_DURATION = 60;
 
@@ -120,11 +121,10 @@ export default function TrimVideoScreen() {
         uploadedBy,
         coachId,
       }, { startTime, endTime });
+      trimResult.videoUrl = serverUrl;
+      trimResult.exerciseId = exerciseId;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
-      setTimeout(() => {
-        router.setParams({ trimmedVideoUrl: serverUrl, trimmedExerciseId: exerciseId });
-      }, 100);
     } catch (err: any) {
       showAlert("Upload Failed", "Failed to upload the trimmed video. Please try again.");
     } finally {

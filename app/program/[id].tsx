@@ -3,7 +3,7 @@ import { confirmAction, showAlert } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState, useEffect, useMemo, useRef } from "react";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -12,6 +12,7 @@ import Colors from "@/constants/colors";
 import * as Crypto from "expo-crypto";
 import { getProgram, updateProgram, deleteProgram, getProfile, getClients, addNotification, markNotificationsReadByProgram, getPRs, addPR, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type LiftPR } from "@/lib/storage";
 import { uploadVideo, getVideoUrl, markVideoViewed } from "@/lib/api";
+import { trimResult } from "@/lib/trim-result";
 
 function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
   const url = getVideoUrl(videoUrl);
@@ -92,11 +93,20 @@ function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programI
       if (result.canceled || !result.assets?.[0]) return;
 
       const asset = result.assets[0];
+      
       if (asset.duration && asset.duration > 60000) {
-        showAlert(
-          "Video Too Long",
-          "Your video must be 60 seconds or less. Please trim it using the editor and try again."
-        );
+        router.push({
+          pathname: '/trim-video',
+          params: {
+            videoUri: asset.uri,
+            videoDuration: String(asset.duration),
+            programId,
+            exerciseId: exercise.id,
+            uploadedBy,
+            coachId,
+            exerciseName: exercise.name || 'Exercise',
+          },
+        });
         return;
       }
 
@@ -465,6 +475,28 @@ export default function ProgramDetailScreen() {
       });
     }
   }, [id]);
+
+  useFocusEffect(useCallback(() => {
+    if (trimResult.videoUrl && trimResult.exerciseId && program) {
+      const url = trimResult.videoUrl;
+      const exId = trimResult.exerciseId;
+      trimResult.videoUrl = null;
+      trimResult.exerciseId = null;
+      
+      const updatedWeeks = program.weeks.map(week => ({
+        ...week,
+        days: week.days.map(day => ({
+          ...day,
+          exercises: day.exercises.map(ex =>
+            ex.id === exId ? { ...ex, videoUrl: url } : ex
+          ),
+        })),
+      }));
+      const updated = { ...program, weeks: updatedWeeks };
+      setProgram(updated);
+      setHasChanges(true);
+    }
+  }, [program]));
 
   useEffect(() => {
     if (hasChanges && program && (!isCoach || !isShared)) {
