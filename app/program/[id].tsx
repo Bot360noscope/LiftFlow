@@ -871,10 +871,6 @@ export default function ProgramDetailScreen() {
           <Text style={styles.headerTitle} numberOfLines={1}>{program.title}</Text>
           <View style={styles.headerMeta}>
             <Text style={styles.headerSub}>{program.weeks.length}W x {program.daysPerWeek}D</Text>
-            <View style={styles.shareChip}>
-              <Ionicons name="share-outline" size={10} color={Colors.colors.textSecondary} />
-              <Text style={styles.shareChipText}>{program.shareCode}</Text>
-            </View>
           </View>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -1024,8 +1020,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.text },
   headerMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
   headerSub: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textSecondary },
-  shareChip: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: Colors.colors.surfaceLight, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  shareChipText: { fontFamily: 'Rubik_500Medium', fontSize: 9, color: Colors.colors.textSecondary, letterSpacing: 1 },
   loadingText: { fontFamily: 'Rubik_400Regular', fontSize: 16, color: Colors.colors.textMuted },
   weekSelector: { borderBottomWidth: 1, borderBottomColor: Colors.colors.border, paddingBottom: 8 },
   weekScrollContent: { paddingHorizontal: 16, gap: 6, paddingVertical: 8 },

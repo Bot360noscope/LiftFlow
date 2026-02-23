@@ -156,10 +156,6 @@ export default function ProgramsScreen() {
                     <View style={[styles.statusDot, { backgroundColor: prog.status === 'active' ? Colors.colors.success : Colors.colors.warning }]} />
                     <Text style={styles.cardTitle} numberOfLines={1}>{prog.title}</Text>
                   </View>
-                  <View style={styles.shareCodeBadge}>
-                    <Ionicons name="share-outline" size={12} color={Colors.colors.textSecondary} />
-                    <Text style={styles.shareCodeText}>{prog.shareCode}</Text>
-                  </View>
                 </View>
 
                 <Text style={styles.cardDesc} numberOfLines={2}>{prog.description}</Text>
@@ -269,11 +265,6 @@ const styles = StyleSheet.create({
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   cardTitle: { fontFamily: 'Rubik_700Bold', fontSize: 16, color: Colors.colors.text, flex: 1 },
-  shareCodeBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: Colors.colors.surfaceLight, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
-  },
-  shareCodeText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.textSecondary, letterSpacing: 1 },
   cardDesc: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 6 },
   cardStats: { flexDirection: 'row', gap: 12, marginTop: 12, flexWrap: 'wrap' },
   cardStat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
