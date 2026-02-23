@@ -8,7 +8,7 @@ import multer from "multer";
 import path from "path";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { uploadToR2, getFromR2, deleteFromR2, getPresignedUploadUrl, downloadFromR2 } from "./r2";
+import { uploadToR2, getFromR2, deleteFromR2, getPresignedUploadUrl, getPresignedDownloadUrl, downloadFromR2 } from "./r2";
 import { execFile } from "child_process";
 import { promises as fs } from "fs";
 import os from "os";
@@ -714,10 +714,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/videos/:filename", async (req, res) => {
     try {
       const key = `videos/${req.params.filename}`;
-      const result = await getFromR2(key);
-      if (!result) return res.status(404).json({ error: "Not found" });
-      res.setHeader('Content-Type', result.contentType || 'video/mp4');
-      result.body.pipe(res);
+      const url = await getPresignedDownloadUrl(key, 3600);
+      res.json({ url });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 

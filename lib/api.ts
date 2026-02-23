@@ -167,7 +167,7 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
     });
   }
 
-  return `${BASE}${finalVideoUrl}`;
+  return finalVideoUrl;
 }
 
 async function uploadVideoLegacy(uri: string, meta?: { programId: string; exerciseId: string; uploadedBy: string; coachId: string }, trim?: { startTime: number; endTime: number }): Promise<string> {
@@ -198,12 +198,29 @@ async function uploadVideoLegacy(uri: string, meta?: { programId: string; exerci
 
   if (!res.ok) throw new Error('Upload failed');
   const data = await res.json();
-  return `${BASE}${data.videoUrl}`;
+  return data.videoUrl;
 }
 
 export function getVideoUrl(path: string): string {
   if (path.startsWith('http')) return path;
   return `${BASE}${path}`;
+}
+
+export async function getDirectVideoUrl(videoPath: string): Promise<string> {
+  let filename = videoPath;
+  if (filename.includes('/api/videos/')) {
+    filename = filename.split('/api/videos/').pop() || filename;
+  } else if (filename.startsWith('http')) {
+    const parts = filename.split('/api/videos/');
+    filename = parts.length > 1 ? parts[1] : filename.split('/').pop() || filename;
+  }
+  const authHeaders = await getAuthHeaders();
+  const res = await fetch(`${BASE}/api/videos/${filename}`, {
+    headers: { ...authHeaders },
+  });
+  if (!res.ok) throw new Error('Video not found');
+  const data = await res.json();
+  return data.url;
 }
 
 export function getAvatarUrl(path: string): string {

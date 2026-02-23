@@ -11,14 +11,41 @@ import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import * as Crypto from "expo-crypto";
 import { getProgram, updateProgram, deleteProgram, getProfile, getClients, addNotification, markNotificationsReadByProgram, getPRs, addPR, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type LiftPR } from "@/lib/storage";
-import { uploadVideo, getVideoUrl, markVideoViewed } from "@/lib/api";
+import { uploadVideo, getVideoUrl, getDirectVideoUrl, markVideoViewed } from "@/lib/api";
 import { trimResult } from "@/lib/trim-result";
 
 function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
-  const url = getVideoUrl(videoUrl);
-  const player = useVideoPlayer(url, player => {
+  const [directUrl, setDirectUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getDirectVideoUrl(videoUrl)
+      .then(url => { if (!cancelled) setDirectUrl(url); })
+      .catch(() => { if (!cancelled) setError(true); });
+    return () => { cancelled = true; };
+  }, [videoUrl]);
+
+  const player = useVideoPlayer(directUrl, player => {
     player.loop = false;
   });
+
+  if (error) {
+    return (
+      <View style={[styles.videoPlayer, { alignItems: 'center', justifyContent: 'center' }]}>
+        <Ionicons name="alert-circle-outline" size={32} color={Colors.colors.danger} />
+        <Text style={{ color: Colors.colors.textMuted, fontSize: 13, marginTop: 6, fontFamily: 'Rubik_400Regular' }}>Video unavailable</Text>
+      </View>
+    );
+  }
+
+  if (!directUrl) {
+    return (
+      <View style={[styles.videoPlayer, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="small" color={Colors.colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <VideoView

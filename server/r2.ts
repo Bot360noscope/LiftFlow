@@ -69,6 +69,14 @@ export async function downloadFromR2(key: string): Promise<Buffer | null> {
   }
 }
 
+export async function getPresignedDownloadUrl(key: string, expiresIn = 3600): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+  });
+  return getSignedUrl(r2Client, command, { expiresIn });
+}
+
 export async function deleteFromR2(key: string): Promise<void> {
   try {
     await r2Client.send(new DeleteObjectCommand({
