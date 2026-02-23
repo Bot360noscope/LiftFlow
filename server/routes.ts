@@ -8,7 +8,7 @@ import multer from "multer";
 import path from "path";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { uploadToR2, getFromR2, deleteFromR2 } from "./r2";
+import { uploadToR2, getFromR2, deleteFromR2, getPresignedUploadUrl, downloadFromR2 } from "./r2";
 import { execFile } from "child_process";
 import { promises as fs } from "fs";
 import os from "os";
@@ -615,6 +615,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // === VIDEO UPLOAD ===
+  app.post("/api/video-upload-url", async (req, res) => {
+    try {
+      const filename = `${randomUUID()}.mp4`;
+      const key = `videos/${filename}`;
+      const uploadUrl = await getPresignedUploadUrl(key, 'video/mp4', 600);
+      res.json({ uploadUrl, filename, videoUrl: `/api/videos/${filename}` });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/register-video", async (req, res) => {
+    try {
+      const { filename, programId, exerciseId, uploadedBy, coachId } = req.body;
+      if (!filename) return res.status(400).json({ error: "filename required" });
+      if (programId && exerciseId && uploadedBy && coachId) {
+        await db.insert(videoUploads).values({
+          id: randomUUID(),
+          filename,
+          programId,
+          exerciseId,
+          uploadedBy,
+          coachId,
+        });
+      }
+      res.json({ success: true, videoUrl: `/api/videos/${filename}` });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/trim-video", async (req, res) => {
+    try {
+      const { filename, startTime, endTime } = req.body;
+      if (!filename || startTime === undefined || endTime === undefined) {
+        return res.status(400).json({ error: "filename, startTime, endTime required" });
+      }
+      const start = parseFloat(startTime);
+      const end = parseFloat(endTime);
+      if (isNaN(start) || isNaN(end) || end <= start) {
+        return res.status(400).json({ error: "Invalid trim times" });
+      }
+      const key = `videos/${filename}`;
+      const videoBuffer = await downloadFromR2(key);
+      if (!videoBuffer) return res.status(404).json({ error: "Video not found in storage" });
+      const trimmedBuffer = await trimVideoBuffer(videoBuffer, start, end);
+      const trimmedFilename = `${randomUUID()}.mp4`;
+      const trimmedKey = `videos/${trimmedFilename}`;
+      await uploadToR2(trimmedKey, trimmedBuffer, 'video/mp4');
+      await deleteFromR2(key);
+      res.json({ filename: trimmedFilename, videoUrl: `/api/videos/${trimmedFilename}` });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.post("/api/upload-video", upload.single("video"), async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ error: "No file uploaded" });
