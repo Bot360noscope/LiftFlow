@@ -93,32 +93,22 @@ function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programI
       if (result.canceled || !result.assets?.[0]) return;
 
       const asset = result.assets[0];
+      const duration = asset.duration || 0;
       
-      if (asset.duration && asset.duration > 60000) {
-        router.push({
-          pathname: '/trim-video',
-          params: {
-            videoUri: asset.uri,
-            videoDuration: String(asset.duration),
-            programId,
-            exerciseId: exercise.id,
-            uploadedBy,
-            coachId,
-            exerciseName: exercise.name || 'Exercise',
-          },
-        });
-        return;
-      }
-
-      setUploading(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const serverUrl = await uploadVideo(asset.uri, { programId, exerciseId: exercise.id, uploadedBy, coachId });
-      onVideoRecorded(serverUrl);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.push({
+        pathname: '/trim-video',
+        params: {
+          videoUri: asset.uri,
+          videoDuration: String(duration),
+          programId,
+          exerciseId: exercise.id,
+          uploadedBy,
+          coachId,
+          exerciseName: exercise.name || 'Exercise',
+        },
+      });
     } catch (err: any) {
-      showAlert("Error", "Failed to record or upload video. Please try again.");
-    } finally {
-      setUploading(false);
+      showAlert("Error", "Failed to open camera. Please try again.");
     }
   };
 

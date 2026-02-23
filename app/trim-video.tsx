@@ -1,7 +1,7 @@
-import { StyleSheet, Text, View, Pressable, Platform, ActivityIndicator } from "react-native";
+import { StyleSheet, Text, View, Pressable, Platform, ActivityIndicator, PanResponder, GestureResponderEvent, PanResponderGestureState } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import * as Haptics from "expo-haptics";
@@ -11,6 +11,7 @@ import { showAlert } from "@/lib/confirm";
 import { trimResult } from "@/lib/trim-result";
 
 const MAX_DURATION = 60;
+const HANDLE_WIDTH = 24;
 
 export default function TrimVideoScreen() {
   const insets = useSafeAreaInsets();
@@ -25,28 +26,28 @@ export default function TrimVideoScreen() {
   }>();
 
   const videoUri = params.videoUri || '';
-  const totalDuration = Math.floor(Number(params.videoDuration || '0') / 1000);
+  const totalDurationMs = Number(params.videoDuration || '0');
+  const totalDuration = Math.max(1, Math.round(totalDurationMs / 1000));
   const programId = params.programId || '';
   const exerciseId = params.exerciseId || '';
   const uploadedBy = params.uploadedBy || '';
   const coachId = params.coachId || '';
   const exerciseName = params.exerciseName || 'Exercise';
+  const needsTrim = totalDuration > MAX_DURATION;
 
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(Math.min(totalDuration, MAX_DURATION));
   const [uploading, setUploading] = useState(false);
-  const [dragging, setDragging] = useState<'start' | 'end' | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
+  const [trackLayout, setTrackLayout] = useState({ x: 0, width: 0 });
   const trackRef = useRef<View>(null);
-  const trackWidth = useRef(0);
 
   const clipDuration = endTime - startTime;
   const isValidClip = clipDuration > 0 && clipDuration <= MAX_DURATION;
 
-  const player = useVideoPlayer(videoUri, (p) => {
+  const player = useVideoPlayer(videoUri || null, (p) => {
     p.loop = true;
     p.play();
-    p.currentTime = startTime;
   });
 
   useEffect(() => {
@@ -67,66 +68,114 @@ export default function TrimVideoScreen() {
     }
   }, [player, startTime]);
 
-  const handleTrackLayout = useCallback((e: any) => {
-    trackWidth.current = e.nativeEvent.layout.width;
+  const measureTrack = useCallback(() => {
+    trackRef.current?.measureInWindow((x, _y, width) => {
+      if (width > 0) setTrackLayout({ x, width });
+    });
   }, []);
 
-  const handleTrackPress = useCallback((e: any) => {
-    if (totalDuration <= 0 || trackWidth.current <= 0) return;
-    const x = e.nativeEvent.locationX;
-    const time = Math.round((x / trackWidth.current) * totalDuration);
+  const handleTrackLayout = useCallback(() => {
+    setTimeout(measureTrack, 100);
+  }, [measureTrack]);
 
-    const distToStart = Math.abs(time - startTime);
-    const distToEnd = Math.abs(time - endTime);
+  const clampTime = (t: number) => Math.max(0, Math.min(totalDuration, Math.round(t)));
 
-    if (distToStart < distToEnd) {
-      const newStart = Math.max(0, Math.min(time, endTime - 1));
-      if (endTime - newStart <= MAX_DURATION) {
-        setStartTime(newStart);
-        if (player) player.currentTime = newStart;
-      }
-    } else {
-      const newEnd = Math.min(totalDuration, Math.max(time, startTime + 1));
-      if (newEnd - startTime <= MAX_DURATION) {
-        setEndTime(newEnd);
-      }
-    }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [totalDuration, startTime, endTime, player]);
+  const timeToX = (t: number) => {
+    if (totalDuration <= 0 || trackLayout.width <= 0) return 0;
+    return (t / totalDuration) * trackLayout.width;
+  };
 
-  const nudge = useCallback((which: 'start' | 'end', delta: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (which === 'start') {
-      const newStart = Math.max(0, Math.min(startTime + delta, endTime - 1));
-      if (endTime - newStart <= MAX_DURATION) {
-        setStartTime(newStart);
-        if (player) player.currentTime = newStart;
-      }
-    } else {
-      const newEnd = Math.min(totalDuration, Math.max(endTime + delta, startTime + 1));
-      if (newEnd - startTime <= MAX_DURATION) {
-        setEndTime(newEnd);
-      }
-    }
-  }, [startTime, endTime, totalDuration, player]);
+  const xToTime = (x: number) => {
+    if (trackLayout.width <= 0) return 0;
+    return (x / trackLayout.width) * totalDuration;
+  };
+
+  const dragStartRef = useRef({ startTime: 0, endTime: 0 });
+
+  const startPanResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => {
+      dragStartRef.current = { startTime, endTime };
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    onPanResponderMove: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
+      const deltaTime = xToTime(gs.dx);
+      let newStart = clampTime(dragStartRef.current.startTime + deltaTime);
+      const currentEnd = dragStartRef.current.endTime;
+      if (newStart >= currentEnd - 1) newStart = currentEnd - 1;
+      if (currentEnd - newStart > MAX_DURATION) newStart = currentEnd - MAX_DURATION;
+      if (newStart < 0) newStart = 0;
+      setStartTime(newStart);
+      if (player) player.currentTime = newStart;
+    },
+    onPanResponderRelease: () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+  }), [startTime, endTime, totalDuration, trackLayout.width, player]);
+
+  const endPanResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => {
+      dragStartRef.current = { startTime, endTime };
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    onPanResponderMove: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
+      const deltaTime = xToTime(gs.dx);
+      let newEnd = clampTime(dragStartRef.current.endTime + deltaTime);
+      const currentStart = dragStartRef.current.startTime;
+      if (newEnd <= currentStart + 1) newEnd = currentStart + 1;
+      if (newEnd - currentStart > MAX_DURATION) newEnd = currentStart + MAX_DURATION;
+      if (newEnd > totalDuration) newEnd = totalDuration;
+      setEndTime(newEnd);
+    },
+    onPanResponderRelease: () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+  }), [startTime, endTime, totalDuration, trackLayout.width]);
+
+  const regionPanResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 3,
+    onPanResponderGrant: () => {
+      dragStartRef.current = { startTime, endTime };
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    onPanResponderMove: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
+      const deltaTime = xToTime(gs.dx);
+      const dur = dragStartRef.current.endTime - dragStartRef.current.startTime;
+      let newStart = dragStartRef.current.startTime + deltaTime;
+      let newEnd = newStart + dur;
+      if (newStart < 0) { newStart = 0; newEnd = dur; }
+      if (newEnd > totalDuration) { newEnd = totalDuration; newStart = totalDuration - dur; }
+      setStartTime(clampTime(newStart));
+      setEndTime(clampTime(newEnd));
+      if (player) player.currentTime = clampTime(newStart);
+    },
+    onPanResponderRelease: () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+  }), [startTime, endTime, totalDuration, trackLayout.width, player]);
 
   const handleSubmit = async () => {
     if (!isValidClip) return;
     setUploading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
+      const shouldTrim = startTime > 0 || endTime < totalDuration;
       const serverUrl = await uploadVideo(videoUri, {
         programId,
         exerciseId,
         uploadedBy,
         coachId,
-      }, { startTime, endTime });
+      }, shouldTrim ? { startTime, endTime } : undefined);
       trimResult.videoUrl = serverUrl;
       trimResult.exerciseId = exerciseId;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (err: any) {
-      showAlert("Upload Failed", "Failed to upload the trimmed video. Please try again.");
+      showAlert("Upload Failed", "Failed to upload the video. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -140,109 +189,104 @@ export default function TrimVideoScreen() {
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
+  const startX = timeToX(startTime);
+  const endX = timeToX(endTime);
+  const selectedWidth = endX - startX;
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn} accessibilityLabel="Close" accessibilityRole="button">
           <Ionicons name="close" size={24} color={Colors.colors.text} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle} numberOfLines={1}>Trim Video</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>Trim & Upload</Text>
           <Text style={styles.headerSub} numberOfLines={1}>{exerciseName}</Text>
+        </View>
+        <View style={styles.durationBadge}>
+          <Ionicons name="time-outline" size={14} color={clipDuration > MAX_DURATION ? Colors.colors.danger : Colors.colors.primary} />
+          <Text style={[styles.durationText, clipDuration > MAX_DURATION && { color: Colors.colors.danger }]}>
+            {formatTime(clipDuration)}
+          </Text>
         </View>
       </View>
 
       <View style={styles.videoContainer}>
-        <VideoView
-          player={player}
-          style={styles.video}
-          nativeControls={false}
-          contentFit="contain"
-        />
+        {videoUri ? (
+          <VideoView
+            player={player}
+            style={styles.video}
+            nativeControls={false}
+            contentFit="contain"
+          />
+        ) : (
+          <View style={styles.videoPlaceholder}>
+            <Ionicons name="videocam-off" size={48} color={Colors.colors.textMuted} />
+            <Text style={styles.videoPlaceholderText}>Video not available</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.controls}>
-        <Text style={styles.instructionText}>
-          Select up to 60 seconds from your {formatTime(totalDuration)} video
-        </Text>
+        {needsTrim ? (
+          <Text style={styles.instructionText}>
+            Drag the handles to select up to 60s from your {formatTime(totalDuration)} video
+          </Text>
+        ) : (
+          <Text style={styles.instructionText}>
+            Adjust clip range or upload the full {formatTime(totalDuration)} video
+          </Text>
+        )}
 
-        <View style={styles.timeRow}>
-          <View style={styles.timeBlock}>
-            <Text style={styles.timeLabel}>Start</Text>
-            <View style={styles.timeControls}>
-              <Pressable onPress={() => nudge('start', -5)} hitSlop={8} style={styles.nudgeBtn}>
-                <Ionicons name="remove" size={16} color={Colors.colors.text} />
-              </Pressable>
-              <Text style={styles.timeValue}>{formatTime(startTime)}</Text>
-              <Pressable onPress={() => nudge('start', 5)} hitSlop={8} style={styles.nudgeBtn}>
-                <Ionicons name="add" size={16} color={Colors.colors.text} />
-              </Pressable>
-            </View>
+        <View style={styles.timeDisplay}>
+          <View style={styles.timePill}>
+            <Text style={styles.timePillLabel}>Start</Text>
+            <Text style={styles.timePillValue}>{formatTime(startTime)}</Text>
           </View>
-
-          <View style={styles.durationBadge}>
-            <Ionicons name="time-outline" size={14} color={clipDuration > MAX_DURATION ? Colors.colors.danger : Colors.colors.primary} />
-            <Text style={[styles.durationText, clipDuration > MAX_DURATION && { color: Colors.colors.danger }]}>
-              {formatTime(clipDuration)}
-            </Text>
-          </View>
-
-          <View style={styles.timeBlock}>
-            <Text style={styles.timeLabel}>End</Text>
-            <View style={styles.timeControls}>
-              <Pressable onPress={() => nudge('end', -5)} hitSlop={8} style={styles.nudgeBtn}>
-                <Ionicons name="remove" size={16} color={Colors.colors.text} />
-              </Pressable>
-              <Text style={styles.timeValue}>{formatTime(endTime)}</Text>
-              <Pressable onPress={() => nudge('end', 5)} hitSlop={8} style={styles.nudgeBtn}>
-                <Ionicons name="add" size={16} color={Colors.colors.text} />
-              </Pressable>
-            </View>
+          <Ionicons name="arrow-forward" size={16} color={Colors.colors.textMuted} />
+          <View style={styles.timePill}>
+            <Text style={styles.timePillLabel}>End</Text>
+            <Text style={styles.timePillValue}>{formatTime(endTime)}</Text>
           </View>
         </View>
 
-        <View style={styles.trackContainer}>
+        <View style={styles.sliderArea}>
           <View
             ref={trackRef}
             style={styles.track}
             onLayout={handleTrackLayout}
           >
-            <Pressable style={StyleSheet.absoluteFill} onPress={handleTrackPress} />
+            <View style={[styles.dimRegion, { left: 0, width: startX }]} />
+            <View style={[styles.dimRegion, { left: endX, right: 0 }]} />
 
             <View
-              style={[
-                styles.selectedRegion,
-                {
-                  left: `${(startTime / totalDuration) * 100}%`,
-                  width: `${((endTime - startTime) / totalDuration) * 100}%`,
-                },
-              ]}
+              style={[styles.selectedRegion, { left: startX, width: Math.max(selectedWidth, 2) }]}
+              {...regionPanResponder.panHandlers}
             />
 
             <View
-              style={[
-                styles.handleBar,
-                { left: `${(startTime / totalDuration) * 100}%` },
-              ]}
+              style={[styles.handle, styles.handleLeft, { left: startX - HANDLE_WIDTH / 2 }]}
+              {...startPanResponder.panHandlers}
             >
-              <View style={styles.handleInner} />
+              <View style={styles.handleGrip}>
+                <View style={styles.gripLine} />
+                <View style={styles.gripLine} />
+              </View>
             </View>
 
             <View
-              style={[
-                styles.handleBar,
-                { left: `${(endTime / totalDuration) * 100}%` },
-              ]}
+              style={[styles.handle, styles.handleRight, { left: endX - HANDLE_WIDTH / 2 }]}
+              {...endPanResponder.panHandlers}
             >
-              <View style={styles.handleInner} />
+              <View style={styles.handleGrip}>
+                <View style={styles.gripLine} />
+                <View style={styles.gripLine} />
+              </View>
             </View>
 
             {totalDuration > 0 && (
               <View
-                style={[
-                  styles.playhead,
-                  { left: `${(currentTime / totalDuration) * 100}%` },
-                ]}
+                style={[styles.playhead, { left: timeToX(currentTime) - 1 }]}
               />
             )}
           </View>
@@ -252,26 +296,27 @@ export default function TrimVideoScreen() {
           </View>
         </View>
 
-        <Pressable onPress={seekToStart} style={styles.previewBtn}>
+        <Pressable onPress={seekToStart} style={styles.previewBtn} accessibilityLabel="Preview from start" accessibilityRole="button">
           <Ionicons name="play" size={16} color={Colors.colors.primary} />
-          <Text style={styles.previewBtnText}>Preview from start</Text>
+          <Text style={styles.previewBtnText}>Preview clip</Text>
         </Pressable>
       </View>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
         <Pressable
           style={[styles.submitBtn, (!isValidClip || uploading) && styles.submitBtnDisabled]}
           onPress={handleSubmit}
           disabled={!isValidClip || uploading}
+          accessibilityLabel="Upload video" accessibilityRole="button"
         >
           {uploading ? (
             <>
               <ActivityIndicator size="small" color="#fff" />
-              <Text style={styles.submitBtnText}>Uploading & Trimming...</Text>
+              <Text style={styles.submitBtnText}>Uploading...</Text>
             </>
           ) : (
             <>
-              <Ionicons name="checkmark" size={20} color="#fff" />
+              <Ionicons name="cloud-upload" size={20} color="#fff" />
               <Text style={styles.submitBtnText}>
                 Upload {formatTime(clipDuration)} clip
               </Text>
@@ -292,54 +337,74 @@ const styles = StyleSheet.create({
   backBtn: { padding: 4 },
   headerTitle: { fontFamily: 'Rubik_600SemiBold', fontSize: 18, color: Colors.colors.text },
   headerSub: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 2 },
+  durationBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(232,81,47,0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20,
+  },
+  durationText: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: Colors.colors.primary },
   videoContainer: {
-    flex: 1, maxHeight: 300, marginHorizontal: 20, borderRadius: 12, overflow: 'hidden',
+    flex: 1, maxHeight: 320, marginHorizontal: 16, borderRadius: 12, overflow: 'hidden',
     backgroundColor: '#000',
   },
   video: { flex: 1, width: '100%' },
-  controls: { paddingHorizontal: 20, paddingTop: 20, gap: 16 },
+  videoPlaceholder: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  videoPlaceholderText: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textMuted },
+  controls: { paddingHorizontal: 20, paddingTop: 20, gap: 14 },
   instructionText: {
     fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textSecondary, textAlign: 'center',
   },
-  timeRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+  timeDisplay: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12,
   },
-  timeBlock: { alignItems: 'center', gap: 6 },
-  timeLabel: { fontFamily: 'Rubik_500Medium', fontSize: 12, color: Colors.colors.textMuted, textTransform: 'uppercase' },
-  timeControls: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  nudgeBtn: {
-    width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: Colors.colors.surface, borderWidth: 1, borderColor: Colors.colors.border,
+  timePill: {
+    alignItems: 'center', backgroundColor: Colors.colors.surface,
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10,
+    borderWidth: 1, borderColor: Colors.colors.border,
   },
-  timeValue: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.text, minWidth: 50, textAlign: 'center' },
-  durationBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(232,81,47,0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-  },
-  durationText: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: Colors.colors.primary },
-  trackContainer: { marginTop: 4 },
+  timePillLabel: { fontFamily: 'Rubik_500Medium', fontSize: 10, color: Colors.colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  timePillValue: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text, marginTop: 2 },
+  sliderArea: { marginTop: 4 },
   track: {
-    height: 40, backgroundColor: Colors.colors.surface, borderRadius: 8,
-    borderWidth: 1, borderColor: Colors.colors.border, overflow: 'hidden', position: 'relative',
+    height: 48, backgroundColor: Colors.colors.surface, borderRadius: 10,
+    borderWidth: 1, borderColor: Colors.colors.border, overflow: 'visible', position: 'relative',
+  },
+  dimRegion: {
+    position: 'absolute', top: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 4,
   },
   selectedRegion: {
     position: 'absolute', top: 0, bottom: 0,
-    backgroundColor: 'rgba(232,81,47,0.25)', borderWidth: 2, borderColor: Colors.colors.primary, borderRadius: 4,
+    backgroundColor: 'rgba(232,81,47,0.2)',
+    borderTopWidth: 3, borderBottomWidth: 3, borderColor: Colors.colors.primary,
   },
-  handleBar: {
-    position: 'absolute', top: -4, bottom: -4, width: 16, marginLeft: -8,
-    alignItems: 'center', justifyContent: 'center',
+  handle: {
+    position: 'absolute', top: -6, bottom: -6, width: HANDLE_WIDTH,
+    alignItems: 'center', justifyContent: 'center', zIndex: 10,
   },
-  handleInner: {
-    width: 4, height: 24, borderRadius: 2, backgroundColor: Colors.colors.primary,
+  handleLeft: {},
+  handleRight: {},
+  handleGrip: {
+    width: 20, height: 36, borderRadius: 6,
+    backgroundColor: Colors.colors.primary,
+    alignItems: 'center', justifyContent: 'center', gap: 3,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3 },
+      android: { elevation: 4 },
+      web: {},
+    }),
+  },
+  gripLine: {
+    width: 8, height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.7)',
   },
   playhead: {
-    position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: '#fff', marginLeft: -1,
+    position: 'absolute', top: -2, bottom: -2, width: 2, backgroundColor: '#fff', borderRadius: 1, zIndex: 5,
   },
-  trackLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  trackLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 2 },
   trackLabelText: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted },
   previewBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 6,
   },
   previewBtnText: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: Colors.colors.primary },
   footer: { paddingHorizontal: 20, paddingTop: 12 },
