@@ -237,11 +237,11 @@ export default function HomeScreen() {
     if (Object.keys(cachedMsgs).length > 0) setLatestMsgs(cachedMsgs);
     refreshDashboard();
     const removeListener = addWSListener((event: any) => {
-      if (event.type === 'new_message' && event.notification) {
-        setNotifications(prev => [event.notification, ...prev]);
-      }
-      if (event.type === 'new_notification' && event.notification) {
-        setNotifications(prev => [event.notification, ...prev]);
+      if ((event.type === 'new_message' || event.type === 'new_notification') && event.notification) {
+        setNotifications(prev => {
+          if (prev.some(n => n.id === event.notification.id)) return prev;
+          return [event.notification, ...prev];
+        });
       }
     });
     pollRef.current = setInterval(() => {
