@@ -9,6 +9,9 @@ import path from "path";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { uploadToR2, getFromR2, deleteFromR2 } from "./r2";
+import { execFile } from "child_process";
+import { promises as fs } from "fs";
+import os from "os";
 
 const JWT_SECRET = process.env.SESSION_SECRET || 'liftflow-dev-secret';
 
@@ -40,6 +43,47 @@ function verifyToken(token: string): { userId: string; profileId: string } | nul
 }
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+
+async function trimVideoBuffer(buffer: Buffer, startTime: number, endTime: number): Promise<Buffer> {
+  const tmpDir = os.tmpdir();
+  const inputPath = path.join(tmpDir, `input_${randomUUID()}.mp4`);
+  const outputPath = path.join(tmpDir, `output_${randomUUID()}.mp4`);
+  
+  await fs.writeFile(inputPath, buffer);
+  
+  const duration = endTime - startTime;
+  
+  return new Promise((resolve, reject) => {
+    execFile('ffmpeg', [
+      '-y',
+      '-i', inputPath,
+      '-ss', String(startTime),
+      '-t', String(duration),
+      '-c:v', 'libx264',
+      '-preset', 'fast',
+      '-crf', '23',
+      '-c:a', 'aac',
+      '-movflags', '+faststart',
+      outputPath,
+    ], { timeout: 120000 }, async (error) => {
+      try {
+        if (error) {
+          await fs.unlink(inputPath).catch(() => {});
+          await fs.unlink(outputPath).catch(() => {});
+          return reject(new Error(`FFmpeg trim failed: ${error.message}`));
+        }
+        const trimmed = await fs.readFile(outputPath);
+        await fs.unlink(inputPath).catch(() => {});
+        await fs.unlink(outputPath).catch(() => {});
+        resolve(trimmed);
+      } catch (e) {
+        await fs.unlink(inputPath).catch(() => {});
+        await fs.unlink(outputPath).catch(() => {});
+        reject(e);
+      }
+    });
+  });
+}
 
 function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -574,12 +618,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/upload-video", upload.single("video"), async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-      const ext = path.extname(req.file.originalname) || '.mp4';
-      const filename = `${randomUUID()}${ext}`;
+      
+      let videoBuffer = req.file.buffer;
+      const { programId, exerciseId, uploadedBy, coachId, trimStart, trimEnd } = req.body;
+      
+      if (trimStart !== undefined && trimEnd !== undefined) {
+        const start = parseFloat(trimStart);
+        const end = parseFloat(trimEnd);
+        if (!isNaN(start) && !isNaN(end) && end > start) {
+          videoBuffer = await trimVideoBuffer(videoBuffer, start, end);
+        }
+      }
+      
+      const filename = `${randomUUID()}.mp4`;
       const key = `videos/${filename}`;
-      await uploadToR2(key, req.file.buffer, req.file.mimetype || 'video/mp4');
+      await uploadToR2(key, videoBuffer, 'video/mp4');
       const videoUrl = `/api/videos/${filename}`;
-      const { programId, exerciseId, uploadedBy, coachId } = req.body;
       if (programId && exerciseId && uploadedBy && coachId) {
         await db.insert(videoUploads).values({
           id: randomUUID(),
