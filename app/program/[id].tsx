@@ -24,8 +24,7 @@ function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
     <VideoView
       style={styles.videoPlayer}
       player={player}
-      allowsFullscreen
-      allowsPictureInPicture={false}
+      nativeControls={true}
       contentFit="contain"
     />
   );
@@ -484,7 +483,12 @@ export default function ProgramDetailScreen() {
       }));
       const updated = { ...program, weeks: updatedWeeks };
       setProgram(updated);
-      setHasChanges(true);
+      updateProgram(updated).then(() => {
+        setHasChanges(false);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }).catch(() => {
+        setHasChanges(true);
+      });
     }
   }, [program]));
 

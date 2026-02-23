@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, Pressable, Platform, ActivityIndicator, PanResponder, GestureResponderEvent, PanResponderGestureState } from "react-native";
+import { StyleSheet, Text, View, Pressable, Platform, ActivityIndicator, PanResponder } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
@@ -11,7 +11,7 @@ import { showAlert } from "@/lib/confirm";
 import { trimResult } from "@/lib/trim-result";
 
 const MAX_DURATION = 60;
-const HANDLE_WIDTH = 24;
+const HANDLE_HIT = 36;
 
 export default function TrimVideoScreen() {
   const insets = useSafeAreaInsets();
@@ -35,12 +35,25 @@ export default function TrimVideoScreen() {
   const exerciseName = params.exerciseName || 'Exercise';
   const needsTrim = totalDuration > MAX_DURATION;
 
-  const [startTime, setStartTime] = useState(0);
-  const [endTime, setEndTime] = useState(Math.min(totalDuration, MAX_DURATION));
+  const startRef = useRef(0);
+  const endRef = useRef(Math.min(totalDuration, MAX_DURATION));
+  const [startTime, _setStartTime] = useState(0);
+  const [endTime, _setEndTime] = useState(Math.min(totalDuration, MAX_DURATION));
   const [uploading, setUploading] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [trackLayout, setTrackLayout] = useState({ x: 0, width: 0 });
+  const trackWidthRef = useRef(0);
   const trackRef = useRef<View>(null);
+  const dragOriginRef = useRef({ start: 0, end: 0 });
+
+  const setStartTime = useCallback((v: number) => {
+    startRef.current = v;
+    _setStartTime(v);
+  }, []);
+
+  const setEndTime = useCallback((v: number) => {
+    endRef.current = v;
+    _setEndTime(v);
+  }, []);
 
   const clipDuration = endTime - startTime;
   const isValidClip = clipDuration > 0 && clipDuration <= MAX_DURATION;
@@ -50,113 +63,102 @@ export default function TrimVideoScreen() {
     p.play();
   });
 
+  const playerRef = useRef(player);
+  playerRef.current = player;
+
   useEffect(() => {
     if (!player) return;
     const sub = player.addListener('timeUpdate', ({ currentTime: ct }) => {
       setCurrentTime(ct);
-      if (ct >= endTime) {
-        player.currentTime = startTime;
+      if (ct >= endRef.current) {
+        player.currentTime = startRef.current;
       }
     });
     return () => sub.remove();
-  }, [player, startTime, endTime]);
-
-  const seekToStart = useCallback(() => {
-    if (player) {
-      player.currentTime = startTime;
-      player.play();
-    }
-  }, [player, startTime]);
-
-  const measureTrack = useCallback(() => {
-    trackRef.current?.measureInWindow((x, _y, width) => {
-      if (width > 0) setTrackLayout({ x, width });
-    });
-  }, []);
+  }, [player]);
 
   const handleTrackLayout = useCallback(() => {
-    setTimeout(measureTrack, 100);
-  }, [measureTrack]);
+    setTimeout(() => {
+      trackRef.current?.measureInWindow((x, _y, width) => {
+        if (width > 0) trackWidthRef.current = width;
+      });
+    }, 150);
+  }, []);
 
-  const clampTime = (t: number) => Math.max(0, Math.min(totalDuration, Math.round(t)));
+  const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
-  const timeToX = (t: number) => {
-    if (totalDuration <= 0 || trackLayout.width <= 0) return 0;
-    return (t / totalDuration) * trackLayout.width;
+  const xToTime = useCallback((dx: number) => {
+    if (trackWidthRef.current <= 0) return 0;
+    return (dx / trackWidthRef.current) * totalDuration;
+  }, [totalDuration]);
+
+  const timeToPercent = (t: number) => {
+    if (totalDuration <= 0) return 0;
+    return (t / totalDuration) * 100;
   };
 
-  const xToTime = (x: number) => {
-    if (trackLayout.width <= 0) return 0;
-    return (x / trackLayout.width) * totalDuration;
-  };
-
-  const dragStartRef = useRef({ startTime: 0, endTime: 0 });
-
-  const startPanResponder = useMemo(() => PanResponder.create({
+  const startPan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
+    onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: () => {
-      dragStartRef.current = { startTime, endTime };
+      dragOriginRef.current = { start: startRef.current, end: endRef.current };
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-    onPanResponderMove: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
-      const deltaTime = xToTime(gs.dx);
-      let newStart = clampTime(dragStartRef.current.startTime + deltaTime);
-      const currentEnd = dragStartRef.current.endTime;
-      if (newStart >= currentEnd - 1) newStart = currentEnd - 1;
-      if (currentEnd - newStart > MAX_DURATION) newStart = currentEnd - MAX_DURATION;
-      if (newStart < 0) newStart = 0;
-      setStartTime(newStart);
-      if (player) player.currentTime = newStart;
+    onPanResponderMove: (_, gs) => {
+      const dt = xToTime(gs.dx);
+      let ns = Math.round(clamp(dragOriginRef.current.start + dt, 0, dragOriginRef.current.end - 1));
+      if (dragOriginRef.current.end - ns > MAX_DURATION) ns = dragOriginRef.current.end - MAX_DURATION;
+      setStartTime(ns);
+      if (playerRef.current) playerRef.current.currentTime = ns;
     },
     onPanResponderRelease: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-  }), [startTime, endTime, totalDuration, trackLayout.width, player]);
+  }), [totalDuration]);
 
-  const endPanResponder = useMemo(() => PanResponder.create({
+  const endPan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
+    onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: () => {
-      dragStartRef.current = { startTime, endTime };
+      dragOriginRef.current = { start: startRef.current, end: endRef.current };
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-    onPanResponderMove: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
-      const deltaTime = xToTime(gs.dx);
-      let newEnd = clampTime(dragStartRef.current.endTime + deltaTime);
-      const currentStart = dragStartRef.current.startTime;
-      if (newEnd <= currentStart + 1) newEnd = currentStart + 1;
-      if (newEnd - currentStart > MAX_DURATION) newEnd = currentStart + MAX_DURATION;
-      if (newEnd > totalDuration) newEnd = totalDuration;
-      setEndTime(newEnd);
+    onPanResponderMove: (_, gs) => {
+      const dt = xToTime(gs.dx);
+      let ne = Math.round(clamp(dragOriginRef.current.end + dt, dragOriginRef.current.start + 1, totalDuration));
+      if (ne - dragOriginRef.current.start > MAX_DURATION) ne = dragOriginRef.current.start + MAX_DURATION;
+      setEndTime(ne);
     },
     onPanResponderRelease: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-  }), [startTime, endTime, totalDuration, trackLayout.width]);
+  }), [totalDuration]);
 
-  const regionPanResponder = useMemo(() => PanResponder.create({
+  const regionPan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 3,
+    onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 4,
+    onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: () => {
-      dragStartRef.current = { startTime, endTime };
+      dragOriginRef.current = { start: startRef.current, end: endRef.current };
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-    onPanResponderMove: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
-      const deltaTime = xToTime(gs.dx);
-      const dur = dragStartRef.current.endTime - dragStartRef.current.startTime;
-      let newStart = dragStartRef.current.startTime + deltaTime;
-      let newEnd = newStart + dur;
-      if (newStart < 0) { newStart = 0; newEnd = dur; }
-      if (newEnd > totalDuration) { newEnd = totalDuration; newStart = totalDuration - dur; }
-      setStartTime(clampTime(newStart));
-      setEndTime(clampTime(newEnd));
-      if (player) player.currentTime = clampTime(newStart);
+    onPanResponderMove: (_, gs) => {
+      const dt = xToTime(gs.dx);
+      const dur = dragOriginRef.current.end - dragOriginRef.current.start;
+      let ns = dragOriginRef.current.start + dt;
+      let ne = ns + dur;
+      if (ns < 0) { ns = 0; ne = dur; }
+      if (ne > totalDuration) { ne = totalDuration; ns = totalDuration - dur; }
+      setStartTime(Math.round(clamp(ns, 0, totalDuration)));
+      setEndTime(Math.round(clamp(ne, 0, totalDuration)));
+      if (playerRef.current) playerRef.current.currentTime = Math.round(clamp(ns, 0, totalDuration));
     },
     onPanResponderRelease: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-  }), [startTime, endTime, totalDuration, trackLayout.width, player]);
+  }), [totalDuration]);
 
   const handleSubmit = async () => {
     if (!isValidClip) return;
@@ -189,9 +191,9 @@ export default function TrimVideoScreen() {
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
-  const startX = timeToX(startTime);
-  const endX = timeToX(endTime);
-  const selectedWidth = endX - startX;
+  const startPct = timeToPercent(startTime);
+  const endPct = timeToPercent(endTime);
+  const widthPct = endPct - startPct;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
@@ -256,17 +258,17 @@ export default function TrimVideoScreen() {
             style={styles.track}
             onLayout={handleTrackLayout}
           >
-            <View style={[styles.dimRegion, { left: 0, width: startX }]} />
-            <View style={[styles.dimRegion, { left: endX, right: 0 }]} />
+            <View style={[styles.dimRegion, { left: 0, width: `${startPct}%` }]} />
+            <View style={[styles.dimRegion, { right: 0, width: `${100 - endPct}%` }]} />
 
             <View
-              style={[styles.selectedRegion, { left: startX, width: Math.max(selectedWidth, 2) }]}
-              {...regionPanResponder.panHandlers}
+              style={[styles.selectedRegion, { left: `${startPct}%`, width: `${Math.max(widthPct, 0.5)}%` }]}
+              {...regionPan.panHandlers}
             />
 
             <View
-              style={[styles.handle, styles.handleLeft, { left: startX - HANDLE_WIDTH / 2 }]}
-              {...startPanResponder.panHandlers}
+              style={[styles.handle, { left: `${startPct}%`, marginLeft: -HANDLE_HIT / 2 }]}
+              {...startPan.panHandlers}
             >
               <View style={styles.handleGrip}>
                 <View style={styles.gripLine} />
@@ -275,8 +277,8 @@ export default function TrimVideoScreen() {
             </View>
 
             <View
-              style={[styles.handle, styles.handleRight, { left: endX - HANDLE_WIDTH / 2 }]}
-              {...endPanResponder.panHandlers}
+              style={[styles.handle, { left: `${endPct}%`, marginLeft: -HANDLE_HIT / 2 }]}
+              {...endPan.panHandlers}
             >
               <View style={styles.handleGrip}>
                 <View style={styles.gripLine} />
@@ -286,7 +288,7 @@ export default function TrimVideoScreen() {
 
             {totalDuration > 0 && (
               <View
-                style={[styles.playhead, { left: timeToX(currentTime) - 1 }]}
+                style={[styles.playhead, { left: `${timeToPercent(currentTime)}%`, marginLeft: -1 }]}
               />
             )}
           </View>
@@ -295,11 +297,6 @@ export default function TrimVideoScreen() {
             <Text style={styles.trackLabelText}>{formatTime(totalDuration)}</Text>
           </View>
         </View>
-
-        <Pressable onPress={seekToStart} style={styles.previewBtn} accessibilityLabel="Preview from start" accessibilityRole="button">
-          <Ionicons name="play" size={16} color={Colors.colors.primary} />
-          <Text style={styles.previewBtnText}>Preview clip</Text>
-        </Pressable>
       </View>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
@@ -372,21 +369,19 @@ const styles = StyleSheet.create({
   },
   dimRegion: {
     position: 'absolute', top: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   selectedRegion: {
     position: 'absolute', top: 0, bottom: 0,
-    backgroundColor: 'rgba(232,81,47,0.2)',
+    backgroundColor: 'rgba(232,81,47,0.15)',
     borderTopWidth: 3, borderBottomWidth: 3, borderColor: Colors.colors.primary,
   },
   handle: {
-    position: 'absolute', top: -6, bottom: -6, width: HANDLE_WIDTH,
+    position: 'absolute', top: -8, bottom: -8, width: HANDLE_HIT,
     alignItems: 'center', justifyContent: 'center', zIndex: 10,
   },
-  handleLeft: {},
-  handleRight: {},
   handleGrip: {
-    width: 20, height: 36, borderRadius: 6,
+    width: 18, height: 40, borderRadius: 6,
     backgroundColor: Colors.colors.primary,
     alignItems: 'center', justifyContent: 'center', gap: 3,
     ...Platform.select({
@@ -403,11 +398,7 @@ const styles = StyleSheet.create({
   },
   trackLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 2 },
   trackLabelText: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted },
-  previewBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 6,
-  },
-  previewBtnText: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: Colors.colors.primary },
-  footer: { paddingHorizontal: 20, paddingTop: 12 },
+  footer: { paddingHorizontal: 20, paddingTop: 16 },
   submitBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: Colors.colors.primary, paddingVertical: 16, borderRadius: 12,
