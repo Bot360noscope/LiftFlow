@@ -63,7 +63,7 @@ function VideoPlayerInline({ videoUrl, isCoach }: { videoUrl: string; isCoach?: 
   );
 }
 
-function VideoRecordButton({ exercise, onVideoRecorded, programId, coachId, uploadedBy }: { exercise: Exercise; onVideoRecorded: (url: string) => void; programId: string; coachId: string; uploadedBy: string }) {
+function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programId, coachId, uploadedBy }: { exercise: Exercise; onVideoRecorded: (url: string) => void; onVideoDeleted: () => void; programId: string; coachId: string; uploadedBy: string }) {
   const [uploading, setUploading] = useState(false);
   const [cameraPermission, requestCameraPermission] = ImagePicker.useCameraPermissions();
 
@@ -85,17 +85,24 @@ function VideoRecordButton({ exercise, onVideoRecorded, programId, coachId, uplo
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['videos'],
-        videoMaxDuration: 45,
         videoQuality: ImagePicker.UIImagePickerControllerQualityType.High,
         allowsEditing: true,
       });
 
       if (result.canceled || !result.assets?.[0]) return;
 
+      const asset = result.assets[0];
+      if (asset.duration && asset.duration > 60000) {
+        showAlert(
+          "Video Too Long",
+          "Your video must be 60 seconds or less. Please trim it using the editor and try again."
+        );
+        return;
+      }
+
       setUploading(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const videoUri = result.assets[0].uri;
-      const serverUrl = await uploadVideo(videoUri, { programId, exerciseId: exercise.id, uploadedBy, coachId });
+      const serverUrl = await uploadVideo(asset.uri, { programId, exerciseId: exercise.id, uploadedBy, coachId });
       onVideoRecorded(serverUrl);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
@@ -105,23 +112,41 @@ function VideoRecordButton({ exercise, onVideoRecorded, programId, coachId, uplo
     }
   };
 
+  const handleDelete = () => {
+    confirmAction(
+      "Delete Video",
+      "Are you sure you want to remove this video?",
+      () => {
+        onVideoDeleted();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    );
+  };
+
   const hasVideo = !!exercise.videoUrl;
 
   return (
     <View style={{ gap: 8, marginTop: 16 }}>
-      <Pressable style={styles.videoBtn} onPress={handleRecord} disabled={uploading}>
-        {uploading ? (
-          <>
-            <ActivityIndicator size="small" color={Colors.colors.primary} />
-            <Text style={styles.videoBtnText}>Uploading...</Text>
-          </>
-        ) : (
-          <>
-            <Ionicons name="videocam-outline" size={18} color={Colors.colors.primary} />
-            <Text style={styles.videoBtnText}>{hasVideo ? 'Re-record Video' : 'Record Video'}</Text>
-          </>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <Pressable style={[styles.videoBtn, { flex: 1 }]} onPress={handleRecord} disabled={uploading}>
+          {uploading ? (
+            <>
+              <ActivityIndicator size="small" color={Colors.colors.primary} />
+              <Text style={styles.videoBtnText}>Uploading...</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="videocam-outline" size={18} color={Colors.colors.primary} />
+              <Text style={styles.videoBtnText}>{hasVideo ? 'Re-record' : 'Record Video'}</Text>
+            </>
+          )}
+        </Pressable>
+        {hasVideo && (
+          <Pressable style={styles.videoDeleteBtn} onPress={handleDelete}>
+            <Ionicons name="trash-outline" size={18} color={Colors.colors.danger} />
+          </Pressable>
         )}
-      </Pressable>
+      </View>
       {hasVideo && (
         <VideoPlayerInline videoUrl={exercise.videoUrl} />
       )}
@@ -385,6 +410,9 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
               uploadedBy={profileId}
               onVideoRecorded={(url) => {
                 onUpdate({ videoUrl: url });
+              }}
+              onVideoDeleted={() => {
+                onUpdate({ videoUrl: '' });
               }}
             />
           )}
@@ -981,6 +1009,10 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.colors.primary, borderRadius: 10, paddingVertical: 12, marginTop: 16,
   },
   videoBtnText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.primary },
+  videoDeleteBtn: {
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: Colors.colors.danger, borderRadius: 10, paddingHorizontal: 14, marginTop: 16,
+  },
   videoPlayerContainer: {
     marginTop: 16, borderRadius: 12, overflow: 'hidden',
     backgroundColor: '#000', borderWidth: 1, borderColor: Colors.colors.border,
