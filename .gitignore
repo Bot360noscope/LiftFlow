@@ -53,3 +53,4 @@ yarn-error.*
 
 # Attached assets (uploaded files, too large for GitHub)
 attached_assets/
+attached_assets/*.zip
