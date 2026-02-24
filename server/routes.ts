@@ -77,31 +77,42 @@ async function trimVideoBuffer(buffer: Buffer, startTime: number, endTime: numbe
   const outputPath = path.join(tmpDir, `output_${randomUUID()}.mp4`);
   await fs.writeFile(inputPath, buffer);
   const duration = endTime - startTime;
-  return new Promise((resolve, reject) => {
-    execFile('ffmpeg', [
+
+  const cleanup = async () => {
+    await fs.unlink(inputPath).catch(() => {});
+    await fs.unlink(outputPath).catch(() => {});
+  };
+
+  const runFfmpeg = (args: string[]): Promise<Buffer> =>
+    new Promise((resolve, reject) => {
+      execFile('ffmpeg', args, { timeout: 120000 }, async (error) => {
+        try {
+          if (error) { await cleanup(); return reject(error); }
+          const trimmed = await fs.readFile(outputPath);
+          await cleanup();
+          resolve(trimmed);
+        } catch (e) { await cleanup(); reject(e); }
+      });
+    });
+
+  try {
+    return await runFfmpeg([
+      '-y', '-ss', String(startTime), '-i', inputPath,
+      '-t', String(duration),
+      '-c:v', 'copy', '-c:a', 'copy',
+      '-movflags', '+faststart',
+      outputPath,
+    ]);
+  } catch {
+    await fs.writeFile(inputPath, buffer);
+    return await runFfmpeg([
       '-y', '-i', inputPath,
       '-ss', String(startTime), '-t', String(duration),
       '-c:v', 'libx264', '-preset', 'fast', '-crf', '28',
       '-c:a', 'aac', '-movflags', '+faststart',
       outputPath,
-    ], { timeout: 120000 }, async (error) => {
-      try {
-        if (error) {
-          await fs.unlink(inputPath).catch(() => {});
-          await fs.unlink(outputPath).catch(() => {});
-          return reject(new Error(`FFmpeg trim failed: ${error.message}`));
-        }
-        const trimmed = await fs.readFile(outputPath);
-        await fs.unlink(inputPath).catch(() => {});
-        await fs.unlink(outputPath).catch(() => {});
-        resolve(trimmed);
-      } catch (e) {
-        await fs.unlink(inputPath).catch(() => {});
-        await fs.unlink(outputPath).catch(() => {});
-        reject(e);
-      }
-    });
-  });
+    ]);
+  }
 }
 
 function generateCode(): string {
