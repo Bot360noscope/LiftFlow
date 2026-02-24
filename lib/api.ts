@@ -127,6 +127,27 @@ async function tryNativeCompress(uri: string): Promise<string | null> {
   }
 }
 
+async function tryLocalTrimAndCompress(uri: string, startTime: number, endTime: number): Promise<string | null> {
+  try {
+    const { FFmpegKit, ReturnCode } = require('ffmpeg-kit-react-native');
+    const Crypto = require('expo-crypto');
+    const duration = endTime - startTime;
+    const dirPath = uri.substring(0, uri.lastIndexOf('/'));
+    const outputPath = `${dirPath}/trimmed_${Crypto.randomUUID()}.mp4`;
+    const inputPath = uri.replace('file://', '');
+    const outputClean = outputPath.replace('file://', '');
+    const command = `-y -i "${inputPath}" -ss ${startTime} -t ${duration} -c:v libx264 -preset fast -crf 28 -b:v 2000000 -vf "scale='min(720,iw)':'min(720,ih)':force_original_aspect_ratio=decrease" -c:a aac -movflags +faststart "${outputClean}"`;
+    const session = await FFmpegKit.execute(command);
+    const returnCode = await session.getReturnCode();
+    if (ReturnCode.isSuccess(returnCode)) {
+      return outputPath.startsWith('file://') ? outputPath : `file://${outputClean}`;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function retryFetch(url: string, options: RequestInit, maxRetries = 2): Promise<Response> {
   let lastError: Error | null = null;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -152,10 +173,25 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   }
 
   let uploadUri = uri;
+  let locallyProcessed = false;
 
-  const compressed = await tryNativeCompress(uri);
-  if (compressed) {
-    uploadUri = compressed;
+  const needsTrim = trim && (trim.startTime > 0 || trim.endTime < Infinity);
+
+  if (needsTrim) {
+    const trimmed = await tryLocalTrimAndCompress(uri, trim.startTime, trim.endTime);
+    if (trimmed) {
+      uploadUri = trimmed;
+      locallyProcessed = true;
+    } else {
+      const compressed = await tryNativeCompress(uri);
+      if (compressed) uploadUri = compressed;
+    }
+  } else {
+    const compressed = await tryNativeCompress(uri);
+    if (compressed) {
+      uploadUri = compressed;
+      locallyProcessed = true;
+    }
   }
 
   const urlRes = await retryFetch(`${BASE}/api/video-upload-url`, {
@@ -178,7 +214,7 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   let finalFilename = filename;
   let finalVideoUrl = videoUrl;
 
-  if (trim && (trim.startTime > 0 || trim.endTime < Infinity)) {
+  if (needsTrim && !locallyProcessed) {
     const trimRes = await retryFetch(`${BASE}/api/trim-video`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
