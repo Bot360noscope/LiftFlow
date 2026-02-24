@@ -5,6 +5,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import * as Haptics from "expo-haptics";
+import * as MediaLibrary from "expo-media-library";
 import Colors from "@/constants/colors";
 import { uploadVideo } from "@/lib/api";
 import { showAlert } from "@/lib/confirm";
@@ -57,6 +58,8 @@ export default function TrimVideoScreen() {
 
   const clipDuration = endTime - startTime;
   const isValidClip = clipDuration > 0 && clipDuration <= MAX_DURATION;
+  const [saving, setSaving] = useState(false);
+  const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions();
 
   const player = useVideoPlayer(videoUri || null, (p) => {
     p.loop = true;
@@ -183,6 +186,31 @@ export default function TrimVideoScreen() {
     }
   };
 
+  const handleSaveToPhotos = async () => {
+    if (Platform.OS === 'web') {
+      showAlert("Not Available", "Saving to photos is only available on mobile devices.");
+      return;
+    }
+    setSaving(true);
+    try {
+      let perm = mediaPermission;
+      if (!perm?.granted) {
+        perm = await requestMediaPermission();
+        if (!perm.granted) {
+          showAlert("Permission Required", "Please allow access to your photo library to save videos.");
+          setSaving(false);
+          return;
+        }
+      }
+      await MediaLibrary.saveToLibraryAsync(videoUri);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showAlert("Saved", "Original video saved to your Photos.");
+    } catch (err) {
+      showAlert("Error", "Failed to save video to Photos.");
+    }
+    setSaving(false);
+  };
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = Math.floor(seconds % 60);
@@ -300,6 +328,23 @@ export default function TrimVideoScreen() {
       </View>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+        {Platform.OS !== 'web' && (
+          <Pressable
+            style={styles.savePhotosBtn}
+            onPress={handleSaveToPhotos}
+            disabled={saving || uploading}
+            accessibilityLabel="Save original video to photos" accessibilityRole="button"
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color={Colors.colors.primary} />
+            ) : (
+              <>
+                <Ionicons name="download-outline" size={18} color={Colors.colors.primary} />
+                <Text style={styles.savePhotosBtnText}>Save Original to Photos</Text>
+              </>
+            )}
+          </Pressable>
+        )}
         <Pressable
           style={[styles.submitBtn, (!isValidClip || uploading) && styles.submitBtnDisabled]}
           onPress={handleSubmit}
@@ -398,7 +443,14 @@ const styles = StyleSheet.create({
   },
   trackLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 2 },
   trackLabelText: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted },
-  footer: { paddingHorizontal: 20, paddingTop: 16 },
+  footer: { paddingHorizontal: 20, paddingTop: 16, gap: 10 },
+  savePhotosBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 12, borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.colors.border,
+    backgroundColor: Colors.colors.backgroundCard,
+  },
+  savePhotosBtnText: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: Colors.colors.primary },
   submitBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: Colors.colors.primary, paddingVertical: 16, borderRadius: 12,

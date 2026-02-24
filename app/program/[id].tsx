@@ -112,7 +112,7 @@ function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programI
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['videos'],
-        videoQuality: ImagePicker.UIImagePickerControllerQualityType.High,
+        videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
         allowsEditing: true,
       });
 
