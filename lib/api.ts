@@ -113,7 +113,7 @@ export async function apiDelete(path: string): Promise<void> {
   }
 }
 
-async function tryNativeTrim(uri: string, startTime: number, endTime: number): Promise<string | null> {
+async function tryNativeCompress(uri: string): Promise<string | null> {
   try {
     const { Video } = require('react-native-compressor');
     const result = await Video.compress(uri, {
@@ -152,14 +152,10 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   }
 
   let uploadUri = uri;
-  let nativeTrimmed = false;
 
-  if (trim) {
-    const compressed = await tryNativeTrim(uri, trim.startTime, trim.endTime);
-    if (compressed) {
-      uploadUri = compressed;
-      nativeTrimmed = true;
-    }
+  const compressed = await tryNativeCompress(uri);
+  if (compressed) {
+    uploadUri = compressed;
   }
 
   const urlRes = await retryFetch(`${BASE}/api/video-upload-url`, {
@@ -182,7 +178,7 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   let finalFilename = filename;
   let finalVideoUrl = videoUrl;
 
-  if (trim && !nativeTrimmed) {
+  if (trim && (trim.startTime > 0 || trim.endTime < Infinity)) {
     const trimRes = await retryFetch(`${BASE}/api/trim-video`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },

@@ -114,6 +114,7 @@ function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programI
         mediaTypes: ['videos'],
         videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
         allowsEditing: false,
+        videoMaxDuration: 60,
       });
 
       if (result.canceled || !result.assets?.[0]) return;
