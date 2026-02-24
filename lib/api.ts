@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from 'expo-constants';
 
 const AUTH_TOKEN_KEY = 'liftflow_auth_token';
 
@@ -113,7 +114,10 @@ export async function apiDelete(path: string): Promise<void> {
   }
 }
 
+const isExpoGo = Constants.appOwnership === 'expo';
+
 async function tryNativeCompress(uri: string): Promise<string | null> {
+  if (isExpoGo || Platform.OS === 'web') return null;
   try {
     const { Video } = require('react-native-compressor');
     const result = await Video.compress(uri, {
@@ -128,6 +132,7 @@ async function tryNativeCompress(uri: string): Promise<string | null> {
 }
 
 async function tryLocalTrimAndCompress(uri: string, startTime: number, endTime: number): Promise<string | null> {
+  if (isExpoGo || Platform.OS === 'web') return null;
   try {
     const { FFmpegKit, ReturnCode } = require('ffmpeg-kit-react-native');
     const Crypto = require('expo-crypto');
