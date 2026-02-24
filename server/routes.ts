@@ -8,10 +8,7 @@ import multer from "multer";
 import path from "path";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { uploadToR2, getFromR2, deleteFromR2, getPresignedUploadUrl, getPresignedDownloadUrl, downloadFromR2 } from "./r2";
-import { execFile } from "child_process";
-import { promises as fs } from "fs";
-import os from "os";
+import { uploadToR2, getFromR2, deleteFromR2, getPresignedUploadUrl, getPresignedDownloadUrl } from "./r2";
 import { broadcastToProfile } from "./websocket";
 
 const JWT_SECRET = process.env.SESSION_SECRET || 'liftflow-dev-secret';
@@ -44,47 +41,6 @@ function verifyToken(token: string): { userId: string; profileId: string } | nul
 }
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
-
-async function trimVideoBuffer(buffer: Buffer, startTime: number, endTime: number): Promise<Buffer> {
-  const tmpDir = os.tmpdir();
-  const inputPath = path.join(tmpDir, `input_${randomUUID()}.mp4`);
-  const outputPath = path.join(tmpDir, `output_${randomUUID()}.mp4`);
-  
-  await fs.writeFile(inputPath, buffer);
-  
-  const duration = endTime - startTime;
-  
-  return new Promise((resolve, reject) => {
-    execFile('ffmpeg', [
-      '-y',
-      '-i', inputPath,
-      '-ss', String(startTime),
-      '-t', String(duration),
-      '-c:v', 'libx264',
-      '-preset', 'fast',
-      '-crf', '23',
-      '-c:a', 'aac',
-      '-movflags', '+faststart',
-      outputPath,
-    ], { timeout: 120000 }, async (error) => {
-      try {
-        if (error) {
-          await fs.unlink(inputPath).catch(() => {});
-          await fs.unlink(outputPath).catch(() => {});
-          return reject(new Error(`FFmpeg trim failed: ${error.message}`));
-        }
-        const trimmed = await fs.readFile(outputPath);
-        await fs.unlink(inputPath).catch(() => {});
-        await fs.unlink(outputPath).catch(() => {});
-        resolve(trimmed);
-      } catch (e) {
-        await fs.unlink(inputPath).catch(() => {});
-        await fs.unlink(outputPath).catch(() => {});
-        reject(e);
-      }
-    });
-  });
-}
 
 function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -678,62 +634,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       res.json({ success: true, videoUrl: `/api/videos/${filename}` });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
-  });
-
-  app.post("/api/trim-video", async (req, res) => {
-    try {
-      const { filename, startTime, endTime } = req.body;
-      if (!filename || startTime === undefined || endTime === undefined) {
-        return res.status(400).json({ error: "filename, startTime, endTime required" });
-      }
-      const start = parseFloat(startTime);
-      const end = parseFloat(endTime);
-      if (isNaN(start) || isNaN(end) || end <= start) {
-        return res.status(400).json({ error: "Invalid trim times" });
-      }
-      const key = `videos/${filename}`;
-      const videoBuffer = await downloadFromR2(key);
-      if (!videoBuffer) return res.status(404).json({ error: "Video not found in storage" });
-      const trimmedBuffer = await trimVideoBuffer(videoBuffer, start, end);
-      const trimmedFilename = `${randomUUID()}.mp4`;
-      const trimmedKey = `videos/${trimmedFilename}`;
-      await uploadToR2(trimmedKey, trimmedBuffer, 'video/mp4');
-      await deleteFromR2(key);
-      res.json({ filename: trimmedFilename, videoUrl: `/api/videos/${trimmedFilename}` });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
-  });
-
-  app.post("/api/upload-video", upload.single("video"), async (req, res) => {
-    try {
-      if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-      
-      let videoBuffer = req.file.buffer;
-      const { programId, exerciseId, uploadedBy, coachId, trimStart, trimEnd } = req.body;
-      
-      if (trimStart !== undefined && trimEnd !== undefined) {
-        const start = parseFloat(trimStart);
-        const end = parseFloat(trimEnd);
-        if (!isNaN(start) && !isNaN(end) && end > start) {
-          videoBuffer = await trimVideoBuffer(videoBuffer, start, end);
-        }
-      }
-      
-      const filename = `${randomUUID()}.mp4`;
-      const key = `videos/${filename}`;
-      await uploadToR2(key, videoBuffer, 'video/mp4');
-      const videoUrl = `/api/videos/${filename}`;
-      if (programId && exerciseId && uploadedBy && coachId) {
-        await db.insert(videoUploads).values({
-          id: randomUUID(),
-          filename,
-          programId,
-          exerciseId,
-          uploadedBy,
-          coachId,
-        });
-      }
-      res.json({ videoUrl });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 

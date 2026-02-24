@@ -113,12 +113,8 @@ export async function apiDelete(path: string): Promise<void> {
   }
 }
 
-export async function uploadVideo(uri: string, meta?: { programId: string; exerciseId: string; uploadedBy: string; coachId: string }, trim?: { startTime: number; endTime: number }): Promise<string> {
+export async function uploadVideo(uri: string, meta?: { programId: string; exerciseId: string; uploadedBy: string; coachId: string }): Promise<string> {
   const authHeaders = await getAuthHeaders();
-
-  if (Platform.OS === 'web') {
-    return uploadVideoLegacy(uri, meta, trim);
-  }
 
   const urlRes = await fetch(`${BASE}/api/video-upload-url`, {
     method: 'POST',
@@ -137,28 +133,12 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   });
   if (!putRes.ok) throw new Error('Direct upload to storage failed');
 
-  let finalFilename = filename;
-  let finalVideoUrl = videoUrl;
-
-  if (trim) {
-    const trimRes = await fetch(`${BASE}/api/trim-video`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders },
-      body: JSON.stringify({ filename, startTime: trim.startTime, endTime: trim.endTime }),
-    });
-    if (trimRes.ok) {
-      const trimData = await trimRes.json();
-      finalFilename = trimData.filename;
-      finalVideoUrl = trimData.videoUrl;
-    }
-  }
-
   if (meta) {
     await fetch(`${BASE}/api/register-video`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
-        filename: finalFilename,
+        filename,
         programId: meta.programId,
         exerciseId: meta.exerciseId,
         uploadedBy: meta.uploadedBy,
@@ -167,38 +147,7 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
     });
   }
 
-  return finalVideoUrl;
-}
-
-async function uploadVideoLegacy(uri: string, meta?: { programId: string; exerciseId: string; uploadedBy: string; coachId: string }, trim?: { startTime: number; endTime: number }): Promise<string> {
-  const formData = new FormData();
-  const authHeaders = await getAuthHeaders();
-
-  const response = await fetch(uri);
-  const blob = await response.blob();
-  formData.append('video', blob, 'video.mp4');
-
-  if (meta) {
-    formData.append('programId', meta.programId);
-    formData.append('exerciseId', meta.exerciseId);
-    formData.append('uploadedBy', meta.uploadedBy);
-    formData.append('coachId', meta.coachId);
-  }
-
-  if (trim) {
-    formData.append('trimStart', String(trim.startTime));
-    formData.append('trimEnd', String(trim.endTime));
-  }
-
-  const res = await fetch(`${BASE}/api/upload-video`, {
-    method: 'POST',
-    headers: { ...authHeaders },
-    body: formData,
-  });
-
-  if (!res.ok) throw new Error('Upload failed');
-  const data = await res.json();
-  return data.videoUrl;
+  return videoUrl;
 }
 
 export function getVideoUrl(path: string): string {
