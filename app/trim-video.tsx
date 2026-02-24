@@ -168,12 +168,13 @@ export default function TrimVideoScreen() {
     setUploading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
+      const shouldTrim = startTime > 0 || endTime < totalDuration;
       const serverUrl = await uploadVideo(videoUri, {
         programId,
         exerciseId,
         uploadedBy,
         coachId,
-      });
+      }, shouldTrim ? { startTime, endTime } : undefined);
       trimResult.videoUrl = serverUrl;
       trimResult.exerciseId = exerciseId;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
