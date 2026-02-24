@@ -16,6 +16,32 @@ import { broadcastToProfile } from "./websocket";
 
 const JWT_SECRET = process.env.SESSION_SECRET || 'liftflow-dev-secret';
 
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+function rateLimit(windowMs: number, maxAttempts: number) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const entry = rateLimitMap.get(ip);
+    if (!entry || now > entry.resetAt) {
+      rateLimitMap.set(ip, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+    entry.count++;
+    if (entry.count > maxAttempts) {
+      const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+      res.set('Retry-After', String(retryAfter));
+      return res.status(429).json({ error: 'Too many attempts. Please try again later.' });
+    }
+    return next();
+  };
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of rateLimitMap) {
+    if (now > val.resetAt) rateLimitMap.delete(key);
+  }
+}, 60000);
+
 const BLOCKED_WORDS = [
   'fuck', 'shit', 'ass', 'bitch', 'damn', 'crap', 'dick', 'piss',
   'bastard', 'cunt', 'asshole', 'motherfucker', 'bullshit',
@@ -88,7 +114,9 @@ function generateCode(): string {
 export async function registerRoutes(app: Express): Promise<Server> {
 
   // === AUTH ===
-  app.post("/api/auth/register", async (req, res) => {
+  const authRateLimit = rateLimit(15 * 60 * 1000, 10);
+
+  app.post("/api/auth/register", authRateLimit, async (req, res) => {
     try {
       const { email, password, name, role } = req.body;
       if (!email || !password) return res.status(400).json({ error: "Email and password required" });
@@ -120,7 +148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authRateLimit, async (req, res) => {
     try {
       const { email, password } = req.body;
       if (!email || !password) return res.status(400).json({ error: "Email and password required" });
