@@ -96,8 +96,8 @@ export default function ChatTab() {
             setCoachId(coachInfo.coachId);
             setClientProfileId(prof.id);
             setChatPartnerName(coachInfo.coachName);
-            const msgs = await getMessages(coachInfo.coachId, prof.id);
-            if (active) setMessages(msgs);
+            const result = await getMessages(coachInfo.coachId, prof.id);
+            if (active) setMessages(result.messages);
           } else {
             setHasCoach(false);
           }
@@ -125,8 +125,8 @@ export default function ChatTab() {
     });
     const interval = setInterval(async () => {
       try {
-        const msgs = await getMessages(coachId, clientProfileId);
-        setMessages(msgs);
+        const result = await getMessages(coachId, clientProfileId);
+        setMessages(result.messages);
       } catch {}
     }, 15000);
     return () => { removeListener(); clearInterval(interval); };

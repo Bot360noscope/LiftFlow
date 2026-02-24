@@ -8,6 +8,7 @@ import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import NetworkError from "@/components/NetworkError";
+import { ProgramsSkeleton } from "@/components/SkeletonLoader";
 import { getPrograms, deleteProgram, getProfile, getCachedPrograms, getCachedProfile, type Program } from "@/lib/storage";
 
 export default function ProgramsScreen() {
@@ -69,8 +70,8 @@ export default function ProgramsScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.colors.background }}>
-        <ActivityIndicator size="large" color={Colors.colors.primary} />
+      <View style={{ flex: 1, backgroundColor: Colors.colors.background, paddingTop: insets.top + webTopInset + 16 }}>
+        <ProgramsSkeleton />
       </View>
     );
   }

@@ -533,16 +533,28 @@ export async function seedDemoData(): Promise<void> {
   await setProfileId(result.profileId);
 }
 
-export async function getMessages(coachId: string, clientProfileId: string): Promise<ChatMessage[]> {
-  const data = await apiGet<any[]>(`/api/messages?coachId=${coachId}&clientProfileId=${clientProfileId}`);
-  return data.map(m => ({
+function mapMessage(m: any): ChatMessage {
+  return {
     id: m.id,
     coachId: m.coachId || m.coach_id,
     clientProfileId: m.clientProfileId || m.client_profile_id,
     senderRole: (m.senderRole || m.sender_role) as 'coach' | 'client',
     text: m.text,
     createdAt: m.createdAt || m.created_at,
-  }));
+  };
+}
+
+export async function getMessages(coachId: string, clientProfileId: string, before?: string): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
+  let url = `/api/messages?coachId=${coachId}&clientProfileId=${clientProfileId}&limit=50`;
+  if (before) url += `&before=${encodeURIComponent(before)}`;
+  const data = await apiGet<any>(url);
+  if (Array.isArray(data)) {
+    return { messages: data.map(mapMessage), hasMore: false };
+  }
+  return {
+    messages: (data.messages || []).map(mapMessage),
+    hasMore: !!data.hasMore,
+  };
 }
 
 export async function sendMessage(coachId: string, clientProfileId: string, text: string): Promise<ChatMessage> {

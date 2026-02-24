@@ -9,6 +9,7 @@ import * as WebBrowser from "expo-web-browser";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import NetworkError from "@/components/NetworkError";
+import { ProfileSkeleton } from "@/components/SkeletonLoader";
 import { confirmAction, showAlert } from "@/lib/confirm";
 import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, seedDemoData, deleteAccount, getCachedProfile, getCachedPRs, getCachedPrograms, getCachedClients, leaveCoach, getMyCoach, type UserProfile } from "@/lib/storage";
 import { useAuth } from "@/lib/auth-context";
@@ -201,8 +202,8 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.colors.background }}>
-        <ActivityIndicator size="large" color={Colors.colors.primary} />
+      <View style={{ flex: 1, backgroundColor: Colors.colors.background, paddingTop: insets.top + webTopInset }}>
+        <ProfileSkeleton />
       </View>
     );
   }

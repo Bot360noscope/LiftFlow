@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, Keyboard, KeyboardAvoidingView } from "react-native";
+import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, Keyboard, KeyboardAvoidingView, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -20,6 +20,8 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sendError, setSendError] = useState('');
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -48,8 +50,9 @@ export default function ChatScreen() {
         setClientProfileId(resolvedClientProfileId);
 
         if (resolvedCoachId && resolvedClientProfileId) {
-          const msgs = await getMessages(resolvedCoachId, resolvedClientProfileId);
-          setMessages(msgs);
+          const result = await getMessages(resolvedCoachId, resolvedClientProfileId);
+          setMessages(result.messages);
+          setHasMore(result.hasMore);
           getNotifications().then(notifs => {
             notifs.filter(n => n.type === 'chat' && !n.read && n.programTitle === resolvedClientProfileId)
               .forEach(n => markNotificationRead(n.id).catch(() => {}));
@@ -62,11 +65,24 @@ export default function ChatScreen() {
     })();
   }, []);
 
+  const loadOlderMessages = useCallback(async () => {
+    if (!coachId || !clientProfileId || !hasMore || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const oldest = messages[0]?.createdAt;
+      const result = await getMessages(coachId, clientProfileId, oldest);
+      setMessages(prev => [...result.messages, ...prev]);
+      setHasMore(result.hasMore);
+    } catch (e) {}
+    setLoadingMore(false);
+  }, [coachId, clientProfileId, hasMore, loadingMore, messages]);
+
   const loadMessages = useCallback(async () => {
     if (!coachId || !clientProfileId) return;
     try {
-      const msgs = await getMessages(coachId, clientProfileId);
-      setMessages(msgs);
+      const result = await getMessages(coachId, clientProfileId);
+      setMessages(result.messages);
+      setHasMore(result.hasMore);
     } catch (e) {}
   }, [coachId, clientProfileId]);
 
@@ -176,6 +192,16 @@ export default function ChatScreen() {
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
+            onStartReachedThreshold={0.1}
+            ListHeaderComponent={hasMore ? (
+              <Pressable onPress={loadOlderMessages} style={styles.loadMoreBtn}>
+                {loadingMore ? (
+                  <ActivityIndicator size="small" color={Colors.colors.primary} />
+                ) : (
+                  <Text style={styles.loadMoreText}>Load earlier messages</Text>
+                )}
+              </Pressable>
+            ) : null}
             ListEmptyComponent={
               <View style={styles.emptyChat}>
                 <Ionicons name="chatbubbles-outline" size={40} color={Colors.colors.textMuted} />
@@ -280,4 +306,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 59, 48, 0.1)', borderTopWidth: 1, borderTopColor: 'rgba(255, 59, 48, 0.2)',
   },
   errorText: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.danger, flex: 1 },
+  loadMoreBtn: { alignItems: 'center', paddingVertical: 12 },
+  loadMoreText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.primary },
 });

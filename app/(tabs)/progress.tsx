@@ -8,6 +8,7 @@ import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import NetworkError from "@/components/NetworkError";
+import { ProgressSkeleton } from "@/components/SkeletonLoader";
 import { getPRs, deletePR, getProfile, getBestPR, getPrograms, getClients, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, type LiftPR, type Program, type ClientInfo } from "@/lib/storage";
 
 const LIFT_COLORS: Record<string, string> = {
@@ -143,8 +144,8 @@ export default function ProgressScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.colors.background }}>
-        <ActivityIndicator size="large" color={Colors.colors.primary} />
+      <View style={{ flex: 1, backgroundColor: Colors.colors.background, paddingTop: insets.top + webTopInset + 16 }}>
+        <ProgressSkeleton />
       </View>
     );
   }

@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "node:http";
 import { db } from "./db";
 import { profiles, programs, clients, prs, notifications, messages, users, videoUploads, paymentUsers } from "../shared/schema";
-import { eq, desc, and, or, inArray, ilike, lt, gt, isNull, isNotNull } from "drizzle-orm";
+import { eq, desc, and, or, inArray, ilike, lt, gt, isNull, isNotNull, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import multer from "multer";
 import path from "path";
@@ -546,12 +546,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // === MESSAGES (Chat) ===
   app.get("/api/messages", async (req, res) => {
     try {
-      const { coachId, clientProfileId } = req.query;
+      const { coachId, clientProfileId, limit: limitStr, before } = req.query;
       if (!coachId || !clientProfileId) return res.status(400).json({ error: "coachId and clientProfileId required" });
-      const result = await db.select().from(messages)
-        .where(and(eq(messages.coachId, coachId as string), eq(messages.clientProfileId, clientProfileId as string)))
-        .orderBy(messages.createdAt);
-      res.json(result);
+      const pageLimit = Math.min(parseInt(limitStr as string) || 50, 100);
+
+      let query = db.select().from(messages)
+        .where(and(
+          eq(messages.coachId, coachId as string),
+          eq(messages.clientProfileId, clientProfileId as string),
+          ...(before ? [sql`${messages.createdAt} < ${new Date(before as string)}`] : [])
+        ))
+        .orderBy(desc(messages.createdAt))
+        .limit(pageLimit + 1);
+
+      const result = await query;
+      const hasMore = result.length > pageLimit;
+      const pageMessages = result.slice(0, pageLimit).reverse();
+
+      res.json({ messages: pageMessages, hasMore });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 

@@ -7,6 +7,7 @@ import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import NetworkError from "@/components/NetworkError";
+import { HomeSkeleton } from "@/components/SkeletonLoader";
 import {
   getDashboard, getBestPR,
   clearAllNotifications, deleteNotification, removeCachedNotification,
@@ -304,8 +305,8 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.colors.background }}>
-        <ActivityIndicator size="large" color={Colors.colors.primary} />
+      <View style={{ flex: 1, backgroundColor: Colors.colors.background, paddingTop: insets.top + webTopInset + 16 }}>
+        <HomeSkeleton />
       </View>
     );
   }
