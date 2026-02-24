@@ -59,7 +59,7 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **Permissions**: NSCameraUsageDescription, NSPhotoLibraryUsageDescription, NSMicrophoneUsageDescription set in app.json
 - **Account Deletion**: Full data cleanup including avatar files, video files, and all DB records
 - **Accessibility**: accessibilityLabel and accessibilityRole on key interactive elements across all screens
-- **Video Recording**: 60-second max for form check videos (unlimited recording, must trim to 60s before upload), delete video button available. Records at Medium quality for smaller file sizes (~50-70% reduction). "Save Original to Photos" button on trim screen saves uncompressed video to native camera roll via expo-media-library
+- **Video Recording**: 60-second max for form check videos (unlimited recording, must trim to 60s before upload), delete video button available. Records at Medium quality for smaller file sizes (~50-70% reduction). "Save Original to Photos" button on trim screen saves video to native camera roll via expo-media-library. Video processing uses dual-path: tries native on-device compression via react-native-compressor (works in dev builds), falls back to server-side ffmpeg trim (Expo Go). Server trim downloads from R2, processes with ffmpeg, re-uploads trimmed file.
 
 ## User Preferences
 - Fonts: Rubik (400, 500, 600, 700)
