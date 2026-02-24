@@ -127,6 +127,23 @@ async function tryNativeTrim(uri: string, startTime: number, endTime: number): P
   }
 }
 
+async function retryFetch(url: string, options: RequestInit, maxRetries = 2): Promise<Response> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok || res.status < 500) return res;
+      lastError = new Error(`Server error: ${res.status}`);
+    } catch (e: any) {
+      lastError = e;
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastError || new Error('Upload failed after retries');
+}
+
 export async function uploadVideo(uri: string, meta?: { programId: string; exerciseId: string; uploadedBy: string; coachId: string }, trim?: { startTime: number; endTime: number }): Promise<string> {
   const authHeaders = await getAuthHeaders();
 
@@ -145,28 +162,28 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
     }
   }
 
-  const urlRes = await fetch(`${BASE}/api/video-upload-url`, {
+  const urlRes = await retryFetch(`${BASE}/api/video-upload-url`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders },
   });
-  if (!urlRes.ok) throw new Error('Failed to get upload URL');
+  if (!urlRes.ok) throw new Error('Failed to get upload URL. Check your connection and try again.');
   const { uploadUrl, filename, videoUrl } = await urlRes.json();
 
   const response = await fetch(uploadUri);
   const videoBlob = await response.blob();
 
-  const putRes = await fetch(uploadUrl, {
+  const putRes = await retryFetch(uploadUrl, {
     method: 'PUT',
     headers: { 'Content-Type': 'video/mp4' },
     body: videoBlob,
   });
-  if (!putRes.ok) throw new Error('Direct upload to storage failed');
+  if (!putRes.ok) throw new Error('Video upload failed. Please check your connection and try again.');
 
   let finalFilename = filename;
   let finalVideoUrl = videoUrl;
 
   if (trim && !nativeTrimmed) {
-    const trimRes = await fetch(`${BASE}/api/trim-video`, {
+    const trimRes = await retryFetch(`${BASE}/api/trim-video`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({ filename, startTime: trim.startTime, endTime: trim.endTime }),
@@ -179,7 +196,7 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   }
 
   if (meta) {
-    await fetch(`${BASE}/api/register-video`, {
+    await retryFetch(`${BASE}/api/register-video`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
