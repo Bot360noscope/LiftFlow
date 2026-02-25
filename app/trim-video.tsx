@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, Pressable, Platform, ActivityIndicator, PanResponder } from "react-native";
+import { StyleSheet, Text, View, Pressable, Platform, ActivityIndicator, PanResponder, LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
@@ -12,7 +12,10 @@ import { showAlert } from "@/lib/confirm";
 import { trimResult } from "@/lib/trim-result";
 
 const MAX_DURATION = 60;
-const HANDLE_HIT = 44;
+const HANDLE_W = 22;
+const HANDLE_TOUCH = 44;
+const TRACK_H = 48;
+const WRAPPER_PAD = HANDLE_W;
 
 export default function TrimVideoScreen() {
   const insets = useSafeAreaInsets();
@@ -42,8 +45,7 @@ export default function TrimVideoScreen() {
   const [endTime, _setEndTime] = useState(Math.min(totalDuration, MAX_DURATION));
   const [uploading, setUploading] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const trackWidthRef = useRef(0);
-  const trackRef = useRef<View>(null);
+  const [trackWidth, setTrackWidth] = useState(0);
   const dragOriginRef = useRef({ start: 0, end: 0 });
 
   const setStartTime = useCallback((v: number) => {
@@ -80,22 +82,22 @@ export default function TrimVideoScreen() {
     return () => sub.remove();
   }, [player]);
 
-  const handleTrackLayout = useCallback((e: any) => {
-    const w = e?.nativeEvent?.layout?.width;
-    if (w && w > 0) trackWidthRef.current = w;
+  const handleTrackLayout = useCallback((e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    if (w > 0) setTrackWidth(w);
   }, []);
 
   const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
-  const xToTime = useCallback((dx: number) => {
-    if (trackWidthRef.current <= 0) return 0;
-    return (dx / trackWidthRef.current) * totalDuration;
-  }, [totalDuration]);
-
-  const timeToPercent = (t: number) => {
-    if (totalDuration <= 0) return 0;
-    return (t / totalDuration) * 100;
+  const timeToX = (t: number) => {
+    if (totalDuration <= 0 || trackWidth <= 0) return 0;
+    return (t / totalDuration) * trackWidth;
   };
+
+  const xToTime = useCallback((dx: number) => {
+    if (trackWidth <= 0) return 0;
+    return (dx / trackWidth) * totalDuration;
+  }, [totalDuration, trackWidth]);
 
   const startPan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -115,7 +117,7 @@ export default function TrimVideoScreen() {
     onPanResponderRelease: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-  }), [totalDuration]);
+  }), [totalDuration, trackWidth]);
 
   const endPan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -134,7 +136,7 @@ export default function TrimVideoScreen() {
     onPanResponderRelease: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-  }), [totalDuration]);
+  }), [totalDuration, trackWidth]);
 
   const regionPan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -158,7 +160,7 @@ export default function TrimVideoScreen() {
     onPanResponderRelease: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-  }), [totalDuration]);
+  }), [totalDuration, trackWidth]);
 
   const handleSubmit = async () => {
     if (!isValidClip) return;
@@ -216,9 +218,9 @@ export default function TrimVideoScreen() {
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
-  const startPct = timeToPercent(startTime);
-  const endPct = timeToPercent(endTime);
-  const widthPct = endPct - startPct;
+  const startX = timeToX(startTime);
+  const endX = timeToX(endTime);
+  const playheadX = timeToX(currentTime);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
@@ -280,45 +282,63 @@ export default function TrimVideoScreen() {
         <View style={styles.sliderArea}>
           <View style={styles.sliderWrapper}>
             <View
-              ref={trackRef}
               style={styles.track}
               onLayout={handleTrackLayout}
             >
-              <View style={[styles.dimRegion, { left: 0, width: `${startPct}%` }]} />
-              <View style={[styles.dimRegion, { right: 0, width: `${100 - endPct}%` }]} />
+              {trackWidth > 0 && (
+                <>
+                  {startX > 0 && (
+                    <View style={[styles.dimRegion, { left: 0, width: startX }]} />
+                  )}
+                  {endX < trackWidth && (
+                    <View style={[styles.dimRegion, { left: endX, width: trackWidth - endX }]} />
+                  )}
 
-              <View
-                style={[styles.selectedRegion, { left: `${startPct}%`, width: `${Math.max(widthPct, 0.5)}%` }]}
-                {...regionPan.panHandlers}
-              />
+                  <View
+                    style={[styles.selectedRegion, { left: startX, width: Math.max(endX - startX, 2) }]}
+                    {...regionPan.panHandlers}
+                  />
 
-              {totalDuration > 0 && (
-                <View
-                  style={[styles.playhead, { left: `${timeToPercent(currentTime)}%`, marginLeft: -1 }]}
-                />
+                  {totalDuration > 0 && (
+                    <View
+                      style={[styles.playhead, { left: Math.min(playheadX, trackWidth - 2) }]}
+                    />
+                  )}
+                </>
               )}
             </View>
 
-            <View
-              style={[styles.handle, { left: `${startPct}%`, marginLeft: -HANDLE_HIT / 2 }]}
-              {...startPan.panHandlers}
-            >
-              <View style={styles.handleGrip}>
-                <View style={styles.gripLine} />
-                <View style={styles.gripLine} />
-              </View>
-            </View>
+            {trackWidth > 0 && (
+              <>
+                <View
+                  {...startPan.panHandlers}
+                  style={[
+                    styles.handleTouch,
+                    { left: WRAPPER_PAD + startX - HANDLE_TOUCH / 2 },
+                  ]}
+                >
+                  <View style={styles.handleBar}>
+                    <View style={styles.gripLine} />
+                    <View style={styles.gripLine} />
+                  </View>
+                </View>
 
-            <View
-              style={[styles.handle, { left: `${endPct}%`, marginLeft: -HANDLE_HIT / 2 }]}
-              {...endPan.panHandlers}
-            >
-              <View style={styles.handleGrip}>
-                <View style={styles.gripLine} />
-                <View style={styles.gripLine} />
-              </View>
-            </View>
+                <View
+                  {...endPan.panHandlers}
+                  style={[
+                    styles.handleTouch,
+                    { left: WRAPPER_PAD + endX - HANDLE_TOUCH / 2 },
+                  ]}
+                >
+                  <View style={styles.handleBar}>
+                    <View style={styles.gripLine} />
+                    <View style={styles.gripLine} />
+                  </View>
+                </View>
+              </>
+            )}
           </View>
+
           <View style={styles.trackLabels}>
             <Text style={styles.trackLabelText}>0:00</Text>
             <Text style={styles.trackLabelText}>{formatTime(totalDuration)}</Text>
@@ -408,11 +428,17 @@ const styles = StyleSheet.create({
   timePillValue: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text, marginTop: 2 },
   sliderArea: { marginTop: 4 },
   sliderWrapper: {
-    position: 'relative', paddingVertical: 10,
+    paddingHorizontal: WRAPPER_PAD,
+    height: TRACK_H + 20,
+    justifyContent: 'center',
   },
   track: {
-    height: 48, backgroundColor: Colors.colors.surface, borderRadius: 10,
-    borderWidth: 1, borderColor: Colors.colors.border, overflow: 'hidden', position: 'relative',
+    height: TRACK_H,
+    backgroundColor: Colors.colors.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.colors.border,
+    overflow: 'hidden',
   },
   dimRegion: {
     position: 'absolute', top: 0, bottom: 0,
@@ -423,27 +449,36 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(232,81,47,0.15)',
     borderTopWidth: 3, borderBottomWidth: 3, borderColor: Colors.colors.primary,
   },
-  handle: {
-    position: 'absolute', top: 2, bottom: 2, width: HANDLE_HIT,
-    alignItems: 'center', justifyContent: 'center', zIndex: 10,
+  handleTouch: {
+    position: 'absolute',
+    top: (TRACK_H + 20 - TRACK_H - 8) / 2 - 4,
+    width: HANDLE_TOUCH,
+    height: TRACK_H + 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
   },
-  handleGrip: {
-    width: 18, height: 40, borderRadius: 6,
+  handleBar: {
+    width: HANDLE_W,
+    height: TRACK_H,
+    borderRadius: 6,
     backgroundColor: Colors.colors.primary,
-    alignItems: 'center', justifyContent: 'center', gap: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3 },
-      android: { elevation: 4 },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 4 },
+      android: { elevation: 6 },
       web: {},
     }),
   },
   gripLine: {
-    width: 8, height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.7)',
+    width: 8, height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.8)',
   },
   playhead: {
     position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: '#fff', borderRadius: 1, zIndex: 5,
   },
-  trackLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 2 },
+  trackLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: WRAPPER_PAD + 2 },
   trackLabelText: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted },
   footer: { paddingHorizontal: 20, paddingTop: 16, gap: 10 },
   savePhotosBtn: {
