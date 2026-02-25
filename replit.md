@@ -12,7 +12,7 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **Polling**: Home screen polls /api/dashboard every 10 seconds. Chat screens use 15-30s fallback polling with WebSocket as primary. Tab badge uses 10s polling + WebSocket
 - **Caching**: All data cached in AsyncStorage (lib/storage.ts persistCache/loadCacheFromDisk). App loads instantly from cache, refreshes in background
 - **Video/File Storage**: Cloudflare R2 (S3-compatible) via @aws-sdk/client-s3. Videos and avatars stored in R2 bucket `liftflow-uploads` under `videos/` and `avatars/` prefixes. Multer with memory storage for upload handling, auto-cleanup (3 days after coach views, 7 days if unviewed). R2 client helper in server/r2.ts
-- **Theme**: Dark mode with energetic orange/red palette (#E8512F)
+- **Theme**: Light/Dark mode with energetic orange/red palette (#E8512F). Theme context in lib/theme-context.tsx provides useTheme() hook. Colors defined in constants/colors.ts with darkColors and lightColors. Toggle in Profile settings. Persisted to AsyncStorage under 'liftflow_theme' key. All screens use useTheme() for dynamic colors via inline style overrides on key elements
 
 ## Database Schema (shared/schema.ts)
 - **profiles**: id, name, role (coach/client), weightUnit, coachCode, plan, planUserLimit, planExpiresAt, createdAt

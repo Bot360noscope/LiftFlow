@@ -6,12 +6,14 @@ import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
 import { getProfile, saveProfile, generateCode } from "@/lib/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Crypto from "expo-crypto";
 
 export default function RoleSelectScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -40,39 +42,39 @@ export default function RoleSelectScreen() {
   if (!ready) return null;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+    <View style={[styles.container, { paddingTop: insets.top + webTopInset, backgroundColor: colors.background }]}>
       <Animated.View entering={FadeInDown.duration(500)} style={styles.logoSection}>
         <View style={styles.logoIcon}>
-          <Ionicons name="barbell" size={36} color={Colors.colors.primary} />
+          <Ionicons name="barbell" size={36} color={colors.primary} />
         </View>
-        <Text style={styles.logoTitle}>LiftFlow</Text>
-        <Text style={styles.logoSubtitle}>Choose your role to get started</Text>
+        <Text style={[styles.logoTitle, { color: colors.text }]}>LiftFlow</Text>
+        <Text style={[styles.logoSubtitle, { color: colors.textSecondary }]}>Choose your role to get started</Text>
       </Animated.View>
 
       <View style={styles.cardsContainer}>
         <Animated.View entering={FadeInDown.delay(200).duration(500)}>
           <Pressable
-            style={({ pressed }) => [styles.roleCard, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+            style={({ pressed }) => [styles.roleCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
             onPress={() => handleSelect('coach')}
           >
             <View style={styles.roleIconWrap}>
-              <Ionicons name="school" size={36} color={Colors.colors.primary} />
+              <Ionicons name="school" size={36} color={colors.primary} />
             </View>
-            <Text style={styles.roleTitle}>I'm a Coach</Text>
-            <Text style={styles.roleDesc}>Build programs, track clients, leave feedback</Text>
+            <Text style={[styles.roleTitle, { color: colors.text }]}>I'm a Coach</Text>
+            <Text style={[styles.roleDesc, { color: colors.textSecondary }]}>Build programs, track clients, leave feedback</Text>
           </Pressable>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(350).duration(500)}>
           <Pressable
-            style={({ pressed }) => [styles.roleCard, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+            style={({ pressed }) => [styles.roleCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
             onPress={() => handleSelect('client')}
           >
             <View style={styles.roleIconWrap}>
-              <Ionicons name="fitness" size={36} color={Colors.colors.primary} />
+              <Ionicons name="fitness" size={36} color={colors.primary} />
             </View>
-            <Text style={styles.roleTitle}>I'm a Client</Text>
-            <Text style={styles.roleDesc}>Follow programs, log workouts, track PRs</Text>
+            <Text style={[styles.roleTitle, { color: colors.text }]}>I'm a Client</Text>
+            <Text style={[styles.roleDesc, { color: colors.textSecondary }]}>Follow programs, log workouts, track PRs</Text>
           </Pressable>
         </Animated.View>
       </View>

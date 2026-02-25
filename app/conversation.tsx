@@ -5,11 +5,13 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
 import { getProfile, getMessages, sendMessage, getMyCoach, getNotifications, markNotificationRead, type ChatMessage, type UserProfile } from "@/lib/storage";
 import { addWSListener } from "@/lib/websocket";
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const params = useLocalSearchParams<{ clientId?: string; clientName?: string; clientProfileId?: string; coachId?: string }>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -142,8 +144,8 @@ export default function ChatScreen() {
 
     return (
       <View style={[styles.messageBubbleRow, isMe && styles.messageBubbleRowMe]}>
-        <View style={[styles.messageBubble, isMe ? styles.messageBubbleMe : styles.messageBubbleThem]}>
-          <Text style={[styles.messageText, isMe && styles.messageTextMe]}>{item.text}</Text>
+        <View style={[styles.messageBubble, isMe ? styles.messageBubbleMe : [styles.messageBubbleThem, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]]}>
+          <Text style={[styles.messageText, { color: colors.text }, isMe && styles.messageTextMe]}>{item.text}</Text>
           <Text style={[styles.messageTime, isMe && styles.messageTimeMe]}>{time}</Text>
         </View>
       </View>
@@ -152,21 +154,21 @@ export default function ChatScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
-      <View style={[styles.header, { paddingTop: insets.top + webTopInset + 8 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + webTopInset + 8, backgroundColor: colors.backgroundCard, borderBottomColor: colors.border }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </Pressable>
         <View style={styles.headerCenter}>
           <View style={styles.headerAvatar}>
-            <Text style={styles.headerAvatarText}>{(chatPartnerName || '?')[0].toUpperCase()}</Text>
+            <Text style={[styles.headerAvatarText, { color: colors.primary }]}>{(chatPartnerName || '?')[0].toUpperCase()}</Text>
           </View>
           <View>
-            <Text style={styles.headerName}>{chatPartnerName}</Text>
-            <Text style={styles.headerRole}>{isCoach ? 'Client' : 'Coach'}</Text>
+            <Text style={[styles.headerName, { color: colors.text }]}>{chatPartnerName}</Text>
+            <Text style={[styles.headerRole, { color: colors.textMuted }]}>{isCoach ? 'Client' : 'Coach'}</Text>
           </View>
         </View>
         <View style={{ width: 32 }} />
@@ -174,9 +176,9 @@ export default function ChatScreen() {
 
       {noCoach ? (
         <View style={styles.emptyChat}>
-          <Ionicons name="people-outline" size={40} color={Colors.colors.textMuted} />
-          <Text style={styles.emptyChatText}>No coach connected</Text>
-          <Text style={styles.emptyChatSub}>Join a coach first to start chatting</Text>
+          <Ionicons name="people-outline" size={40} color={colors.textMuted} />
+          <Text style={[styles.emptyChatText, { color: colors.textSecondary }]}>No coach connected</Text>
+          <Text style={[styles.emptyChatSub, { color: colors.textMuted }]}>Join a coach first to start chatting</Text>
           <Pressable style={styles.joinBtn} onPress={() => router.push('/join-coach')}>
             <Text style={styles.joinBtnText}>Join Coach</Text>
           </Pressable>
@@ -196,32 +198,32 @@ export default function ChatScreen() {
             ListHeaderComponent={hasMore ? (
               <Pressable onPress={loadOlderMessages} style={styles.loadMoreBtn}>
                 {loadingMore ? (
-                  <ActivityIndicator size="small" color={Colors.colors.primary} />
+                  <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
-                  <Text style={styles.loadMoreText}>Load earlier messages</Text>
+                  <Text style={[styles.loadMoreText, { color: colors.primary }]}>Load earlier messages</Text>
                 )}
               </Pressable>
             ) : null}
             ListEmptyComponent={
               <View style={styles.emptyChat}>
-                <Ionicons name="chatbubbles-outline" size={40} color={Colors.colors.textMuted} />
-                <Text style={styles.emptyChatText}>No messages yet</Text>
-                <Text style={styles.emptyChatSub}>Start the conversation!</Text>
+                <Ionicons name="chatbubbles-outline" size={40} color={colors.textMuted} />
+                <Text style={[styles.emptyChatText, { color: colors.textSecondary }]}>No messages yet</Text>
+                <Text style={[styles.emptyChatSub, { color: colors.textMuted }]}>Start the conversation!</Text>
               </View>
             }
           />
 
           {sendError ? (
             <View style={styles.errorBar}>
-              <Ionicons name="warning" size={14} color={Colors.colors.danger} />
-              <Text style={styles.errorText}>{sendError}</Text>
+              <Ionicons name="warning" size={14} color={colors.danger} />
+              <Text style={[styles.errorText, { color: colors.danger }]}>{sendError}</Text>
             </View>
           ) : null}
-          <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 12), backgroundColor: colors.backgroundCard, borderTopColor: colors.border }]}>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]}
               placeholder="Type a message..."
-              placeholderTextColor={Colors.colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={input}
               onChangeText={setInput}
               multiline
@@ -230,11 +232,11 @@ export default function ChatScreen() {
               blurOnSubmit={false}
             />
             <Pressable
-              style={[styles.sendBtn, (!input.trim() || sending) && styles.sendBtnDisabled]}
+              style={[styles.sendBtn, (!input.trim() || sending) && [styles.sendBtnDisabled, { backgroundColor: colors.surfaceLight }]]}
               onPress={handleSend}
               disabled={!input.trim() || sending}
             >
-              <Ionicons name="send" size={18} color={input.trim() && !sending ? '#fff' : Colors.colors.textMuted} />
+              <Ionicons name="send" size={18} color={input.trim() && !sending ? '#fff' : colors.textMuted} />
             </Pressable>
           </View>
         </>

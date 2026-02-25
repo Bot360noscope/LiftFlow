@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
 
 const { width } = Dimensions.get("window");
 
@@ -34,6 +35,7 @@ const pages = [
 
 export default function OnboardingScreen({ onComplete }: OnboardingProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const [currentPage, setCurrentPage] = useState(0);
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
@@ -50,7 +52,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
   const page = pages[currentPage];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View
         style={[
           styles.header,
@@ -60,7 +62,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
         <View style={{ width: 50 }} />
         <View style={{ flex: 1 }} />
         <Pressable onPress={onComplete} hitSlop={12}>
-          <Text style={styles.skipText}>Skip</Text>
+          <Text style={[styles.skipText, { color: colors.textSecondary }]}>Skip</Text>
         </Pressable>
       </View>
 
@@ -71,10 +73,10 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
           style={styles.pageContent}
         >
           <View style={styles.iconCircle}>
-            <Ionicons name={page.icon} size={48} color={Colors.colors.primary} />
+            <Ionicons name={page.icon} size={48} color={colors.primary} />
           </View>
-          <Text style={styles.title}>{page.title}</Text>
-          <Text style={styles.description}>{page.description}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{page.title}</Text>
+          <Text style={[styles.description, { color: colors.textSecondary }]}>{page.description}</Text>
         </Animated.View>
       </View>
 
@@ -90,13 +92,14 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
               key={i}
               style={[
                 styles.dot,
+                { backgroundColor: colors.border },
                 i === currentPage && styles.dotActive,
               ]}
             />
           ))}
         </View>
 
-        <Pressable style={styles.nextBtn} onPress={handleNext}>
+        <Pressable style={[styles.nextBtn, { backgroundColor: colors.primary }]} onPress={handleNext}>
           <Text style={styles.nextBtnText}>
             {currentPage === pages.length - 1 ? "Get Started" : "Next"}
           </Text>

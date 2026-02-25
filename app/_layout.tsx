@@ -10,6 +10,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { ThemeProvider, useTheme } from "@/lib/theme-context";
 import { loadCacheFromDisk, getCachedProfile } from "@/lib/storage";
 import { connectWebSocket, disconnectWebSocket } from "@/lib/websocket";
 import AuthScreen from "./auth";
@@ -24,6 +25,11 @@ import {
 } from "@expo-google-fonts/rubik";
 
 SplashScreen.preventAutoHideAsync();
+
+function ThemedStatusBar() {
+  const { theme } = useTheme();
+  return <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />;
+}
 
 function RootLayoutNav() {
   return (
@@ -43,6 +49,7 @@ function RootLayoutNav() {
 
 function AppContent() {
   const { isLoggedIn, isLoading } = useAuth();
+  const { colors } = useTheme();
   const [hasOnboarded, setHasOnboarded] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -61,8 +68,8 @@ function AppContent() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: Colors.colors.background, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={Colors.colors.primary} />
+      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -73,8 +80,8 @@ function AppContent() {
 
   if (hasOnboarded === null) {
     return (
-      <View style={{ flex: 1, backgroundColor: Colors.colors.background, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={Colors.colors.primary} />
+      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -114,10 +121,12 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <KeyboardProvider>
-            <StatusBar style="light" />
-            <AuthProvider>
-              <AppContent />
-            </AuthProvider>
+            <ThemeProvider>
+              <AuthProvider>
+                <ThemedStatusBar />
+                <AppContent />
+              </AuthProvider>
+            </ThemeProvider>
           </KeyboardProvider>
         </GestureHandlerRootView>
       </QueryClientProvider>

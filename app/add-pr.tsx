@@ -5,6 +5,7 @@ import { useState, useCallback, useEffect } from "react";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
 import { addPR, getProfile } from "@/lib/storage";
 
 type LiftType = 'squat' | 'deadlift' | 'bench';
@@ -17,6 +18,7 @@ const LIFT_OPTIONS: { type: LiftType; label: string; color: string; icon: string
 
 export default function AddPRScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const [selectedLift, setSelectedLift] = useState<LiftType>('squat');
   const [weight, setWeight] = useState('');
   const [notes, setNotes] = useState('');
@@ -47,55 +49,55 @@ export default function AddPRScreen() {
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+    <View style={[styles.container, { paddingTop: insets.top + webTopInset, backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="close" size={28} color={Colors.colors.text} />
+          <Ionicons name="close" size={28} color={colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Log PR</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Log PR</Text>
         <Pressable onPress={handleSave} hitSlop={8} disabled={!weight || saving}>
-          <Ionicons name="checkmark-circle" size={28} color={weight && !saving ? Colors.colors.primary : Colors.colors.textMuted} />
+          <Ionicons name="checkmark-circle" size={28} color={weight && !saving ? colors.primary : colors.textMuted} />
         </Pressable>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.label}>Lift Type</Text>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>Lift Type</Text>
         <View style={styles.liftRow}>
           {LIFT_OPTIONS.map(opt => (
             <Pressable
               key={opt.type}
-              style={[styles.liftOption, selectedLift === opt.type && { borderColor: opt.color, backgroundColor: `${opt.color}15` }]}
+              style={[styles.liftOption, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, selectedLift === opt.type && { borderColor: opt.color, backgroundColor: `${opt.color}15` }]}
               onPress={() => { Haptics.selectionAsync(); setSelectedLift(opt.type); }}
             >
-              <Ionicons name={opt.icon as any} size={22} color={selectedLift === opt.type ? opt.color : Colors.colors.textMuted} />
-              <Text style={[styles.liftOptionText, selectedLift === opt.type && { color: opt.color }]}>{opt.label}</Text>
+              <Ionicons name={opt.icon as any} size={22} color={selectedLift === opt.type ? opt.color : colors.textMuted} />
+              <Text style={[styles.liftOptionText, { color: colors.textMuted }, selectedLift === opt.type && { color: opt.color }]}>{opt.label}</Text>
             </Pressable>
           ))}
         </View>
 
-        <Text style={styles.label}>Weight</Text>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>Weight</Text>
         <View style={styles.weightRow}>
           <TextInput
-            style={styles.weightInput}
+            style={[styles.weightInput, { color: colors.text, backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
             value={weight}
             onChangeText={setWeight}
             placeholder="0"
-            placeholderTextColor={Colors.colors.textMuted}
+            placeholderTextColor={colors.textMuted}
             keyboardType="decimal-pad"
             autoFocus
           />
-          <Pressable style={styles.unitToggle} onPress={() => { Haptics.selectionAsync(); setUnit(u => u === 'kg' ? 'lbs' : 'kg'); }}>
-            <Text style={styles.unitText}>{unit}</Text>
+          <Pressable style={[styles.unitToggle, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]} onPress={() => { Haptics.selectionAsync(); setUnit(u => u === 'kg' ? 'lbs' : 'kg'); }}>
+            <Text style={[styles.unitText, { color: colors.primary }]}>{unit}</Text>
           </Pressable>
         </View>
 
-        <Text style={styles.label}>Notes (optional)</Text>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>Notes (optional)</Text>
         <TextInput
-          style={styles.notesInput}
+          style={[styles.notesInput, { color: colors.text, backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
           value={notes}
           onChangeText={setNotes}
           placeholder="e.g., Felt strong today, hit depth..."
-          placeholderTextColor={Colors.colors.textMuted}
+          placeholderTextColor={colors.textMuted}
           multiline
           textAlignVertical="top"
         />

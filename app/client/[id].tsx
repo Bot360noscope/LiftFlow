@@ -6,6 +6,7 @@ import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
 import {
   getPrograms, getClients, removeClient,
   type Program, type ClientInfo,
@@ -14,6 +15,7 @@ import { getAvatarUrl } from "@/lib/api";
 import { showAlert } from "@/lib/confirm";
 
 function ProgramCard({ program }: { program: Program }) {
+  const { colors } = useTheme();
   let totalExercises = 0;
   let completedExercises = 0;
   for (const week of program.weeks) {
@@ -29,27 +31,27 @@ function ProgramCard({ program }: { program: Program }) {
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.programCard, pressed && { opacity: 0.85 }]}
+      style={({ pressed }) => [styles.programCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.85 }]}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         router.push(`/program/${program.id}`);
       }}
     >
       <View style={styles.programCardTop}>
-        <View style={[styles.statusDot, { backgroundColor: program.status === 'active' ? Colors.colors.success : Colors.colors.warning }]} />
-        <Text style={styles.programTitle} numberOfLines={1}>{program.title}</Text>
-        <Ionicons name="chevron-forward" size={16} color={Colors.colors.textMuted} />
+        <View style={[styles.statusDot, { backgroundColor: program.status === 'active' ? colors.success : colors.warning }]} />
+        <Text style={[styles.programTitle, { color: colors.text }]} numberOfLines={1}>{program.title}</Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
       </View>
-      <Text style={styles.programDesc} numberOfLines={1}>{program.description}</Text>
+      <Text style={[styles.programDesc, { color: colors.textMuted }]} numberOfLines={1}>{program.description}</Text>
       <View style={styles.programMeta}>
-        <Text style={styles.programMetaText}>{program.weeks.length}W / {program.daysPerWeek}D</Text>
-        <Text style={styles.programMetaDot}>{'\u00B7'}</Text>
-        <Text style={styles.programMetaText}>{dateStr}</Text>
+        <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{program.weeks.length}W / {program.daysPerWeek}D</Text>
+        <Text style={[styles.programMetaDot, { color: colors.textMuted }]}>{'\u00B7'}</Text>
+        <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{dateStr}</Text>
         <View style={styles.progressBarWrap}>
-          <View style={styles.progressBar}>
+          <View style={[styles.progressBar, { backgroundColor: colors.surfaceLight }]}>
             <View style={[styles.progressFill, { width: `${progress}%` }]} />
           </View>
-          <Text style={styles.progressText}>{progress}%</Text>
+          <Text style={[styles.progressText, { color: colors.textSecondary }]}>{progress}%</Text>
         </View>
       </View>
     </Pressable>
@@ -58,6 +60,7 @@ function ProgramCard({ program }: { program: Program }) {
 
 export default function ClientDetailScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const { id, name: clientName } = useLocalSearchParams<{ id: string; name?: string }>();
   const [client, setClient] = useState<ClientInfo | null>(null);
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -97,12 +100,12 @@ export default function ClientDetailScreen() {
   const joinedStr = client ? new Date(client.joinedAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '';
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+    <View style={[styles.container, { paddingTop: insets.top + webTopInset, backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="arrow-back" size={24} color={Colors.colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle} numberOfLines={1}>{displayName}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>{displayName}</Text>
         <Pressable
           hitSlop={8}
           onPress={() => {
@@ -110,7 +113,7 @@ export default function ClientDetailScreen() {
             router.push({ pathname: '/conversation', params: { clientId: id, clientName: displayName, clientProfileId: client?.clientProfileId || '' } });
           }}
         >
-          <Ionicons name="chatbubbles-outline" size={22} color={Colors.colors.primary} />
+          <Ionicons name="chatbubbles-outline" size={22} color={colors.primary} />
         </Pressable>
       </View>
 
@@ -128,38 +131,38 @@ export default function ClientDetailScreen() {
               </View>
             )}
             <View style={styles.clientHeaderInfo}>
-              <Text style={styles.clientName}>{displayName}</Text>
-              {joinedStr ? <Text style={styles.clientJoined}>Joined {joinedStr}</Text> : null}
+              <Text style={[styles.clientName, { color: colors.text }]}>{displayName}</Text>
+              {joinedStr ? <Text style={[styles.clientJoined, { color: colors.textSecondary }]}>Joined {joinedStr}</Text> : null}
             </View>
           </View>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100).duration(350)}>
           <View style={styles.statsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{programs.length}</Text>
-              <Text style={styles.statLabel}>Programs</Text>
+            <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+              <Text style={[styles.statValue, { color: colors.text }]}>{programs.length}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Programs</Text>
             </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{programs.filter(p => p.status === 'active').length}</Text>
-              <Text style={styles.statLabel}>Active</Text>
+            <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+              <Text style={[styles.statValue, { color: colors.text }]}>{programs.filter(p => p.status === 'active').length}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Active</Text>
             </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
+            <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+              <Text style={[styles.statValue, { color: colors.text }]}>
                 {(() => {
                   let t = 0, c = 0;
                   for (const p of programs) for (const w of p.weeks) for (const d of w.days) for (const e of d.exercises) { if (e.name) t++; if (e.isCompleted) c++; }
                   return t > 0 ? Math.round((c / t) * 100) + '%' : '0%';
                 })()}
               </Text>
-              <Text style={styles.statLabel}>Overall</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Overall</Text>
             </View>
           </View>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(150).duration(350)}>
           <Pressable
-            style={({ pressed }) => [styles.newProgramBtn, pressed && { opacity: 0.85 }]}
+            style={({ pressed }) => [styles.newProgramBtn, { backgroundColor: colors.backgroundCard }, pressed && { opacity: 0.85 }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push({ pathname: '/create-program', params: { clientId: id, clientName: displayName } });
@@ -169,20 +172,20 @@ export default function ClientDetailScreen() {
               <Ionicons name="add" size={20} color="#fff" />
             </View>
             <View style={styles.newProgramInfo}>
-              <Text style={styles.newProgramTitle}>New Program</Text>
-              <Text style={styles.newProgramDesc}>Create a new training program for {displayName}</Text>
+              <Text style={[styles.newProgramTitle, { color: colors.text }]}>New Program</Text>
+              <Text style={[styles.newProgramDesc, { color: colors.textSecondary }]}>Create a new training program for {displayName}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.colors.textMuted} />
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </Pressable>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(200).duration(350)}>
-          <Text style={styles.sectionTitle}>Programs</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Programs</Text>
           {programs.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Ionicons name="barbell-outline" size={32} color={Colors.colors.textMuted} />
-              <Text style={styles.emptyText}>No programs yet</Text>
-              <Text style={styles.emptySubText}>Create a program for this client to get started</Text>
+            <View style={[styles.emptyCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+              <Ionicons name="barbell-outline" size={32} color={colors.textMuted} />
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No programs yet</Text>
+              <Text style={[styles.emptySubText, { color: colors.textMuted }]}>Create a program for this client to get started</Text>
             </View>
           ) : (
             programs.map((prog, idx) => (
@@ -200,34 +203,34 @@ export default function ClientDetailScreen() {
             accessibilityLabel="Remove client"
             accessibilityRole="button"
           >
-            <Ionicons name="person-remove" size={18} color={Colors.colors.danger} />
-            <Text style={styles.removeClientText}>Remove Client</Text>
+            <Ionicons name="person-remove" size={18} color={colors.danger} />
+            <Text style={[styles.removeClientText, { color: colors.danger }]}>Remove Client</Text>
           </Pressable>
         </Animated.View>
       </ScrollView>
 
       <Modal visible={showRemoveModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Ionicons name="person-remove" size={40} color={Colors.colors.danger} />
-            <Text style={styles.modalTitle}>Remove Client</Text>
-            <Text style={styles.modalMessage}>
+          <View style={[styles.modalCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <Ionicons name="person-remove" size={40} color={colors.danger} />
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Remove Client</Text>
+            <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
               This will remove {displayName} from your clients. Chat messages will be deleted and program assignments will be unlinked. This action cannot be undone.
             </Text>
-            <Text style={styles.modalPrompt}>Type REMOVE to confirm:</Text>
+            <Text style={[styles.modalPrompt, { color: colors.text }]}>Type REMOVE to confirm:</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
               value={removeInput}
               onChangeText={setRemoveInput}
               placeholder="Type REMOVE"
-              placeholderTextColor={Colors.colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="characters"
               autoCorrect={false}
               accessibilityLabel="Type REMOVE to confirm client removal"
             />
             <View style={styles.modalButtons}>
-              <Pressable style={styles.modalCancelBtn} onPress={() => setShowRemoveModal(false)} accessibilityLabel="Cancel" accessibilityRole="button">
-                <Text style={styles.modalCancelText}>Cancel</Text>
+              <Pressable style={[styles.modalCancelBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setShowRemoveModal(false)} accessibilityLabel="Cancel" accessibilityRole="button">
+                <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
               </Pressable>
               <Pressable
                 style={[styles.modalDeleteBtn, removeInput !== 'REMOVE' && styles.modalDeleteBtnDisabled]}

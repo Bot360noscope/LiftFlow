@@ -7,11 +7,13 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { ProgramsSkeleton } from "@/components/SkeletonLoader";
 import { getPrograms, deleteProgram, getProfile, getCachedPrograms, getCachedProfile, type Program } from "@/lib/storage";
 
 export default function ProgramsScreen() {
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [programs, setPrograms] = useState<Program[]>(getCachedPrograms());
   const [role, setRole] = useState<string>(getCachedProfile()?.role || 'coach');
@@ -70,7 +72,7 @@ export default function ProgramsScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: Colors.colors.background, paddingTop: insets.top + webTopInset + 16 }}>
+      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + webTopInset + 16 }}>
         <ProgramsSkeleton />
       </View>
     );
@@ -82,7 +84,7 @@ export default function ProgramsScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={[
         styles.scrollContent,
         { paddingTop: insets.top + webTopInset + 16, paddingBottom: insets.bottom + webBottomInset + 20 },
@@ -90,7 +92,7 @@ export default function ProgramsScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.headerRow}>
-        <Text style={styles.pageTitle}>Programs</Text>
+        <Text style={[styles.pageTitle, { color: colors.text }]}>Programs</Text>
         <Pressable
           style={styles.newBtn}
           accessibilityLabel="Create new program"
@@ -107,9 +109,9 @@ export default function ProgramsScreen() {
 
       {programs.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="grid-outline" size={48} color={Colors.colors.textMuted} />
-          <Text style={styles.emptyTitle}>No programs yet</Text>
-          <Text style={styles.emptyDesc}>
+          <Ionicons name="grid-outline" size={48} color={colors.textMuted} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>No programs yet</Text>
+          <Text style={[styles.emptyDesc, { color: colors.textMuted }]}>
             {role === 'coach'
               ? 'Create a program and share it with clients'
               : 'Create your own program or join a coach to get started'}
@@ -120,7 +122,7 @@ export default function ProgramsScreen() {
           </Pressable>
           {role === 'client' && (
             <Pressable style={[styles.createBtn, styles.secondaryBtn]} onPress={() => router.push('/join-coach')} accessibilityLabel="Join a coach" accessibilityRole="button">
-              <Ionicons name="people" size={18} color={Colors.colors.primary} />
+              <Ionicons name="people" size={18} color={colors.primary} />
               <Text style={[styles.createBtnText, styles.secondaryBtnText]}>Join a Coach</Text>
             </Pressable>
           )}
@@ -146,7 +148,7 @@ export default function ProgramsScreen() {
           return (
             <Animated.View key={prog.id} entering={FadeInDown.delay(idx * 60).duration(300)}>
               <Pressable
-                style={({ pressed }) => [styles.programCard, pressed && { opacity: 0.85 }]}
+                style={({ pressed }) => [styles.programCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.85 }]}
                 accessibilityLabel={`Open program ${prog.title}`}
                 accessibilityRole="button"
                 onPress={() => router.push(`/program/${prog.id}`)}
@@ -154,43 +156,43 @@ export default function ProgramsScreen() {
               >
                 <View style={styles.cardTop}>
                   <View style={styles.cardTitleRow}>
-                    <View style={[styles.statusDot, { backgroundColor: prog.status === 'active' ? Colors.colors.success : Colors.colors.warning }]} />
-                    <Text style={styles.cardTitle} numberOfLines={1}>{prog.title}</Text>
+                    <View style={[styles.statusDot, { backgroundColor: prog.status === 'active' ? colors.success : colors.warning }]} />
+                    <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>{prog.title}</Text>
                   </View>
                 </View>
 
-                <Text style={styles.cardDesc} numberOfLines={2}>{prog.description}</Text>
+                <Text style={[styles.cardDesc, { color: colors.textMuted }]} numberOfLines={2}>{prog.description}</Text>
 
                 <View style={styles.cardStats}>
                   <View style={styles.cardStat}>
-                    <Ionicons name="calendar-outline" size={14} color={Colors.colors.textSecondary} />
-                    <Text style={styles.cardStatText}>{prog.weeks.length} weeks</Text>
+                    <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+                    <Text style={[styles.cardStatText, { color: colors.textSecondary }]}>{prog.weeks.length} weeks</Text>
                   </View>
                   <View style={styles.cardStat}>
-                    <Ionicons name="today-outline" size={14} color={Colors.colors.textSecondary} />
-                    <Text style={styles.cardStatText}>{prog.daysPerWeek} days/wk</Text>
+                    <Ionicons name="today-outline" size={14} color={colors.textSecondary} />
+                    <Text style={[styles.cardStatText, { color: colors.textSecondary }]}>{prog.daysPerWeek} days/wk</Text>
                   </View>
                   <View style={styles.cardStat}>
-                    <Ionicons name="list-outline" size={14} color={Colors.colors.textSecondary} />
-                    <Text style={styles.cardStatText}>{totalExercises} exercises</Text>
+                    <Ionicons name="list-outline" size={14} color={colors.textSecondary} />
+                    <Text style={[styles.cardStatText, { color: colors.textSecondary }]}>{totalExercises} exercises</Text>
                   </View>
                   {hasComments && (
                     <View style={styles.cardStat}>
-                      <Ionicons name="chatbubble" size={12} color={Colors.colors.accent} />
+                      <Ionicons name="chatbubble" size={12} color={colors.accent} />
                     </View>
                   )}
                   {hasVideos && (
                     <View style={styles.cardStat}>
-                      <Ionicons name="videocam" size={12} color={Colors.colors.primary} />
+                      <Ionicons name="videocam" size={12} color={colors.primary} />
                     </View>
                   )}
                 </View>
 
                 <View style={styles.progressRow}>
-                  <View style={styles.progressBarBg}>
+                  <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceLight }]}>
                     <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
                   </View>
-                  <Text style={styles.progressText}>{progress}%</Text>
+                  <Text style={[styles.progressText, { color: colors.textSecondary }]}>{progress}%</Text>
                 </View>
               </Pressable>
             </Animated.View>
@@ -200,26 +202,26 @@ export default function ProgramsScreen() {
 
       <Modal visible={showDeleteModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Ionicons name="warning" size={40} color={Colors.colors.danger} />
-            <Text style={styles.modalTitle}>Delete Program</Text>
-            <Text style={styles.modalMessage}>
+          <View style={[styles.modalCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <Ionicons name="warning" size={40} color={colors.danger} />
+            <Text style={[styles.modalTitle, { color: colors.danger }]}>Delete Program</Text>
+            <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
               This will permanently delete "{deletingProgram?.title}" and all its exercises, progress, and associated data. This action cannot be undone.
             </Text>
-            <Text style={styles.modalPrompt}>Type DELETE to confirm:</Text>
+            <Text style={[styles.modalPrompt, { color: colors.text }]}>Type DELETE to confirm:</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { color: colors.danger, backgroundColor: colors.surface, borderColor: colors.border }]}
               value={deleteInput}
               onChangeText={setDeleteInput}
               placeholder="Type DELETE"
-              placeholderTextColor={Colors.colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="characters"
               autoCorrect={false}
               accessibilityLabel="Type DELETE to confirm program deletion"
             />
             <View style={styles.modalButtons}>
-              <Pressable style={styles.modalCancelBtn} onPress={() => setShowDeleteModal(false)} accessibilityLabel="Cancel" accessibilityRole="button">
-                <Text style={styles.modalCancelText}>Cancel</Text>
+              <Pressable style={[styles.modalCancelBtn, { backgroundColor: colors.surfaceLight }]} onPress={() => setShowDeleteModal(false)} accessibilityLabel="Cancel" accessibilityRole="button">
+                <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
               </Pressable>
               <Pressable
                 style={[styles.modalDeleteBtn, deleteInput !== 'DELETE' && styles.modalDeleteBtnDisabled]}

@@ -6,6 +6,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
 import { getProfile, getMessages, sendMessage, getMyCoach, getClients, getLatestMessages, getNotifications, markNotificationRead, type ChatMessage, type UserProfile, type ClientInfo, type LatestMessages } from "@/lib/storage";
 import { getAvatarUrl } from "@/lib/api";
 import { addWSListener } from "@/lib/websocket";
@@ -25,6 +26,7 @@ function formatTime(dateStr: string): string {
 }
 
 export default function ChatTab() {
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 84 : 0;
@@ -195,8 +197,8 @@ export default function ChatTab() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color={Colors.colors.primary} />
+      <View style={[styles.container, styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -212,16 +214,16 @@ export default function ChatTab() {
     });
 
     return (
-      <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Chat</Text>
+      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + webTopInset }]}>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Chat</Text>
         </View>
         {sortedClients.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Animated.View entering={FadeInDown.duration(400)} style={styles.emptyContent}>
-              <Ionicons name="chatbubbles-outline" size={56} color={Colors.colors.textMuted} />
-              <Text style={styles.emptyTitle}>No Clients Yet</Text>
-              <Text style={styles.emptySubtitle}>Once clients join with your coach code, they'll appear here for messaging.</Text>
+              <Ionicons name="chatbubbles-outline" size={56} color={colors.textMuted} />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>No Clients Yet</Text>
+              <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>Once clients join with your coach code, they'll appear here for messaging.</Text>
             </Animated.View>
           </View>
         ) : (
@@ -235,7 +237,7 @@ export default function ChatTab() {
               return (
                 <TouchableOpacity
                   key={client.id}
-                  style={styles.clientRow}
+                  style={[styles.clientRow, { borderBottomColor: colors.border }]}
                   activeOpacity={0.6}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -253,26 +255,26 @@ export default function ChatTab() {
                     {client.avatarUrl ? (
                       <Image source={{ uri: getAvatarUrl(client.avatarUrl) }} style={styles.clientAvatar} />
                     ) : (
-                      <View style={styles.clientAvatarFallback}>
-                        <Text style={styles.clientAvatarText}>{(client.name || '?')[0].toUpperCase()}</Text>
+                      <View style={[styles.clientAvatarFallback, { backgroundColor: colors.surfaceLight }]}>
+                        <Text style={[styles.clientAvatarText, { color: colors.primary }]}>{(client.name || '?')[0].toUpperCase()}</Text>
                       </View>
                     )}
-                    {hasUnread && <View style={styles.unreadDot} />}
+                    {hasUnread && <View style={[styles.unreadDot, { borderColor: colors.background }]} />}
                   </View>
                   <View style={styles.clientInfo}>
                     <View style={styles.clientNameRow}>
-                      <Text style={[styles.clientName, hasUnread && { color: Colors.colors.text }]} numberOfLines={1}>{client.name || 'Client'}</Text>
+                      <Text style={[styles.clientName, { color: colors.text }, hasUnread && { color: colors.text }]} numberOfLines={1}>{client.name || 'Client'}</Text>
                       {latest && (
-                        <Text style={[styles.clientTime, hasUnread && { color: Colors.colors.primary }]}>{formatTime(latest.createdAt)}</Text>
+                        <Text style={[styles.clientTime, { color: colors.textMuted }, hasUnread && { color: colors.primary }]}>{formatTime(latest.createdAt)}</Text>
                       )}
                     </View>
-                    <Text style={[styles.clientLastMsg, hasUnread && { color: Colors.colors.textSecondary, fontFamily: 'Rubik_600SemiBold' }]} numberOfLines={1}>
+                    <Text style={[styles.clientLastMsg, { color: colors.textMuted }, hasUnread && { color: colors.textSecondary, fontFamily: 'Rubik_600SemiBold' }]} numberOfLines={1}>
                       {latest
                         ? `${latest.senderRole === 'coach' ? 'You: ' : ''}${latest.text}`
                         : 'No messages yet'}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color={hasUnread ? Colors.colors.primary : Colors.colors.textMuted} />
+                  <Ionicons name="chevron-forward" size={16} color={hasUnread ? colors.primary : colors.textMuted} />
                 </TouchableOpacity>
               );
             })}
@@ -284,15 +286,15 @@ export default function ChatTab() {
 
   if (!hasCoach) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Chat</Text>
+      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + webTopInset }]}>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Chat</Text>
         </View>
         <View style={styles.emptyContainer}>
           <Animated.View entering={FadeInDown.duration(400)} style={styles.emptyContent}>
-            <Ionicons name="person-add-outline" size={56} color={Colors.colors.textMuted} />
-            <Text style={styles.emptyTitle}>No Coach Yet</Text>
-            <Text style={styles.emptySubtitle}>Join a coach first to start chatting. Go to your Profile and enter a coach code to connect.</Text>
+            <Ionicons name="person-add-outline" size={56} color={colors.textMuted} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>No Coach Yet</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>Join a coach first to start chatting. Go to your Profile and enter a coach code to connect.</Text>
           </Animated.View>
         </View>
       </View>
@@ -306,12 +308,12 @@ export default function ChatTab() {
 
   return (
     <View
-      style={[styles.container, { paddingTop: insets.top + webTopInset }]}
+      style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + webTopInset }]}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View style={styles.headerLeft}>
-          <Ionicons name="chatbubbles" size={22} color={Colors.colors.primary} />
-          <Text style={styles.headerTitle}>{chatPartnerName}</Text>
+          <Ionicons name="chatbubbles" size={22} color={colors.primary} />
+          <Text style={[styles.headerTitle, { color: colors.text }]}>{chatPartnerName}</Text>
         </View>
       </View>
 
@@ -332,25 +334,25 @@ export default function ChatTab() {
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           <View style={styles.emptyMessages}>
-            <Ionicons name="chatbubble-ellipses-outline" size={40} color={Colors.colors.textMuted} />
-            <Text style={styles.emptyMessagesText}>No messages yet. Say hi!</Text>
+            <Ionicons name="chatbubble-ellipses-outline" size={40} color={colors.textMuted} />
+            <Text style={[styles.emptyMessagesText, { color: colors.textMuted }]}>No messages yet. Say hi!</Text>
           </View>
         }
       />
 
       {sendError ? (
         <View style={styles.errorBar}>
-          <Ionicons name="warning" size={14} color={Colors.colors.danger} />
-          <Text style={styles.errorText}>{sendError}</Text>
+          <Ionicons name="warning" size={14} color={colors.danger} />
+          <Text style={[styles.errorText, { color: colors.danger }]}>{sendError}</Text>
         </View>
       ) : null}
-      <View style={[styles.inputRow, { paddingBottom: Math.max(bottomPadding, 8) }]}>
+      <View style={[styles.inputRow, { backgroundColor: colors.backgroundCard, borderTopColor: colors.border, paddingBottom: Math.max(bottomPadding, 8) }]}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
           value={input}
           onChangeText={setInput}
           placeholder="Type a message..."
-          placeholderTextColor={Colors.colors.textMuted}
+          placeholderTextColor={colors.textMuted}
           multiline
           accessibilityLabel="Message input"
         />

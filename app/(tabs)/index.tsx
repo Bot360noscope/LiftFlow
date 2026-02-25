@@ -6,6 +6,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { HomeSkeleton } from "@/components/SkeletonLoader";
 import {
@@ -17,19 +18,19 @@ import {
 import { getAvatarUrl } from "@/lib/api";
 import { connectWebSocket, addWSListener } from "@/lib/websocket";
 
-function StatCard({ icon, label, value, color }: { icon: string; label: string; value: string; color: string }) {
+function StatCard({ icon, label, value, color, colors }: { icon: string; label: string; value: string; color: string; colors: any }) {
   return (
-    <View style={styles.statCard}>
+    <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
       <View style={[styles.statIcon, { backgroundColor: `${color}15` }]}>
         <Ionicons name={icon as any} size={18} color={color} />
       </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>{label}</Text>
+      <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: colors.textMuted }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>{label}</Text>
     </View>
   );
 }
 
-function ClientCard({ client, programs, hasUnread }: { client: ClientInfo; programs: Program[]; hasUnread: boolean }) {
+function ClientCard({ client, programs, hasUnread, colors }: { client: ClientInfo; programs: Program[]; hasUnread: boolean; colors: any }) {
   const clientPrograms = programs.filter(p => p.clientId === client.id);
   let totalEx = 0, completedEx = 0;
   for (const prog of clientPrograms) {
@@ -46,7 +47,7 @@ function ClientCard({ client, programs, hasUnread }: { client: ClientInfo; progr
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.clientCard, pressed && { opacity: 0.85 }]}
+      style={({ pressed }) => [styles.clientCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.85 }]}
       accessibilityLabel={`View client ${client.name || 'details'}`}
       accessibilityRole="button"
       onPress={() => {
@@ -64,10 +65,10 @@ function ClientCard({ client, programs, hasUnread }: { client: ClientInfo; progr
         )}
         <View style={styles.clientInfo}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={styles.clientName}>{client.name || 'Client'}</Text>
+            <Text style={[styles.clientName, { color: colors.text }]}>{client.name || 'Client'}</Text>
             {hasUnread && <View style={styles.clientUnreadDot} />}
           </View>
-          <Text style={styles.clientMeta}>{clientPrograms.length} program{clientPrograms.length !== 1 ? 's' : ''}</Text>
+          <Text style={[styles.clientMeta, { color: colors.textMuted }]}>{clientPrograms.length} program{clientPrograms.length !== 1 ? 's' : ''}</Text>
         </View>
       </View>
       {totalEx > 0 && (
@@ -82,7 +83,7 @@ function ClientCard({ client, programs, hasUnread }: { client: ClientInfo; progr
   );
 }
 
-function ProgramCard({ program }: { program: Program }) {
+function ProgramCard({ program, colors }: { program: Program; colors: any }) {
   let totalExercises = 0;
   let completedExercises = 0;
   for (const week of program.weeks) {
@@ -97,37 +98,37 @@ function ProgramCard({ program }: { program: Program }) {
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.programCard, pressed && { opacity: 0.8 }]}
+      style={({ pressed }) => [styles.programCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.8 }]}
       accessibilityLabel={`Open program ${program.title}`}
       accessibilityRole="button"
       onPress={() => router.push(`/program/${program.id}`)}
     >
       <View style={styles.programCardHeader}>
-        <View style={[styles.statusDot, { backgroundColor: program.status === 'active' ? Colors.colors.success : Colors.colors.warning }]} />
-        <Text style={styles.programTitle} numberOfLines={1}>{program.title}</Text>
-        <Ionicons name="chevron-forward" size={16} color={Colors.colors.textMuted} />
+        <View style={[styles.statusDot, { backgroundColor: program.status === 'active' ? colors.success : colors.warning }]} />
+        <Text style={[styles.programTitle, { color: colors.text }]} numberOfLines={1}>{program.title}</Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
       </View>
-      <Text style={styles.programDesc} numberOfLines={1}>{program.description}</Text>
+      <Text style={[styles.programDesc, { color: colors.textMuted }]} numberOfLines={1}>{program.description}</Text>
       <View style={styles.programMeta}>
-        <Text style={styles.programMetaText}>{program.weeks.length}W / {program.daysPerWeek}D</Text>
+        <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{program.weeks.length}W / {program.daysPerWeek}D</Text>
         <View style={styles.progressBar}>
           <View style={[styles.progressFill, { width: `${progress}%` }]} />
         </View>
-        <Text style={styles.programMetaText}>{progress}%</Text>
+        <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{progress}%</Text>
       </View>
     </Pressable>
   );
 }
 
-function NotificationItem({ notification, onDismiss }: { notification: AppNotification; onDismiss: (id: string) => void }) {
+function NotificationItem({ notification, onDismiss, colors }: { notification: AppNotification; onDismiss: (id: string) => void; colors: any }) {
   const icon = notification.type === 'video' ? 'videocam' :
     notification.type === 'notes' ? 'chatbubble' :
     notification.type === 'comment' ? 'school' :
     notification.type === 'chat' ? 'chatbubbles' : 'checkmark-circle';
-  const color = notification.type === 'video' ? Colors.colors.primary :
-    notification.type === 'notes' ? Colors.colors.accent :
-    notification.type === 'comment' ? Colors.colors.accent :
-    notification.type === 'chat' ? Colors.colors.primary : Colors.colors.success;
+  const color = notification.type === 'video' ? colors.primary :
+    notification.type === 'notes' ? colors.accent :
+    notification.type === 'comment' ? colors.accent :
+    notification.type === 'chat' ? colors.primary : colors.success;
 
   return (
     <Pressable
@@ -158,21 +159,21 @@ function NotificationItem({ notification, onDismiss }: { notification: AppNotifi
         <Ionicons name={icon as any} size={16} color={color} />
       </View>
       <View style={styles.notifContent}>
-        <Text style={styles.notifTitle} numberOfLines={1}>{notification.title}</Text>
-        <Text style={styles.notifMsg} numberOfLines={2}>{notification.message}</Text>
+        <Text style={[styles.notifTitle, { color: colors.text }]} numberOfLines={1}>{notification.title}</Text>
+        <Text style={[styles.notifMsg, { color: colors.textMuted }]} numberOfLines={2}>{notification.message}</Text>
       </View>
       {!notification.read && <View style={styles.notifDot} />}
     </Pressable>
   );
 }
 
-function HomeCoachCodeCard({ coachCode }: { coachCode: string }) {
+function HomeCoachCodeCard({ coachCode, colors }: { coachCode: string; colors: any }) {
   const [revealed, setRevealed] = useState(false);
   return (
-    <View style={styles.coachCodeCard}>
+    <View style={[styles.coachCodeCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
       <View style={styles.coachCodeLeft}>
-        <Text style={styles.coachCodeLabel}>Your Coach Code</Text>
-        <Text style={styles.coachCodeDesc}>Share this with clients to connect</Text>
+        <Text style={[styles.coachCodeLabel, { color: colors.text }]}>Your Coach Code</Text>
+        <Text style={[styles.coachCodeDesc, { color: colors.textMuted }]}>Share this with clients to connect</Text>
       </View>
       <Pressable
         style={styles.coachCodeBadge}
@@ -184,11 +185,11 @@ function HomeCoachCodeCard({ coachCode }: { coachCode: string }) {
         {revealed ? (
           <>
             <Text style={styles.coachCodeValue}>{coachCode}</Text>
-            <Ionicons name="eye-off-outline" size={14} color={Colors.colors.primary} />
+            <Ionicons name="eye-off-outline" size={14} color={colors.primary} />
           </>
         ) : (
           <>
-            <Ionicons name="eye-outline" size={14} color={Colors.colors.textMuted} />
+            <Ionicons name="eye-outline" size={14} color={colors.textMuted} />
             <Text style={styles.coachCodeHiddenText}>Tap to reveal</Text>
           </>
         )}
@@ -198,6 +199,7 @@ function HomeCoachCodeCard({ coachCode }: { coachCode: string }) {
 }
 
 export default function HomeScreen() {
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<UserProfile | null>(getCachedProfile());
   const [programs, setPrograms] = useState<Program[]>(getCachedPrograms());
@@ -305,7 +307,7 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: Colors.colors.background, paddingTop: insets.top + webTopInset + 16 }}>
+      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + webTopInset + 16 }}>
         <HomeSkeleton />
       </View>
     );
@@ -317,7 +319,7 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={[
         styles.scrollContent,
         { paddingTop: insets.top + webTopInset + 16, paddingBottom: insets.bottom + webBottomInset + 20 },
@@ -327,22 +329,22 @@ export default function HomeScreen() {
       <Animated.View entering={FadeInDown.duration(400)}>
         <View style={styles.greetingRow}>
           <View style={styles.greetingLeft}>
-            <Text style={styles.greeting} numberOfLines={1}>
+            <Text style={[styles.greeting, { color: colors.text }]} numberOfLines={1}>
               {isCoach ? 'Dashboard' : 'My Training'}
             </Text>
-            <Text style={styles.greetingSub} numberOfLines={1}>
+            <Text style={[styles.greetingSub, { color: colors.textSecondary }]} numberOfLines={1}>
               {profile?.name ? `Welcome, ${profile.name}` : 'Welcome to LiftFlow'}
             </Text>
           </View>
           <View style={styles.roleChipRow}>
             {isCoach && (
-              <View style={[styles.planBadge, profile?.plan !== 'free' && styles.planBadgePremium]}>
+              <View style={[styles.planBadge, { backgroundColor: colors.surface, borderColor: colors.border }, profile?.plan !== 'free' && styles.planBadgePremium]}>
                 <Ionicons
                   name={profile?.plan !== 'free' ? 'star' : 'star-outline'}
                   size={12}
-                  color={profile?.plan !== 'free' ? '#FFD700' : Colors.colors.textMuted}
+                  color={profile?.plan !== 'free' ? '#FFD700' : colors.textMuted}
                 />
-                <Text style={[styles.planBadgeText, profile?.plan !== 'free' && styles.planBadgeTextPremium]}>
+                <Text style={[styles.planBadgeText, { color: colors.textMuted }, profile?.plan !== 'free' && styles.planBadgeTextPremium]}>
                   {profile?.plan === 'free' ? 'Free' : profile?.plan === 'tier_5' ? 'Starter' : profile?.plan === 'tier_10' ? 'Growth' : profile?.plan === 'saas' ? 'SaaS' : 'Premium'}
                 </Text>
               </View>
@@ -353,7 +355,7 @@ export default function HomeScreen() {
               accessibilityRole="button"
               onPress={() => router.push('/(tabs)/profile')}
             >
-              <Ionicons name={isCoach ? 'school' : 'fitness'} size={14} color={Colors.colors.primary} />
+              <Ionicons name={isCoach ? 'school' : 'fitness'} size={14} color={colors.primary} />
               <Text style={styles.roleChipText}>{isCoach ? 'Coach' : 'Client'}</Text>
             </Pressable>
           </View>
@@ -362,16 +364,16 @@ export default function HomeScreen() {
 
       {isCoach && profile?.coachCode && (
         <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-          <HomeCoachCodeCard coachCode={profile.coachCode} />
+          <HomeCoachCodeCard coachCode={profile.coachCode} colors={colors} />
         </Animated.View>
       )}
 
       {isCoach && (
         <Animated.View entering={FadeInDown.delay(150).duration(400)}>
           <View style={styles.statsRow}>
-            <StatCard icon="people" label="Clients" value={String(clients.length)} color={Colors.colors.textMuted} />
-            <StatCard icon="barbell" label="Active" value={String(activePrograms.length)} color={Colors.colors.textMuted} />
-            <StatCard icon="notifications" label="Review" value={String(unreadNotifs.length)} color={Colors.colors.textMuted} />
+            <StatCard icon="people" label="Clients" value={String(clients.length)} color={colors.textMuted} colors={colors} />
+            <StatCard icon="barbell" label="Active" value={String(activePrograms.length)} color={colors.textMuted} colors={colors} />
+            <StatCard icon="notifications" label="Review" value={String(unreadNotifs.length)} color={colors.textMuted} colors={colors} />
           </View>
         </Animated.View>
       )}
@@ -380,7 +382,7 @@ export default function HomeScreen() {
         <>
           <Animated.View entering={FadeInDown.delay(200).duration(400)}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Clients</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Clients</Text>
               <Pressable
                 style={styles.addBtn}
                 accessibilityLabel="View all clients"
@@ -390,16 +392,16 @@ export default function HomeScreen() {
                   router.push('/(tabs)/programs');
                 }}
               >
-                <Ionicons name="eye-outline" size={18} color={Colors.colors.primary} />
+                <Ionicons name="eye-outline" size={18} color={colors.primary} />
               </Pressable>
             </View>
 
-            <View style={styles.searchBar}>
-              <Ionicons name="search" size={16} color={Colors.colors.textMuted} />
+            <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Ionicons name="search" size={16} color={colors.textMuted} />
               <TextInput
-                style={styles.searchInput}
+                style={[styles.searchInput, { color: colors.text }]}
                 placeholder="Search clients..."
-                placeholderTextColor={Colors.colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={clientSearch}
                 onChangeText={setClientSearch}
                 autoCapitalize="none"
@@ -408,21 +410,21 @@ export default function HomeScreen() {
               />
               {clientSearch.length > 0 && (
                 <Pressable onPress={() => setClientSearch('')} hitSlop={8} accessibilityLabel="Clear search" accessibilityRole="button">
-                  <Ionicons name="close-circle" size={16} color={Colors.colors.textMuted} />
+                  <Ionicons name="close-circle" size={16} color={colors.textMuted} />
                 </Pressable>
               )}
             </View>
 
             {clients.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <Ionicons name="people-outline" size={32} color={Colors.colors.textMuted} />
-                <Text style={styles.emptyText}>No clients connected yet</Text>
-                <Text style={styles.emptySubText}>Share your coach code so clients can find you</Text>
+              <View style={[styles.emptyCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+                <Ionicons name="people-outline" size={32} color={colors.textMuted} />
+                <Text style={[styles.emptyText, { color: colors.text }]}>No clients connected yet</Text>
+                <Text style={[styles.emptySubText, { color: colors.textMuted }]}>Share your coach code so clients can find you</Text>
               </View>
             ) : filteredClients.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <Ionicons name="search-outline" size={24} color={Colors.colors.textMuted} />
-                <Text style={styles.emptyText}>No matching clients</Text>
+              <View style={[styles.emptyCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+                <Ionicons name="search-outline" size={24} color={colors.textMuted} />
+                <Text style={[styles.emptyText, { color: colors.text }]}>No matching clients</Text>
               </View>
             ) : (
               filteredClients.map((client) => (
@@ -431,6 +433,7 @@ export default function HomeScreen() {
                   client={client}
                   programs={programs}
                   hasUnread={notifications.some(n => !n.read && n.title.toLowerCase().includes(client.name.toLowerCase()))}
+                  colors={colors}
                 />
               ))
             )}
@@ -439,7 +442,7 @@ export default function HomeScreen() {
           {recentNotifs.length > 0 && (
             <Animated.View entering={FadeInDown.delay(250).duration(400)}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Recent Activity</Text>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
                 <Pressable
                   style={styles.clearBtn}
                   onPress={handleClearAllNotifications}
@@ -447,11 +450,11 @@ export default function HomeScreen() {
                   accessibilityLabel="Clear all notifications"
                   accessibilityRole="button"
                 >
-                  <Ionicons name="close" size={16} color={Colors.colors.textMuted} />
+                  <Ionicons name="close" size={16} color={colors.textMuted} />
                 </Pressable>
               </View>
               {recentNotifs.map(n => (
-                <NotificationItem key={n.id} notification={n} onDismiss={handleDismissNotification} />
+                <NotificationItem key={n.id} notification={n} onDismiss={handleDismissNotification} colors={colors} />
               ))}
             </Animated.View>
           )}
@@ -460,7 +463,7 @@ export default function HomeScreen() {
         <>
           <Animated.View entering={FadeInDown.delay(200).duration(400)}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Programs</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Programs</Text>
               <Pressable
                 style={styles.addBtn}
                 accessibilityLabel="Create new program"
@@ -470,15 +473,15 @@ export default function HomeScreen() {
                   router.push('/create-program');
                 }}
               >
-                <Ionicons name="add" size={20} color={Colors.colors.primary} />
+                <Ionicons name="add" size={20} color={colors.primary} />
               </Pressable>
             </View>
 
             {recentPrograms.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <Ionicons name="barbell-outline" size={32} color={Colors.colors.textMuted} />
-                <Text style={styles.emptyText}>No programs yet</Text>
-                <Text style={styles.emptySubText}>Connect with your coach to receive your first program</Text>
+              <View style={[styles.emptyCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+                <Ionicons name="barbell-outline" size={32} color={colors.textMuted} />
+                <Text style={[styles.emptyText, { color: colors.text }]}>No programs yet</Text>
+                <Text style={[styles.emptySubText, { color: colors.textMuted }]}>Connect with your coach to receive your first program</Text>
                 <Pressable
                   style={styles.emptyBtn}
                   accessibilityLabel="Join a coach"
@@ -490,7 +493,7 @@ export default function HomeScreen() {
               </View>
             ) : (
               recentPrograms.map((prog) => (
-                <ProgramCard key={prog.id} program={prog} />
+                <ProgramCard key={prog.id} program={prog} colors={colors} />
               ))
             )}
 
@@ -502,7 +505,7 @@ export default function HomeScreen() {
                 onPress={() => router.push('/(tabs)/programs')}
               >
                 <Text style={styles.seeAllText}>See all programs</Text>
-                <Ionicons name="arrow-forward" size={16} color={Colors.colors.primary} />
+                <Ionicons name="arrow-forward" size={16} color={colors.primary} />
               </Pressable>
             )}
           </Animated.View>

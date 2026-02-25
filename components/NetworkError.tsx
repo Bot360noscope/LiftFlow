@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
 
 interface NetworkErrorProps {
   onRetry: () => void;
@@ -8,15 +9,16 @@ interface NetworkErrorProps {
 }
 
 export default function NetworkError({ onRetry, message }: NetworkErrorProps) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Ionicons name="cloud-offline-outline" size={40} color={Colors.colors.textMuted} />
-        <Text style={styles.title}>Connection Issue</Text>
-        <Text style={styles.message}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.card, { backgroundColor: colors.backgroundCard }]}>
+        <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
+        <Text style={[styles.title, { color: colors.text }]}>Connection Issue</Text>
+        <Text style={[styles.message, { color: colors.textMuted }]}>
           {message || "Unable to load data. Check your connection and try again."}
         </Text>
-        <Pressable style={styles.retryButton} onPress={onRetry}>
+        <Pressable style={[styles.retryButton, { backgroundColor: colors.primary }]} onPress={onRetry}>
           <Ionicons name="refresh" size={18} color="#fff" />
           <Text style={styles.retryText}>Try Again</Text>
         </Pressable>

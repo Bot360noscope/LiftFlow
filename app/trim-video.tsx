@@ -7,6 +7,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import * as Haptics from "expo-haptics";
 import * as MediaLibrary from "expo-media-library";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
 import { uploadVideo } from "@/lib/api";
 import { showAlert } from "@/lib/confirm";
 import { trimResult } from "@/lib/trim-result";
@@ -46,6 +47,8 @@ export default function TrimVideoScreen() {
   const [trackWidth, setTrackWidth] = useState(0);
   const trackWidthRef = useRef(0);
   const dragOriginRef = useRef({ start: 0, end: 0 });
+  const lastPlayheadUpdateRef = useRef(0);
+  const isDraggingRef = useRef(false);
 
   const setStartTime = useCallback((v: number) => {
     startRef.current = v;
@@ -73,7 +76,10 @@ export default function TrimVideoScreen() {
   useEffect(() => {
     if (!player) return;
     const sub = player.addListener('timeUpdate', ({ currentTime: ct }) => {
-      setCurrentTime(ct);
+      if (!isDraggingRef.current && Date.now() - lastPlayheadUpdateRef.current > 200) {
+        setCurrentTime(ct);
+        lastPlayheadUpdateRef.current = Date.now();
+      }
       if (ct >= endRef.current) {
         player.currentTime = startRef.current;
       }
@@ -106,7 +112,9 @@ export default function TrimVideoScreen() {
     onMoveShouldSetPanResponder: () => true,
     onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: () => {
+      isDraggingRef.current = true;
       dragOriginRef.current = { start: startRef.current, end: endRef.current };
+      playerRef.current?.pause();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
     onPanResponderMove: (_, gs) => {
@@ -117,6 +125,8 @@ export default function TrimVideoScreen() {
       if (playerRef.current) playerRef.current.currentTime = ns;
     },
     onPanResponderRelease: () => {
+      isDraggingRef.current = false;
+      playerRef.current?.play();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
   }), [totalDuration]);
@@ -126,7 +136,9 @@ export default function TrimVideoScreen() {
     onMoveShouldSetPanResponder: () => true,
     onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: () => {
+      isDraggingRef.current = true;
       dragOriginRef.current = { start: startRef.current, end: endRef.current };
+      playerRef.current?.pause();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
     onPanResponderMove: (_, gs) => {
@@ -136,6 +148,8 @@ export default function TrimVideoScreen() {
       setEndTime(ne);
     },
     onPanResponderRelease: () => {
+      isDraggingRef.current = false;
+      playerRef.current?.play();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
   }), [totalDuration]);
@@ -145,7 +159,9 @@ export default function TrimVideoScreen() {
     onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 4,
     onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: () => {
+      isDraggingRef.current = true;
       dragOriginRef.current = { start: startRef.current, end: endRef.current };
+      playerRef.current?.pause();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
     onPanResponderMove: (_, gs) => {
@@ -160,6 +176,8 @@ export default function TrimVideoScreen() {
       if (playerRef.current) playerRef.current.currentTime = Math.round(clamp(ns, 0, totalDuration));
     },
     onPanResponderRelease: () => {
+      isDraggingRef.current = false;
+      playerRef.current?.play();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
   }), [totalDuration]);
@@ -218,6 +236,7 @@ export default function TrimVideoScreen() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  const { colors } = useTheme();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   const startX = timeToX(startTime);
@@ -225,18 +244,18 @@ export default function TrimVideoScreen() {
   const playheadX = timeToX(currentTime);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+    <View style={[styles.container, { paddingTop: insets.top + webTopInset, backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn} accessibilityLabel="Close" accessibilityRole="button">
-          <Ionicons name="close" size={24} color={Colors.colors.text} />
+          <Ionicons name="close" size={24} color={colors.text} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle} numberOfLines={1}>Trim & Upload</Text>
-          <Text style={styles.headerSub} numberOfLines={1}>{exerciseName}</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>Trim & Upload</Text>
+          <Text style={[styles.headerSub, { color: colors.textMuted }]} numberOfLines={1}>{exerciseName}</Text>
         </View>
         <View style={styles.durationBadge}>
-          <Ionicons name="time-outline" size={14} color={clipDuration > MAX_DURATION ? Colors.colors.danger : Colors.colors.primary} />
-          <Text style={[styles.durationText, clipDuration > MAX_DURATION && { color: Colors.colors.danger }]}>
+          <Ionicons name="time-outline" size={14} color={clipDuration > MAX_DURATION ? colors.danger : colors.primary} />
+          <Text style={[styles.durationText, { color: colors.primary }, clipDuration > MAX_DURATION && { color: colors.danger }]}>
             {formatTime(clipDuration)}
           </Text>
         </View>
@@ -252,32 +271,32 @@ export default function TrimVideoScreen() {
           />
         ) : (
           <View style={styles.videoPlaceholder}>
-            <Ionicons name="videocam-off" size={48} color={Colors.colors.textMuted} />
-            <Text style={styles.videoPlaceholderText}>Video not available</Text>
+            <Ionicons name="videocam-off" size={48} color={colors.textMuted} />
+            <Text style={[styles.videoPlaceholderText, { color: colors.textMuted }]}>Video not available</Text>
           </View>
         )}
       </View>
 
       <View style={styles.controls}>
         {needsTrim ? (
-          <Text style={styles.instructionText}>
+          <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
             Drag the orange handles to select up to 60s from your {formatTime(totalDuration)} video
           </Text>
         ) : (
-          <Text style={styles.instructionText}>
+          <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
             Drag the orange handles to adjust, or upload the full {formatTime(totalDuration)} video
           </Text>
         )}
 
         <View style={styles.timeDisplay}>
-          <View style={styles.timePill}>
-            <Text style={styles.timePillLabel}>Start</Text>
-            <Text style={styles.timePillValue}>{formatTime(startTime)}</Text>
+          <View style={[styles.timePill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.timePillLabel, { color: colors.textMuted }]}>Start</Text>
+            <Text style={[styles.timePillValue, { color: colors.text }]}>{formatTime(startTime)}</Text>
           </View>
-          <Ionicons name="arrow-forward" size={16} color={Colors.colors.textMuted} />
-          <View style={styles.timePill}>
-            <Text style={styles.timePillLabel}>End</Text>
-            <Text style={styles.timePillValue}>{formatTime(endTime)}</Text>
+          <Ionicons name="arrow-forward" size={16} color={colors.textMuted} />
+          <View style={[styles.timePill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.timePillLabel, { color: colors.textMuted }]}>End</Text>
+            <Text style={[styles.timePillValue, { color: colors.text }]}>{formatTime(endTime)}</Text>
           </View>
         </View>
 
@@ -287,6 +306,7 @@ export default function TrimVideoScreen() {
               <>
                 <View
                   {...startPan.panHandlers}
+                  hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
                   style={[styles.handle, { left: startX }]}
                 >
                   <View style={styles.handleInner}>
@@ -295,7 +315,7 @@ export default function TrimVideoScreen() {
                   </View>
                 </View>
 
-                <View style={styles.trackMiddle}>
+                <View style={[styles.trackMiddle, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                   {startX > 0 && <View style={[styles.dimOverlay, { left: 0, width: startX }]} />}
                   {endX < trackWidth && <View style={[styles.dimOverlay, { right: 0, width: trackWidth - endX }]} />}
                   <View
@@ -307,6 +327,7 @@ export default function TrimVideoScreen() {
 
                 <View
                   {...endPan.panHandlers}
+                  hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
                   style={[styles.handle, { left: endX }]}
                 >
                   <View style={styles.handleInner}>
@@ -319,8 +340,8 @@ export default function TrimVideoScreen() {
           </View>
 
           <View style={styles.trackLabels}>
-            <Text style={styles.trackLabelText}>0:00</Text>
-            <Text style={styles.trackLabelText}>{formatTime(totalDuration)}</Text>
+            <Text style={[styles.trackLabelText, { color: colors.textMuted }]}>0:00</Text>
+            <Text style={[styles.trackLabelText, { color: colors.textMuted }]}>{formatTime(totalDuration)}</Text>
           </View>
         </View>
       </View>
@@ -328,17 +349,17 @@ export default function TrimVideoScreen() {
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
         {Platform.OS !== 'web' && (
           <Pressable
-            style={styles.savePhotosBtn}
+            style={[styles.savePhotosBtn, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
             onPress={handleSaveToPhotos}
             disabled={saving || uploading}
             accessibilityLabel="Save original video to photos" accessibilityRole="button"
           >
             {saving ? (
-              <ActivityIndicator size="small" color={Colors.colors.primary} />
+              <ActivityIndicator size="small" color={colors.primary} />
             ) : (
               <>
-                <Ionicons name="download-outline" size={18} color={Colors.colors.primary} />
-                <Text style={styles.savePhotosBtnText}>Save Original to Photos</Text>
+                <Ionicons name="download-outline" size={18} color={colors.primary} />
+                <Text style={[styles.savePhotosBtnText, { color: colors.primary }]}>Save Original to Photos</Text>
               </>
             )}
           </Pressable>

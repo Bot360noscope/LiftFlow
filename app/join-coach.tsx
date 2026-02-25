@@ -7,10 +7,12 @@ import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
 import { joinCoach } from "@/lib/storage";
 
 export default function JoinCoachScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const [code, setCode] = useState('');
   const [joining, setJoining] = useState(false);
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
@@ -45,34 +47,34 @@ export default function JoinCoachScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+    <View style={[styles.container, { paddingTop: insets.top + webTopInset, backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="close" size={28} color={Colors.colors.text} />
+          <Ionicons name="close" size={28} color={colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Join Coach</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Join Coach</Text>
         <View style={{ width: 28 }} />
       </View>
 
       <View style={styles.content}>
         <Animated.View entering={FadeInDown.duration(400)} style={styles.illustrationWrap}>
           <View style={styles.illustration}>
-            <Ionicons name="people" size={48} color={Colors.colors.primary} />
+            <Ionicons name="people" size={48} color={colors.primary} />
           </View>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-          <Text style={styles.title}>Enter Coach Code</Text>
-          <Text style={styles.subtitle}>Ask your coach for their 6-character code to connect and receive training programs</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Enter Coach Code</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Ask your coach for their 6-character code to connect and receive training programs</Text>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(200).duration(400)}>
           <TextInput
-            style={styles.codeInput}
+            style={[styles.codeInput, { color: colors.text, backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
             value={code}
             onChangeText={(t) => setCode(t.toUpperCase())}
             placeholder="XXXXXX"
-            placeholderTextColor={Colors.colors.textMuted}
+            placeholderTextColor={colors.textMuted}
             maxLength={6}
             autoCapitalize="characters"
             autoCorrect={false}
@@ -82,7 +84,7 @@ export default function JoinCoachScreen() {
 
         <Animated.View entering={FadeInDown.delay(300).duration(400)}>
           <Pressable
-            style={[styles.joinBtn, (code.trim().length < 4 || joining) && styles.joinBtnDisabled]}
+            style={[styles.joinBtn, { backgroundColor: colors.primary }, (code.trim().length < 4 || joining) && styles.joinBtnDisabled]}
             onPress={handleJoin}
             disabled={code.trim().length < 4 || joining}
           >
@@ -92,9 +94,9 @@ export default function JoinCoachScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(400).duration(400)}>
-          <View style={styles.infoBox}>
-            <Ionicons name="information-circle" size={18} color={Colors.colors.textSecondary} />
-            <Text style={styles.infoText}>Once connected, your coach can assign training programs to you. You'll be able to log your workouts, record videos, and add notes for your coach to review.</Text>
+          <View style={[styles.infoBox, { backgroundColor: colors.surfaceLight }]}>
+            <Ionicons name="information-circle" size={18} color={colors.textSecondary} />
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Once connected, your coach can assign training programs to you. You'll be able to log your workouts, record videos, and add notes for your coach to review.</Text>
           </View>
         </Animated.View>
       </View>

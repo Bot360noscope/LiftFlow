@@ -5,10 +5,12 @@ import { useState } from "react";
 import * as Haptics from "expo-haptics";
 import * as WebBrowser from "expo-web-browser";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
 import { useAuth } from "@/lib/auth-context";
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const { login, register } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
@@ -49,7 +51,7 @@ export default function AuthScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
@@ -63,8 +65,8 @@ export default function AuthScreen() {
           <View style={styles.logoIcon}>
             <Ionicons name="barbell-outline" size={36} color={Colors.colors.primary} />
           </View>
-          <Text style={styles.logoText}>LiftFlow</Text>
-          <Text style={styles.logoSub}>
+          <Text style={[styles.logoText, { color: colors.text }]}>LiftFlow</Text>
+          <Text style={[styles.logoSub, { color: colors.textSecondary }]}>
             {mode === 'login' ? 'Welcome back' : 'Create your account'}
           </Text>
         </View>
@@ -72,11 +74,11 @@ export default function AuthScreen() {
         <View style={styles.form}>
           {mode === 'signup' && (
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Name</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Name</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: colors.text, backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
                 placeholder="Your name"
-                placeholderTextColor={Colors.colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
@@ -87,11 +89,11 @@ export default function AuthScreen() {
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Email</Text>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Email</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.text, backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
               placeholder="you@example.com"
-              placeholderTextColor={Colors.colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -103,12 +105,12 @@ export default function AuthScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Password</Text>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Password</Text>
             <View style={styles.passwordRow}>
               <TextInput
-                style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                style={[styles.input, { flex: 1, marginBottom: 0, color: colors.text, backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
                 placeholder="Min 6 characters"
-                placeholderTextColor={Colors.colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -116,28 +118,28 @@ export default function AuthScreen() {
                 accessibilityLabel="Password"
               />
               <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn} hitSlop={8} accessibilityLabel={showPassword ? "Hide password" : "Show password"} accessibilityRole="button">
-                <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={Colors.colors.textMuted} />
+                <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={colors.textMuted} />
               </Pressable>
             </View>
           </View>
 
           {mode === 'signup' && (
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>I am a...</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>I am a...</Text>
               <View style={styles.roleRow}>
                 <Pressable
-                  style={[styles.roleBtn, role === 'coach' && styles.roleBtnActive]}
+                  style={[styles.roleBtn, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, role === 'coach' && styles.roleBtnActive]}
                   onPress={() => { setRole('coach'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 >
-                  <Ionicons name="fitness-outline" size={20} color={role === 'coach' ? '#fff' : Colors.colors.textSecondary} />
-                  <Text style={[styles.roleBtnText, role === 'coach' && styles.roleBtnTextActive]}>Coach</Text>
+                  <Ionicons name="fitness-outline" size={20} color={role === 'coach' ? '#fff' : colors.textSecondary} />
+                  <Text style={[styles.roleBtnText, { color: colors.textSecondary }, role === 'coach' && styles.roleBtnTextActive]}>Coach</Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.roleBtn, role === 'client' && styles.roleBtnActive]}
+                  style={[styles.roleBtn, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, role === 'client' && styles.roleBtnActive]}
                   onPress={() => { setRole('client'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 >
-                  <Ionicons name="person-outline" size={20} color={role === 'client' ? '#fff' : Colors.colors.textSecondary} />
-                  <Text style={[styles.roleBtnText, role === 'client' && styles.roleBtnTextActive]}>Athlete</Text>
+                  <Ionicons name="person-outline" size={20} color={role === 'client' ? '#fff' : colors.textSecondary} />
+                  <Text style={[styles.roleBtnText, { color: colors.textSecondary }, role === 'client' && styles.roleBtnTextActive]}>Athlete</Text>
                 </Pressable>
               </View>
             </View>
@@ -165,16 +167,16 @@ export default function AuthScreen() {
           </Pressable>
 
           <View style={styles.switchRow}>
-            <Text style={styles.switchText}>
+            <Text style={[styles.switchText, { color: colors.textSecondary }]}>
               {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}
             </Text>
             <Pressable onPress={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); }} accessibilityLabel={mode === 'login' ? 'Switch to sign up' : 'Switch to sign in'} accessibilityRole="button">
-              <Text style={styles.switchLink}>{mode === 'login' ? 'Sign Up' : 'Sign In'}</Text>
+              <Text style={[styles.switchLink, { color: colors.primary }]}>{mode === 'login' ? 'Sign Up' : 'Sign In'}</Text>
             </Pressable>
           </View>
 
           <View style={styles.legalRow}>
-            <Text style={styles.legalText}>
+            <Text style={[styles.legalText, { color: colors.textMuted }]}>
               By continuing, you agree to our{' '}
               <Text style={styles.legalLink} accessibilityRole="link" accessibilityLabel="Terms of Service" onPress={() => {
                 const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();

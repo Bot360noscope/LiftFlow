@@ -6,6 +6,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as Crypto from "expo-crypto";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
 import { addProgram, getProfile, getClients, type Exercise, type WorkoutWeek, type WorkoutDay, type ClientInfo } from "@/lib/storage";
 
 
@@ -37,16 +38,17 @@ function buildWeeks(numWeeks: number, numDays: number, numExercises: number): Wo
 }
 
 function Counter({ label, value, onChange, min, max }: { label: string; value: string; onChange: (v: string) => void; min: number; max: number }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.thirdField}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.counterRow}>
+      <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+      <View style={[styles.counterRow, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
         <Pressable style={styles.counterBtn} onPress={() => { Haptics.selectionAsync(); onChange(String(Math.max(min, parseInt(value) - 1))); }}>
-          <Ionicons name="remove" size={20} color={Colors.colors.text} />
+          <Ionicons name="remove" size={20} color={colors.text} />
         </Pressable>
-        <Text style={styles.counterValue}>{value}</Text>
+        <Text style={[styles.counterValue, { color: colors.text }]}>{value}</Text>
         <Pressable style={styles.counterBtn} onPress={() => { Haptics.selectionAsync(); onChange(String(Math.min(max, parseInt(value) + 1))); }}>
-          <Ionicons name="add" size={20} color={Colors.colors.text} />
+          <Ionicons name="add" size={20} color={colors.text} />
         </Pressable>
       </View>
     </View>
@@ -55,6 +57,7 @@ function Counter({ label, value, onChange, min, max }: { label: string; value: s
 
 export default function CreateProgramScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const { clientId, clientName } = useLocalSearchParams<{ clientId?: string; clientName?: string }>();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -114,32 +117,32 @@ export default function CreateProgramScreen() {
       : 'My Program';
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+    <View style={[styles.container, { paddingTop: insets.top + webTopInset, backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="close" size={28} color={Colors.colors.text} />
+          <Ionicons name="close" size={28} color={colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>{headerTitle}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{headerTitle}</Text>
         <View style={{ width: 28 }} />
       </View>
 
       <ScrollView style={styles.scrollContent} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
-        <Text style={styles.label}>{isCoach ? 'Program Name' : 'What do you want to call it?'}</Text>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>{isCoach ? 'Program Name' : 'What do you want to call it?'}</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: colors.text, backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
           value={title}
           onChangeText={setTitle}
           placeholder={isCoach ? "e.g., Hypertrophy Block 1" : "e.g., My Strength Plan"}
-          placeholderTextColor={Colors.colors.textMuted}
+          placeholderTextColor={colors.textMuted}
         />
 
-        <Text style={styles.label}>Description</Text>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>Description</Text>
         <TextInput
-          style={[styles.input, { minHeight: 70 }]}
+          style={[styles.input, { minHeight: 70, color: colors.text, backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
           value={description}
           onChangeText={setDescription}
           placeholder={isCoach ? "e.g., Focus on volume and muscle growth" : "e.g., Building strength over 4 weeks"}
-          placeholderTextColor={Colors.colors.textMuted}
+          placeholderTextColor={colors.textMuted}
           multiline
           textAlignVertical="top"
         />
@@ -152,31 +155,31 @@ export default function CreateProgramScreen() {
 
         {isCoach && !clientId && clientList.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Assign to Client</Text>
-            <Text style={styles.assignHint}>Optional — leave unassigned to use as a template</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Assign to Client</Text>
+            <Text style={[styles.assignHint, { color: colors.textMuted }]}>Optional — leave unassigned to use as a template</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.clientChipScroll} contentContainerStyle={styles.clientChipScrollContent}>
               <Pressable
-                style={[styles.clientChip, !selectedClientId && styles.clientChipSelected]}
+                style={[styles.clientChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, !selectedClientId && styles.clientChipSelected]}
                 onPress={() => { setSelectedClientId(null); setSelectedClientName(''); Haptics.selectionAsync(); }}
               >
-                <Text style={[styles.clientChipText, !selectedClientId && styles.clientChipTextSelected]}>Unassigned</Text>
+                <Text style={[styles.clientChipText, { color: colors.textSecondary }, !selectedClientId && styles.clientChipTextSelected]}>Unassigned</Text>
               </Pressable>
               {clientList.map(c => (
                 <Pressable
                   key={c.id}
-                  style={[styles.clientChip, selectedClientId === c.id && styles.clientChipSelected]}
+                  style={[styles.clientChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, selectedClientId === c.id && styles.clientChipSelected]}
                   onPress={() => { setSelectedClientId(c.id); setSelectedClientName(c.name); Haptics.selectionAsync(); }}
                 >
-                  <Text style={[styles.clientChipText, selectedClientId === c.id && styles.clientChipTextSelected]}>{c.name}</Text>
+                  <Text style={[styles.clientChipText, { color: colors.textSecondary }, selectedClientId === c.id && styles.clientChipTextSelected]}>{c.name}</Text>
                 </Pressable>
               ))}
             </ScrollView>
           </>
         )}
 
-        <View style={styles.infoBox}>
-          <Ionicons name="information-circle" size={18} color={Colors.colors.textSecondary} />
-          <Text style={styles.infoText}>
+        <View style={[styles.infoBox, { backgroundColor: colors.surfaceLight }]}>
+          <Ionicons name="information-circle" size={18} color={colors.textSecondary} />
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
             {isCoach
               ? `Creates a ${weeks}-week program with ${daysPerWeek} days/week and ${exercisesPerDay} exercises/day.${selectedClientName ? ` Assigned to ${selectedClientName}.` : ''} You can edit exercises after creation.`
               : `This creates a ${weeks}-week program with ${daysPerWeek} training days per week and ${exercisesPerDay} exercises per day. You can fill in exercises, track weights, and log your progress.`

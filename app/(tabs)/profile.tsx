@@ -8,6 +8,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as WebBrowser from "expo-web-browser";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { ProfileSkeleton } from "@/components/SkeletonLoader";
 import { confirmAction, showAlert } from "@/lib/confirm";
@@ -19,31 +20,32 @@ import { Modal } from "react-native";
 
 function CoachCodeCard({ coachCode, onReset }: { coachCode: string; onReset: () => void }) {
   const [revealed, setRevealed] = useState(false);
+  const { colors } = useTheme();
   return (
-    <View style={styles.coachCodeCard}>
+    <View style={[styles.coachCodeCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
       <View style={styles.coachCodeHeader}>
         <View>
-          <Text style={styles.coachCodeLabel}>Coach Code</Text>
-          <Text style={styles.coachCodeSub}>Share with clients to connect</Text>
+          <Text style={[styles.coachCodeLabel, { color: colors.text }]}>Coach Code</Text>
+          <Text style={[styles.coachCodeSub, { color: colors.textMuted }]}>Share with clients to connect</Text>
         </View>
         <Pressable style={styles.resetCodeBtn} onPress={onReset}>
-          <Ionicons name="refresh" size={16} color={Colors.colors.primary} />
-          <Text style={styles.resetCodeText}>Reset</Text>
+          <Ionicons name="refresh" size={16} color={colors.primary} />
+          <Text style={[styles.resetCodeText, { color: colors.primary }]}>Reset</Text>
         </Pressable>
       </View>
       <Pressable
-        style={styles.coachCodeDisplay}
+        style={[styles.coachCodeDisplay, { backgroundColor: colors.surface, borderColor: colors.border }]}
         onPress={() => {
           setRevealed(!revealed);
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }}
       >
         {revealed ? (
-          <Text style={styles.coachCodeValue}>{coachCode}</Text>
+          <Text style={[styles.coachCodeValue, { color: colors.primary }]}>{coachCode}</Text>
         ) : (
           <View style={styles.coachCodeHidden}>
-            <Ionicons name="eye-outline" size={20} color={Colors.colors.textMuted} />
-            <Text style={styles.coachCodeHiddenText}>Tap to reveal</Text>
+            <Ionicons name="eye-outline" size={20} color={colors.textMuted} />
+            <Text style={[styles.coachCodeHiddenText, { color: colors.textMuted }]}>Tap to reveal</Text>
           </View>
         )}
       </Pressable>
@@ -54,6 +56,7 @@ function CoachCodeCard({ coachCode, onReset }: { coachCode: string; onReset: () 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { logout: authLogout } = useAuth();
+  const { colors, theme, toggleTheme } = useTheme();
   const cached = getCachedProfile();
   const [profile, setProfile] = useState<UserProfile>(cached || { id: '', name: '', role: 'coach', weightUnit: 'kg', coachCode: '', avatarUrl: '', plan: 'free', planUserLimit: 1 });
   const [editing, setEditing] = useState(false);
@@ -202,7 +205,7 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: Colors.colors.background, paddingTop: insets.top + webTopInset }}>
+      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + webTopInset }}>
         <ProfileSkeleton />
       </View>
     );
@@ -213,26 +216,26 @@ export default function ProfileScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+    <View style={[styles.container, { paddingTop: insets.top + webTopInset, backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Profile</Text>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
       >
-        <Animated.View entering={FadeInDown.duration(400)} style={styles.profileCard}>
+        <Animated.View entering={FadeInDown.duration(400)} style={[styles.profileCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
           <Pressable style={styles.avatarContainer} onPress={handlePickAvatar} onLongPress={profile.avatarUrl ? handleRemoveAvatar : undefined} accessibilityLabel="Change profile picture" accessibilityRole="imagebutton">
             {avatarUploading ? (
               <View style={styles.avatar}>
-                <ActivityIndicator size="small" color={Colors.colors.primary} />
+                <ActivityIndicator size="small" color={colors.primary} />
               </View>
             ) : profile.avatarUrl ? (
               <Image source={{ uri: getAvatarUrl(profile.avatarUrl) }} style={styles.avatarImage} />
             ) : (
               <View style={styles.avatar}>
-                <Ionicons name="person" size={32} color={Colors.colors.primary} />
+                <Ionicons name="person" size={32} color={colors.primary} />
               </View>
             )}
             <View style={styles.avatarBadge}>
@@ -242,22 +245,22 @@ export default function ProfileScreen() {
           {editing ? (
             <View style={styles.nameEditRow}>
               <TextInput
-                style={styles.nameInput}
+                style={[styles.nameInput, { color: colors.text, backgroundColor: colors.surfaceLight }]}
                 value={nameInput}
                 onChangeText={setNameInput}
                 placeholder="Enter your name"
-                placeholderTextColor={Colors.colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 autoFocus
                 accessibilityLabel="Your name"
               />
               <Pressable onPress={handleSave} hitSlop={8} accessibilityLabel="Save name" accessibilityRole="button">
-                <Ionicons name="checkmark-circle" size={28} color={Colors.colors.success} />
+                <Ionicons name="checkmark-circle" size={28} color={colors.success} />
               </Pressable>
             </View>
           ) : (
             <Pressable onPress={() => setEditing(true)} style={styles.nameRow} accessibilityLabel="Edit name" accessibilityRole="button">
-              <Text style={styles.profileName}>{profile.name || 'Tap to set name'}</Text>
-              <Ionicons name="pencil" size={16} color={Colors.colors.textMuted} />
+              <Text style={[styles.profileName, { color: colors.text }]}>{profile.name || 'Tap to set name'}</Text>
+              <Ionicons name="pencil" size={16} color={colors.textMuted} />
             </Pressable>
           )}
           <View style={styles.roleBadge}>
@@ -276,11 +279,11 @@ export default function ProfileScreen() {
 
         {isCoach && (
           <Animated.View entering={FadeInDown.delay(90).duration(400)}>
-            <View style={styles.planCard}>
+            <View style={[styles.planCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
               <View style={styles.planHeader}>
                 <View style={styles.planBadge}>
-                  <Ionicons name={profile.plan === 'free' ? 'star-outline' : 'star'} size={16} color={profile.plan === 'free' ? Colors.colors.textMuted : '#FFD700'} />
-                  <Text style={[styles.planBadgeText, profile.plan !== 'free' && { color: '#FFD700' }]}>
+                  <Ionicons name={profile.plan === 'free' ? 'star-outline' : 'star'} size={16} color={profile.plan === 'free' ? colors.textMuted : '#FFD700'} />
+                  <Text style={[styles.planBadgeText, { color: colors.textMuted }, profile.plan !== 'free' && { color: '#FFD700' }]}>
                     {profile.plan === 'free' ? 'Free Plan' : profile.plan === 'tier_5' ? 'Starter Plan' : profile.plan === 'tier_10' ? 'Growth Plan' : profile.plan === 'saas' ? 'SaaS Plan' : profile.plan === 'enterprise' ? 'Enterprise' : profile.plan.charAt(0).toUpperCase() + profile.plan.slice(1)}
                   </Text>
                 </View>
@@ -295,8 +298,8 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.planDetails}>
                 <View style={styles.planDetailRow}>
-                  <Ionicons name="people-outline" size={16} color={Colors.colors.textMuted} />
-                  <Text style={styles.planDetailText}>
+                  <Ionicons name="people-outline" size={16} color={colors.textMuted} />
+                  <Text style={[styles.planDetailText, { color: colors.textSecondary }]}>
                     {stats.clients} / {profile.planUserLimit === 999 ? 'Unlimited' : profile.planUserLimit} client{profile.planUserLimit !== 1 ? 's' : ''}
                   </Text>
                 </View>
@@ -308,58 +311,70 @@ export default function ProfileScreen() {
         <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.statsRow}>
           {isCoach ? (
             <>
-              <View style={styles.statCard}>
-                <Ionicons name="people" size={22} color={Colors.colors.textMuted} />
-                <Text style={styles.statValue}>{stats.clients}</Text>
-                <Text style={styles.statLabel}>Clients</Text>
+              <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+                <Ionicons name="people" size={22} color={colors.textMuted} />
+                <Text style={[styles.statValue, { color: colors.text }]}>{stats.clients}</Text>
+                <Text style={[styles.statLabel, { color: colors.textMuted }]}>Clients</Text>
               </View>
-              <View style={styles.statCard}>
-                <Ionicons name="barbell" size={22} color={Colors.colors.textMuted} />
-                <Text style={styles.statValue}>{stats.programs}</Text>
-                <Text style={styles.statLabel}>Programs</Text>
+              <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+                <Ionicons name="barbell" size={22} color={colors.textMuted} />
+                <Text style={[styles.statValue, { color: colors.text }]}>{stats.programs}</Text>
+                <Text style={[styles.statLabel, { color: colors.textMuted }]}>Programs</Text>
               </View>
             </>
           ) : (
             <>
-              <View style={styles.statCard}>
-                <Ionicons name="trophy" size={22} color={Colors.colors.textMuted} />
-                <Text style={styles.statValue}>{stats.prs}</Text>
-                <Text style={styles.statLabel}>PRs Logged</Text>
+              <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+                <Ionicons name="trophy" size={22} color={colors.textMuted} />
+                <Text style={[styles.statValue, { color: colors.text }]}>{stats.prs}</Text>
+                <Text style={[styles.statLabel, { color: colors.textMuted }]}>PRs Logged</Text>
               </View>
-              <View style={styles.statCard}>
-                <Ionicons name="barbell" size={22} color={Colors.colors.textMuted} />
-                <Text style={styles.statValue}>{stats.programs}</Text>
-                <Text style={styles.statLabel}>Programs</Text>
+              <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+                <Ionicons name="barbell" size={22} color={colors.textMuted} />
+                <Text style={[styles.statValue, { color: colors.text }]}>{stats.programs}</Text>
+                <Text style={[styles.statLabel, { color: colors.textMuted }]}>Programs</Text>
               </View>
             </>
           )}
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-          <Text style={styles.sectionTitle}>Settings</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Settings</Text>
 
-          <Pressable style={styles.settingItem} onPress={toggleRole}>
+          <Pressable style={[styles.settingItem, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]} onPress={toggleRole}>
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: 'rgba(102, 102, 102, 0.12)' }]}>
-                <Ionicons name={isCoach ? 'school' : 'fitness'} size={18} color={Colors.colors.textMuted} />
+                <Ionicons name={isCoach ? 'school' : 'fitness'} size={18} color={colors.textMuted} />
               </View>
               <View style={styles.settingTextWrap}>
-                <Text style={styles.settingLabel} numberOfLines={1}>Switch Role</Text>
-                <Text style={styles.settingValue} numberOfLines={1}>Currently: {isCoach ? 'Coach' : 'Athlete'} — Tap to switch</Text>
+                <Text style={[styles.settingLabel, { color: colors.text }]} numberOfLines={1}>Switch Role</Text>
+                <Text style={[styles.settingValue, { color: colors.textMuted }]} numberOfLines={1}>Currently: {isCoach ? 'Coach' : 'Athlete'} — Tap to switch</Text>
               </View>
             </View>
-            <Ionicons name="swap-horizontal" size={20} color={Colors.colors.textMuted} />
+            <Ionicons name="swap-horizontal" size={20} color={colors.textMuted} />
           </Pressable>
 
+          <Pressable style={[styles.settingItem, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]} onPress={toggleTheme}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: 'rgba(102, 102, 102, 0.12)' }]}>
+                <Ionicons name={theme === 'dark' ? 'moon' : 'sunny'} size={18} color={colors.textMuted} />
+              </View>
+              <View style={styles.settingTextWrap}>
+                <Text style={[styles.settingLabel, { color: colors.text }]} numberOfLines={1}>Theme</Text>
+                <Text style={[styles.settingValue, { color: colors.textMuted }]} numberOfLines={1}>Currently: {theme === 'dark' ? 'Dark' : 'Light'} — Tap to switch</Text>
+              </View>
+            </View>
+            <Ionicons name={theme === 'dark' ? 'sunny-outline' : 'moon-outline'} size={20} color={colors.textMuted} />
+          </Pressable>
 
           {!isCoach && myCoach && (
-            <Pressable style={[styles.settingItem, styles.dangerItem]} onPress={() => { setRemoveCoachInput(''); setShowRemoveCoachModal(true); }} accessibilityLabel="Remove coach" accessibilityRole="button">
+            <Pressable style={[styles.settingItem, styles.dangerItem, { backgroundColor: colors.backgroundCard }]} onPress={() => { setRemoveCoachInput(''); setShowRemoveCoachModal(true); }} accessibilityLabel="Remove coach" accessibilityRole="button">
               <View style={styles.settingLeft}>
-                <View style={[styles.settingIcon, { backgroundColor: Colors.colors.dangerLight }]}>
-                  <Ionicons name="person-remove" size={18} color={Colors.colors.danger} />
+                <View style={[styles.settingIcon, { backgroundColor: 'rgba(102, 102, 102, 0.12)' }]}>
+                  <Ionicons name="person-remove" size={18} color={colors.textMuted} />
                 </View>
                 <View style={styles.settingTextWrap}>
-                  <Text style={[styles.settingLabel, { color: Colors.colors.danger }]} numberOfLines={1}>Remove Coach</Text>
+                  <Text style={[styles.settingLabel, { color: colors.text }]} numberOfLines={1}>Remove Coach</Text>
                   <Text style={styles.settingValue} numberOfLines={2}>Disconnect from {myCoach.coachName}</Text>
                 </View>
               </View>
@@ -368,9 +383,9 @@ export default function ProfileScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Data</Text>
+          <Text style={[styles.sectionTitle, { marginTop: 24, color: colors.textSecondary }]}>Data</Text>
 
-          <Pressable style={styles.settingItem} onPress={async () => {
+          <Pressable style={[styles.settingItem, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]} onPress={async () => {
             await seedDemoData();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             loadData();
@@ -378,24 +393,24 @@ export default function ProfileScreen() {
           }}>
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: 'rgba(102, 102, 102, 0.12)' }]}>
-                <Ionicons name="flask" size={18} color={Colors.colors.textMuted} />
+                <Ionicons name="flask" size={18} color={colors.textMuted} />
               </View>
               <View style={styles.settingTextWrap}>
-                <Text style={styles.settingLabel} numberOfLines={1}>Load Demo Data</Text>
-                <Text style={styles.settingValue} numberOfLines={1}>Set up coach with clients and programs</Text>
+                <Text style={[styles.settingLabel, { color: colors.text }]} numberOfLines={1}>Load Demo Data</Text>
+                <Text style={[styles.settingValue, { color: colors.textMuted }]} numberOfLines={1}>Set up coach with clients and programs</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.colors.textMuted} />
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </Pressable>
 
-          <Pressable style={[styles.settingItem, styles.dangerItem]} onPress={() => { setDeleteInput(''); setShowDeleteModal(true); }} accessibilityLabel="Delete account" accessibilityRole="button">
+          <Pressable style={[styles.settingItem, styles.dangerItem, { backgroundColor: colors.backgroundCard }]} onPress={() => { setDeleteInput(''); setShowDeleteModal(true); }} accessibilityLabel="Delete account" accessibilityRole="button">
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: 'rgba(102, 102, 102, 0.12)' }]}>
-                <Ionicons name="trash" size={18} color={Colors.colors.textMuted} />
+                <Ionicons name="trash" size={18} color={colors.textMuted} />
               </View>
               <View style={styles.settingTextWrap}>
-                <Text style={styles.settingLabel} numberOfLines={1}>Delete Account</Text>
-                <Text style={styles.settingValue} numberOfLines={2}>Permanently delete your account and all data</Text>
+                <Text style={[styles.settingLabel, { color: colors.text }]} numberOfLines={1}>Delete Account</Text>
+                <Text style={[styles.settingValue, { color: colors.textMuted }]} numberOfLines={2}>Permanently delete your account and all data</Text>
               </View>
             </View>
           </Pressable>
@@ -403,7 +418,7 @@ export default function ProfileScreen() {
 
         <Animated.View entering={FadeInDown.delay(350).duration(400)}>
           <Pressable
-            style={styles.logoutBtn}
+            style={[styles.logoutBtn, { backgroundColor: colors.backgroundCard }]}
             accessibilityLabel="Sign out"
             accessibilityRole="button"
             onPress={() => {
@@ -418,14 +433,14 @@ export default function ProfileScreen() {
               );
             }}
           >
-            <Ionicons name="log-out-outline" size={20} color={Colors.colors.danger} />
-            <Text style={styles.logoutText}>Sign Out</Text>
+            <Ionicons name="log-out-outline" size={20} color={colors.danger} />
+            <Text style={[styles.logoutText, { color: colors.danger }]}>Sign Out</Text>
           </Pressable>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.legalSection}>
           <Pressable
-            style={styles.legalLink}
+            style={[styles.legalLink, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
             accessibilityLabel="Privacy Policy"
             accessibilityRole="link"
             onPress={() => {
@@ -433,12 +448,12 @@ export default function ProfileScreen() {
               WebBrowser.openBrowserAsync(`${base}/privacy`);
             }}
           >
-            <Ionicons name="shield-checkmark-outline" size={18} color={Colors.colors.textMuted} />
-            <Text style={styles.legalLinkText}>Privacy Policy</Text>
-            <Ionicons name="open-outline" size={14} color={Colors.colors.textMuted} />
+            <Ionicons name="shield-checkmark-outline" size={18} color={colors.textMuted} />
+            <Text style={[styles.legalLinkText, { color: colors.textSecondary }]}>Privacy Policy</Text>
+            <Ionicons name="open-outline" size={14} color={colors.textMuted} />
           </Pressable>
           <Pressable
-            style={styles.legalLink}
+            style={[styles.legalLink, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
             accessibilityLabel="Terms of Service"
             accessibilityRole="link"
             onPress={() => {
@@ -446,30 +461,30 @@ export default function ProfileScreen() {
               WebBrowser.openBrowserAsync(`${base}/terms`);
             }}
           >
-            <Ionicons name="document-text-outline" size={18} color={Colors.colors.textMuted} />
-            <Text style={styles.legalLinkText}>Terms of Service</Text>
-            <Ionicons name="open-outline" size={14} color={Colors.colors.textMuted} />
+            <Ionicons name="document-text-outline" size={18} color={colors.textMuted} />
+            <Text style={[styles.legalLinkText, { color: colors.textSecondary }]}>Terms of Service</Text>
+            <Ionicons name="open-outline" size={14} color={colors.textMuted} />
           </Pressable>
         </Animated.View>
 
-        <Text style={styles.version}>LiftFlow v1.0.0</Text>
+        <Text style={[styles.version, { color: colors.textMuted }]}>LiftFlow v1.0.0</Text>
       </ScrollView>
 
       <Modal visible={showRemoveCoachModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Ionicons name="person-remove" size={40} color={Colors.colors.danger} />
-            <Text style={styles.modalTitle}>Remove Coach</Text>
-            <Text style={styles.modalMessage}>
+            <Ionicons name="person-remove" size={40} color={colors.danger} />
+            <Text style={[styles.modalTitle, { color: colors.danger }]}>Remove Coach</Text>
+            <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
               This will disconnect you from {myCoach?.coachName || 'your coach'}. Your chat messages will be deleted and program assignments will be removed. This action cannot be undone.
             </Text>
-            <Text style={styles.modalPrompt}>Type REMOVE to confirm:</Text>
+            <Text style={[styles.modalPrompt, { color: colors.text }]}>Type REMOVE to confirm:</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { color: colors.danger, backgroundColor: colors.surface, borderColor: colors.border }]}
               value={removeCoachInput}
               onChangeText={setRemoveCoachInput}
               placeholder="Type REMOVE"
-              placeholderTextColor={Colors.colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="characters"
               autoCorrect={false}
               accessibilityLabel="Type REMOVE to confirm coach removal"
@@ -495,18 +510,18 @@ export default function ProfileScreen() {
       <Modal visible={showDeleteModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Ionicons name="warning" size={40} color={Colors.colors.danger} />
-            <Text style={styles.modalTitle}>Delete Account</Text>
-            <Text style={styles.modalMessage}>
+            <Ionicons name="warning" size={40} color={colors.danger} />
+            <Text style={[styles.modalTitle, { color: colors.danger }]}>Delete Account</Text>
+            <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
               This will permanently delete your account, all programs, clients, messages, PRs, and all associated data. This action cannot be undone.
             </Text>
-            <Text style={styles.modalPrompt}>Type DELETE to confirm:</Text>
+            <Text style={[styles.modalPrompt, { color: colors.text }]}>Type DELETE to confirm:</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { color: colors.danger, backgroundColor: colors.surface, borderColor: colors.border }]}
               value={deleteInput}
               onChangeText={setDeleteInput}
               placeholder="Type DELETE"
-              placeholderTextColor={Colors.colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="characters"
               autoCorrect={false}
               accessibilityLabel="Type DELETE to confirm account deletion"

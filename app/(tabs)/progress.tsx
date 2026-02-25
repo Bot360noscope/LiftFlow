@@ -7,6 +7,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { ProgressSkeleton } from "@/components/SkeletonLoader";
 import { getPRs, deletePR, getProfile, getBestPR, getPrograms, getClients, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, type LiftPR, type Program, type ClientInfo } from "@/lib/storage";
@@ -23,7 +24,7 @@ const LIFT_LABELS: Record<string, string> = {
   bench: 'Bench Press',
 };
 
-function ClientProgressCard({ client, programs, delay }: { client: ClientInfo; programs: Program[]; delay: number }) {
+function ClientProgressCard({ client, programs, delay, colors }: { client: ClientInfo; programs: Program[]; delay: number; colors: any }) {
   const clientPrograms = programs.filter(p => p.clientId === client.id);
   let totalEx = 0, completedEx = 0, notesCount = 0, videosCount = 0;
   for (const prog of clientPrograms) {
@@ -43,7 +44,7 @@ function ClientProgressCard({ client, programs, delay }: { client: ClientInfo; p
   return (
     <Animated.View entering={FadeInDown.delay(delay).duration(400)}>
       <Pressable
-        style={({ pressed }) => [styles.clientProgressCard, pressed && { opacity: 0.85 }]}
+        style={({ pressed }) => [styles.clientProgressCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.85 }]}
         accessibilityLabel={`View ${client.name || 'client'} progress`}
         accessibilityRole="button"
         onPress={() => {
@@ -54,38 +55,38 @@ function ClientProgressCard({ client, programs, delay }: { client: ClientInfo; p
       >
         <View style={styles.clientHeader}>
           <View style={styles.clientAvatar}>
-            <Text style={styles.clientAvatarText}>{(client.name || '?')[0].toUpperCase()}</Text>
+            <Text style={[styles.clientAvatarText, { color: colors.primary }]}>{(client.name || '?')[0].toUpperCase()}</Text>
           </View>
           <View style={styles.clientHeaderInfo}>
-            <Text style={styles.clientNameText}>{client.name || 'Client'}</Text>
-            <Text style={styles.clientJoined}>Joined {new Date(client.joinedAt).toLocaleDateString()}</Text>
+            <Text style={[styles.clientNameText, { color: colors.text }]}>{client.name || 'Client'}</Text>
+            <Text style={[styles.clientJoined, { color: colors.textMuted }]}>Joined {new Date(client.joinedAt).toLocaleDateString()}</Text>
           </View>
         </View>
 
         <View style={styles.clientStatsRow}>
-          <View style={styles.clientStatBox}>
-            <Text style={styles.clientStatNum}>{clientPrograms.length}</Text>
-            <Text style={styles.clientStatLabel} numberOfLines={1}>Programs</Text>
+          <View style={[styles.clientStatBox, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.clientStatNum, { color: colors.text }]}>{clientPrograms.length}</Text>
+            <Text style={[styles.clientStatLabel, { color: colors.textMuted }]} numberOfLines={1}>Programs</Text>
           </View>
-          <View style={styles.clientStatBox}>
-            <Text style={[styles.clientStatNum, { color: Colors.colors.success }]}>{completedEx}</Text>
-            <Text style={styles.clientStatLabel} numberOfLines={1}>Done</Text>
+          <View style={[styles.clientStatBox, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.clientStatNum, { color: colors.success }]}>{completedEx}</Text>
+            <Text style={[styles.clientStatLabel, { color: colors.textMuted }]} numberOfLines={1}>Done</Text>
           </View>
-          <View style={styles.clientStatBox}>
-            <Text style={[styles.clientStatNum, { color: Colors.colors.accent }]}>{notesCount}</Text>
-            <Text style={styles.clientStatLabel} numberOfLines={1}>Notes</Text>
+          <View style={[styles.clientStatBox, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.clientStatNum, { color: colors.accent }]}>{notesCount}</Text>
+            <Text style={[styles.clientStatLabel, { color: colors.textMuted }]} numberOfLines={1}>Notes</Text>
           </View>
-          <View style={styles.clientStatBox}>
-            <Text style={[styles.clientStatNum, { color: Colors.colors.primary }]}>{videosCount}</Text>
-            <Text style={styles.clientStatLabel} numberOfLines={1}>Videos</Text>
+          <View style={[styles.clientStatBox, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.clientStatNum, { color: colors.primary }]}>{videosCount}</Text>
+            <Text style={[styles.clientStatLabel, { color: colors.textMuted }]} numberOfLines={1}>Videos</Text>
           </View>
         </View>
 
         <View style={styles.clientProgressRow}>
-          <View style={styles.progressBarBg}>
+          <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceLight }]}>
             <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
           </View>
-          <Text style={styles.clientProgressText}>{progress}%</Text>
+          <Text style={[styles.clientProgressText, { color: colors.textSecondary }]}>{progress}%</Text>
         </View>
       </Pressable>
     </Animated.View>
@@ -93,6 +94,7 @@ function ClientProgressCard({ client, programs, delay }: { client: ClientInfo; p
 }
 
 export default function ProgressScreen() {
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [prs, setPRs] = useState<LiftPR[]>(getCachedPRs());
   const [unit, setUnit] = useState<'kg' | 'lbs'>((getCachedProfile()?.weightUnit as 'kg' | 'lbs') || 'kg');
@@ -144,7 +146,7 @@ export default function ProgressScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: Colors.colors.background, paddingTop: insets.top + webTopInset + 16 }}>
+      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + webTopInset + 16 }}>
         <ProgressSkeleton />
       </View>
     );
@@ -157,45 +159,45 @@ export default function ProgressScreen() {
   if (isCoach) {
     return (
       <ScrollView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: colors.background }]}
         contentContainerStyle={[
           styles.scrollContent,
           { paddingTop: insets.top + webTopInset + 16, paddingBottom: insets.bottom + webBottomInset + 20 },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.pageTitle}>Client Progress</Text>
+        <Text style={[styles.pageTitle, { color: colors.text }]}>Client Progress</Text>
 
         <Animated.View entering={FadeInDown.duration(400)}>
           <View style={styles.overviewRow}>
-            <View style={styles.overviewCard}>
-              <Text style={styles.overviewValue}>{clients.length}</Text>
-              <Text style={styles.overviewLabel}>Total Clients</Text>
+            <View style={[styles.overviewCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+              <Text style={[styles.overviewValue, { color: colors.text }]}>{clients.length}</Text>
+              <Text style={[styles.overviewLabel, { color: colors.textMuted }]}>Total Clients</Text>
             </View>
-            <View style={styles.overviewCard}>
-              <Text style={styles.overviewValue}>{programs.length}</Text>
-              <Text style={styles.overviewLabel}>Programs</Text>
+            <View style={[styles.overviewCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+              <Text style={[styles.overviewValue, { color: colors.text }]}>{programs.length}</Text>
+              <Text style={[styles.overviewLabel, { color: colors.textMuted }]}>Programs</Text>
             </View>
-            <View style={styles.overviewCard}>
-              <Text style={[styles.overviewValue, { color: Colors.colors.success }]}>
+            <View style={[styles.overviewCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+              <Text style={[styles.overviewValue, { color: colors.success }]}>
                 {programs.filter(p => p.status === 'active').length}
               </Text>
-              <Text style={styles.overviewLabel}>Active</Text>
+              <Text style={[styles.overviewLabel, { color: colors.textMuted }]}>Active</Text>
             </View>
           </View>
         </Animated.View>
 
-        <Text style={styles.sectionTitle}>Clients</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Clients</Text>
 
         {clients.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="people-outline" size={40} color={Colors.colors.textMuted} />
-            <Text style={styles.emptyText}>No clients yet</Text>
-            <Text style={styles.emptyDesc}>Share your coach code with clients to start tracking their progress</Text>
+            <Ionicons name="people-outline" size={40} color={colors.textMuted} />
+            <Text style={[styles.emptyText, { color: colors.text }]}>No clients yet</Text>
+            <Text style={[styles.emptyDesc, { color: colors.textMuted }]}>Share your coach code with clients to start tracking their progress</Text>
           </View>
         ) : (
           clients.map((client, idx) => (
-            <ClientProgressCard key={client.id} client={client} programs={programs} delay={idx * 60} />
+            <ClientProgressCard key={client.id} client={client} programs={programs} delay={idx * 60} colors={colors} />
           ))
         )}
       </ScrollView>
@@ -204,7 +206,7 @@ export default function ProgressScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={[
         styles.scrollContent,
         { paddingTop: insets.top + webTopInset + 16, paddingBottom: insets.bottom + webBottomInset + 20 },
@@ -212,7 +214,7 @@ export default function ProgressScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.headerRow}>
-        <Text style={styles.pageTitle}>Progress</Text>
+        <Text style={[styles.pageTitle, { color: colors.text }]}>Progress</Text>
         <Pressable
           style={styles.addBtn}
           accessibilityLabel="Log a new PR"
@@ -229,26 +231,26 @@ export default function ProgressScreen() {
 
       {total > 0 && (
         <Animated.View entering={FadeInDown.duration(400)}>
-          <View style={styles.totalCard}>
-            <Text style={styles.totalLabel}>Estimated Total</Text>
-            <Text style={styles.totalValue}>{total}<Text style={styles.totalUnit}> {unit}</Text></Text>
+          <View style={[styles.totalCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <Text style={[styles.totalLabel, { color: colors.textMuted }]}>Estimated Total</Text>
+            <Text style={[styles.totalValue, { color: colors.text }]}>{total}<Text style={[styles.totalUnit, { color: colors.textSecondary }]}> {unit}</Text></Text>
             <View style={styles.totalBreakdown}>
               {bestSquat && (
                 <View style={styles.breakdownItem}>
-                  <View style={[styles.breakdownDot, { backgroundColor: Colors.colors.squat }]} />
-                  <Text style={styles.breakdownText}>S: {bestSquat.weight}</Text>
+                  <View style={[styles.breakdownDot, { backgroundColor: colors.squat }]} />
+                  <Text style={[styles.breakdownText, { color: colors.textSecondary }]}>S: {bestSquat.weight}</Text>
                 </View>
               )}
               {bestBench && (
                 <View style={styles.breakdownItem}>
-                  <View style={[styles.breakdownDot, { backgroundColor: Colors.colors.bench }]} />
-                  <Text style={styles.breakdownText}>B: {bestBench.weight}</Text>
+                  <View style={[styles.breakdownDot, { backgroundColor: colors.bench }]} />
+                  <Text style={[styles.breakdownText, { color: colors.textSecondary }]}>B: {bestBench.weight}</Text>
                 </View>
               )}
               {bestDeadlift && (
                 <View style={styles.breakdownItem}>
-                  <View style={[styles.breakdownDot, { backgroundColor: Colors.colors.deadlift }]} />
-                  <Text style={styles.breakdownText}>D: {bestDeadlift.weight}</Text>
+                  <View style={[styles.breakdownDot, { backgroundColor: colors.deadlift }]} />
+                  <Text style={[styles.breakdownText, { color: colors.textSecondary }]}>D: {bestDeadlift.weight}</Text>
                 </View>
               )}
             </View>
@@ -261,40 +263,40 @@ export default function ProgressScreen() {
           {(['squat', 'bench', 'deadlift'] as const).map(lift => {
             const best = getBestPR(prs, lift);
             return (
-              <View key={lift} style={[styles.bestLiftCard, { borderLeftColor: LIFT_COLORS[lift] }]}>
+              <View key={lift} style={[styles.bestLiftCard, { backgroundColor: colors.backgroundCard, borderLeftColor: LIFT_COLORS[lift] }]}>
                 <Text style={[styles.bestLiftLabel, { color: LIFT_COLORS[lift] }]}>{LIFT_LABELS[lift]}</Text>
-                <Text style={styles.bestLiftValue}>{best ? best.weight : '-'}</Text>
-                <Text style={styles.bestLiftUnit}>{best ? best.unit : unit}</Text>
+                <Text style={[styles.bestLiftValue, { color: colors.text }]}>{best ? best.weight : '-'}</Text>
+                <Text style={[styles.bestLiftUnit, { color: colors.textMuted }]}>{best ? best.unit : unit}</Text>
               </View>
             );
           })}
         </View>
       </Animated.View>
 
-      <Text style={styles.sectionTitle}>PR History</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>PR History</Text>
 
       {sortedPRs.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="trophy-outline" size={40} color={Colors.colors.textMuted} />
-          <Text style={styles.emptyText}>No PRs logged yet</Text>
-          <Text style={styles.emptyDesc}>Track your squat, bench, and deadlift personal records</Text>
+          <Ionicons name="trophy-outline" size={40} color={colors.textMuted} />
+          <Text style={[styles.emptyText, { color: colors.text }]}>No PRs logged yet</Text>
+          <Text style={[styles.emptyDesc, { color: colors.textMuted }]}>Track your squat, bench, and deadlift personal records</Text>
         </View>
       ) : (
         sortedPRs.map((pr, idx) => (
           <Animated.View key={pr.id} entering={FadeInDown.delay(idx * 40).duration(300)}>
             <Pressable
-              style={({ pressed }) => [styles.prRow, pressed && { opacity: 0.8 }]}
+              style={({ pressed }) => [styles.prRow, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.8 }]}
               accessibilityLabel={`${LIFT_LABELS[pr.liftType]} ${pr.weight} ${pr.unit}`}
               accessibilityRole="button"
               onLongPress={() => handleDelete(pr)}
             >
               <View style={[styles.prDot, { backgroundColor: LIFT_COLORS[pr.liftType] }]} />
               <View style={styles.prInfo}>
-                <Text style={styles.prLiftName}>{LIFT_LABELS[pr.liftType]}</Text>
-                <Text style={styles.prDate}>{new Date(pr.date).toLocaleDateString()}</Text>
-                {!!pr.notes && <Text style={styles.prNotes} numberOfLines={1}>{pr.notes}</Text>}
+                <Text style={[styles.prLiftName, { color: colors.text }]}>{LIFT_LABELS[pr.liftType]}</Text>
+                <Text style={[styles.prDate, { color: colors.textMuted }]}>{new Date(pr.date).toLocaleDateString()}</Text>
+                {!!pr.notes && <Text style={[styles.prNotes, { color: colors.textSecondary }]} numberOfLines={1}>{pr.notes}</Text>}
               </View>
-              <Text style={styles.prWeight}>{pr.weight}<Text style={styles.prUnit}> {pr.unit}</Text></Text>
+              <Text style={[styles.prWeight, { color: colors.text }]}>{pr.weight}<Text style={[styles.prUnit, { color: colors.textMuted }]}> {pr.unit}</Text></Text>
             </Pressable>
           </Animated.View>
         ))
