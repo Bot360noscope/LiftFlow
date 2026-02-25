@@ -278,8 +278,8 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
             exercise.isCompleted ? (
               <Ionicons name="checkmark-circle" size={22} color={colors.success} />
             ) : (
-              <View style={styles.exerciseNum}>
-                <Text style={styles.exerciseNumText}>{index + 1}</Text>
+              <View style={[styles.exerciseNum, { backgroundColor: colors.surfaceLight }]}>
+                <Text style={[styles.exerciseNumText, { color: colors.textSecondary }]}>{index + 1}</Text>
               </View>
             )
           )}
@@ -304,11 +304,11 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
       </Pressable>
 
       {expanded && (
-        <View style={styles.exerciseExpanded}>
-          <Text style={styles.fieldLabel}>Exercise Name</Text>
+        <View style={[styles.exerciseExpanded, { borderTopColor: colors.border }]}>
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Exercise Name</Text>
           {canEditAll ? (
             <TextInput
-              style={styles.fieldInput}
+              style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
               value={name}
               onChangeText={setName}
               onBlur={saveChanges}
@@ -316,8 +316,8 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
               placeholderTextColor={prevWeekExercise?.name ? colors.textGhost : colors.textMuted}
             />
           ) : (
-            <View style={[styles.fieldInput, styles.readOnlyField]}>
-              <Text style={[styles.readOnlyText, !name && prevWeekExercise?.name ? styles.ghostText : null]}>
+            <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
+              <Text style={[styles.readOnlyText, { color: colors.textMuted }, !name && prevWeekExercise?.name ? styles.ghostText : null]}>
                 {name || prevWeekExercise?.name || 'No exercise name'}
               </Text>
             </View>
@@ -325,10 +325,10 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
 
           <View style={styles.fieldRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.fieldLabel}>Sets x Reps</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Sets x Reps</Text>
               {canEditAll ? (
                 <TextInput
-                  style={[styles.fieldInput, !repsSets && prevWeekExercise?.repsSets ? styles.ghostedInput : null]}
+                  style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !repsSets && prevWeekExercise?.repsSets ? styles.ghostedInput : null]}
                   value={repsSets}
                   onChangeText={setRepsSets}
                   onBlur={saveChanges}
@@ -336,18 +336,18 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
                   placeholderTextColor={prevWeekExercise?.repsSets ? colors.textGhost : colors.textMuted}
                 />
               ) : (
-                <View style={[styles.fieldInput, styles.readOnlyField]}>
-                  <Text style={[styles.readOnlyText, !repsSets && prevWeekExercise?.repsSets ? styles.ghostText : null]}>
+                <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
+                  <Text style={[styles.readOnlyText, { color: colors.textMuted }, !repsSets && prevWeekExercise?.repsSets ? styles.ghostText : null]}>
                     {repsSets || prevWeekExercise?.repsSets || '-'}
                   </Text>
                 </View>
               )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.fieldLabel}>Weight</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Weight</Text>
               {canEditAll ? (
                 <TextInput
-                  style={styles.fieldInput}
+                  style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
                   value={weight}
                   onChangeText={setWeight}
                   onBlur={saveChanges}
@@ -355,18 +355,18 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
                   placeholderTextColor={prevWeekExercise?.weight ? colors.textGhost : colors.textMuted}
                 />
               ) : (
-                <View style={[styles.fieldInput, styles.readOnlyField]}>
-                  <Text style={[styles.readOnlyText, !weight && prevWeekExercise?.weight ? styles.ghostText : null]}>
+                <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
+                  <Text style={[styles.readOnlyText, { color: colors.textMuted }, !weight && prevWeekExercise?.weight ? styles.ghostText : null]}>
                     {weight || prevWeekExercise?.weight || '-'}
                   </Text>
                 </View>
               )}
             </View>
             <View style={{ width: 70 }}>
-              <Text style={styles.fieldLabel}>RPE</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>RPE</Text>
               {canEditAll ? (
                 <TextInput
-                  style={[styles.fieldInput, !rpe && prevWeekExercise?.rpe ? styles.ghostedInput : null]}
+                  style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !rpe && prevWeekExercise?.rpe ? styles.ghostedInput : null]}
                   value={rpe}
                   onChangeText={setRpe}
                   onBlur={saveChanges}
@@ -375,8 +375,8 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
                   keyboardType="decimal-pad"
                 />
               ) : (
-                <View style={[styles.fieldInput, styles.readOnlyField]}>
-                  <Text style={[styles.readOnlyText, !rpe && prevWeekExercise?.rpe ? styles.ghostText : null]}>
+                <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
+                  <Text style={[styles.readOnlyText, { color: colors.textMuted }, !rpe && prevWeekExercise?.rpe ? styles.ghostText : null]}>
                     {rpe || prevWeekExercise?.rpe || '-'}
                   </Text>
                 </View>
@@ -385,24 +385,24 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
           </View>
 
           {isCoach && isShared && exercise.isCompleted && (
-            <View style={[styles.completionToggle, styles.completionToggleActive]}>
+            <View style={[styles.completionToggle, styles.completionToggleActive, { backgroundColor: colors.surface, borderColor: colors.success }]}>
               <Ionicons name="checkmark-circle" size={22} color={colors.success} />
               <Text style={[styles.completionText, { color: colors.success }]}>Client completed this</Text>
             </View>
           )}
 
-          <Text style={styles.fieldLabel}>
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
             <Ionicons name="chatbubble-outline" size={12} color={colors.textSecondary} /> {isShared ? 'Client Notes' : 'Notes'}
           </Text>
           {(isCoach && isShared) ? (
-            <View style={[styles.fieldInput, styles.readOnlyField]}>
-              <Text style={[styles.readOnlyText, !clientNotes && prevWeekExercise?.clientNotes ? styles.ghostText : null]}>
+            <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
+              <Text style={[styles.readOnlyText, { color: colors.textMuted }, !clientNotes && prevWeekExercise?.clientNotes ? styles.ghostText : null]}>
                 {clientNotes || prevWeekExercise?.clientNotes || 'No client notes yet'}
               </Text>
             </View>
           ) : (
             <TextInput
-              style={[styles.fieldInput, { minHeight: 50 }]}
+              style={[styles.fieldInput, { minHeight: 50, color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
               value={clientNotes}
               onChangeText={setClientNotes}
               placeholder={prevWeekExercise?.clientNotes || "How it felt, feedback..."}
@@ -414,12 +414,12 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
 
           {isShared && (
             <>
-              <Text style={styles.fieldLabel}>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
                 <Ionicons name="school-outline" size={12} color={colors.accent} /> Coach Comment
               </Text>
               {isCoach ? (
                 <TextInput
-                  style={[styles.fieldInput, styles.coachInput, { minHeight: 50 }]}
+                  style={[styles.fieldInput, styles.coachInput, { minHeight: 50, color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
                   value={coachComment}
                   onChangeText={setCoachComment}
                   onBlur={saveChanges}
@@ -429,8 +429,8 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
                   textAlignVertical="top"
                 />
               ) : (
-                <View style={[styles.fieldInput, styles.coachInput, styles.readOnlyField]}>
-                  <Text style={[styles.readOnlyText, !coachComment && prevWeekExercise?.coachComment ? styles.ghostText : null]}>
+                <View style={[styles.fieldInput, styles.coachInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
+                  <Text style={[styles.readOnlyText, { color: colors.textMuted }, !coachComment && prevWeekExercise?.coachComment ? styles.ghostText : null]}>
                     {coachComment || prevWeekExercise?.coachComment || 'No coach comments yet'}
                   </Text>
                 </View>
@@ -458,7 +458,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
 
           {(!isCoach || !isShared) && (
             <Pressable
-              style={[styles.completionToggle, isCompleted && styles.completionToggleActive]}
+              style={[styles.completionToggle, { backgroundColor: colors.surface, borderColor: colors.border }, isCompleted && styles.completionToggleActive]}
               onPress={handleToggleComplete}
             >
               <Ionicons
@@ -466,7 +466,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
                 size={22}
                 color={isCompleted ? colors.success : colors.textMuted}
               />
-              <Text style={[styles.completionText, isCompleted && { color: colors.success }]}>
+              <Text style={[styles.completionText, { color: colors.textMuted }, isCompleted && { color: colors.success }]}>
                 {isCompleted ? 'Completed' : 'Mark as completed'}
               </Text>
             </Pressable>
@@ -915,10 +915,10 @@ export default function ProgramDetailScreen() {
           )}
         </ScrollView>
         <View style={styles.weekProgressRow}>
-          <View style={styles.weekProgressBar}>
+          <View style={[styles.weekProgressBar, { backgroundColor: colors.surfaceLight }]}>
             <View style={[styles.weekProgressFill, { width: `${weekProgress}%` }]} />
           </View>
-          <Text style={styles.weekProgressText}>{weekProgress}%</Text>
+          <Text style={[styles.weekProgressText, { color: colors.textSecondary }]}>{weekProgress}%</Text>
         </View>
       </View>
 
@@ -968,7 +968,7 @@ export default function ProgramDetailScreen() {
         )}
 
         {(isCoach || !isShared) && (
-          <Pressable style={styles.addExerciseBtn} onPress={addExercise}>
+          <Pressable style={[styles.addExerciseBtn, { borderColor: colors.border }]} onPress={addExercise}>
             <Ionicons name="add" size={16} color={colors.primary} />
             <Text style={[styles.addExerciseText, { color: colors.primary }]}>Add Exercise</Text>
           </Pressable>
