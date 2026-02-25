@@ -278,18 +278,26 @@ export default function TrimVideoScreen() {
         </View>
 
         <View style={styles.sliderArea}>
-          <View
-            ref={trackRef}
-            style={styles.track}
-            onLayout={handleTrackLayout}
-          >
-            <View style={[styles.dimRegion, { left: 0, width: `${startPct}%` }]} />
-            <View style={[styles.dimRegion, { right: 0, width: `${100 - endPct}%` }]} />
-
+          <View style={styles.sliderWrapper}>
             <View
-              style={[styles.selectedRegion, { left: `${startPct}%`, width: `${Math.max(widthPct, 0.5)}%` }]}
-              {...regionPan.panHandlers}
-            />
+              ref={trackRef}
+              style={styles.track}
+              onLayout={handleTrackLayout}
+            >
+              <View style={[styles.dimRegion, { left: 0, width: `${startPct}%` }]} />
+              <View style={[styles.dimRegion, { right: 0, width: `${100 - endPct}%` }]} />
+
+              <View
+                style={[styles.selectedRegion, { left: `${startPct}%`, width: `${Math.max(widthPct, 0.5)}%` }]}
+                {...regionPan.panHandlers}
+              />
+
+              {totalDuration > 0 && (
+                <View
+                  style={[styles.playhead, { left: `${timeToPercent(currentTime)}%`, marginLeft: -1 }]}
+                />
+              )}
+            </View>
 
             <View
               style={[styles.handle, { left: `${startPct}%`, marginLeft: -HANDLE_HIT / 2 }]}
@@ -310,12 +318,6 @@ export default function TrimVideoScreen() {
                 <View style={styles.gripLine} />
               </View>
             </View>
-
-            {totalDuration > 0 && (
-              <View
-                style={[styles.playhead, { left: `${timeToPercent(currentTime)}%`, marginLeft: -1 }]}
-              />
-            )}
           </View>
           <View style={styles.trackLabels}>
             <Text style={styles.trackLabelText}>0:00</Text>
@@ -405,9 +407,12 @@ const styles = StyleSheet.create({
   timePillLabel: { fontFamily: 'Rubik_500Medium', fontSize: 10, color: Colors.colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   timePillValue: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text, marginTop: 2 },
   sliderArea: { marginTop: 4 },
+  sliderWrapper: {
+    position: 'relative', paddingVertical: 10,
+  },
   track: {
     height: 48, backgroundColor: Colors.colors.surface, borderRadius: 10,
-    borderWidth: 1, borderColor: Colors.colors.border, overflow: 'visible', position: 'relative',
+    borderWidth: 1, borderColor: Colors.colors.border, overflow: 'hidden', position: 'relative',
   },
   dimRegion: {
     position: 'absolute', top: 0, bottom: 0,
@@ -419,7 +424,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 3, borderBottomWidth: 3, borderColor: Colors.colors.primary,
   },
   handle: {
-    position: 'absolute', top: -8, bottom: -8, width: HANDLE_HIT,
+    position: 'absolute', top: 2, bottom: 2, width: HANDLE_HIT,
     alignItems: 'center', justifyContent: 'center', zIndex: 10,
   },
   handleGrip: {
@@ -436,7 +441,7 @@ const styles = StyleSheet.create({
     width: 8, height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.7)',
   },
   playhead: {
-    position: 'absolute', top: -2, bottom: -2, width: 2, backgroundColor: '#fff', borderRadius: 1, zIndex: 5,
+    position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: '#fff', borderRadius: 1, zIndex: 5,
   },
   trackLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 2 },
   trackLabelText: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted },
