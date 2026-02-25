@@ -12,10 +12,8 @@ import { showAlert } from "@/lib/confirm";
 import { trimResult } from "@/lib/trim-result";
 
 const MAX_DURATION = 60;
-const HANDLE_W = 22;
-const HANDLE_TOUCH = 44;
 const TRACK_H = 48;
-const WRAPPER_PAD = HANDLE_W;
+const HANDLE_W = 22;
 
 export default function TrimVideoScreen() {
   const insets = useSafeAreaInsets();
@@ -46,6 +44,7 @@ export default function TrimVideoScreen() {
   const [uploading, setUploading] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [trackWidth, setTrackWidth] = useState(0);
+  const trackWidthRef = useRef(0);
   const dragOriginRef = useRef({ start: 0, end: 0 });
 
   const setStartTime = useCallback((v: number) => {
@@ -84,7 +83,10 @@ export default function TrimVideoScreen() {
 
   const handleTrackLayout = useCallback((e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
-    if (w > 0) setTrackWidth(w);
+    if (w > 0) {
+      trackWidthRef.current = w;
+      setTrackWidth(w);
+    }
   }, []);
 
   const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
@@ -95,9 +97,9 @@ export default function TrimVideoScreen() {
   };
 
   const xToTime = useCallback((dx: number) => {
-    if (trackWidth <= 0) return 0;
-    return (dx / trackWidth) * totalDuration;
-  }, [totalDuration, trackWidth]);
+    if (trackWidthRef.current <= 0) return 0;
+    return (dx / trackWidthRef.current) * totalDuration;
+  }, [totalDuration]);
 
   const startPan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -117,7 +119,7 @@ export default function TrimVideoScreen() {
     onPanResponderRelease: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-  }), [totalDuration, trackWidth]);
+  }), [totalDuration]);
 
   const endPan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -136,7 +138,7 @@ export default function TrimVideoScreen() {
     onPanResponderRelease: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-  }), [totalDuration, trackWidth]);
+  }), [totalDuration]);
 
   const regionPan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -160,7 +162,7 @@ export default function TrimVideoScreen() {
     onPanResponderRelease: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-  }), [totalDuration, trackWidth]);
+  }), [totalDuration]);
 
   const handleSubmit = async () => {
     if (!isValidClip) return;
@@ -259,11 +261,11 @@ export default function TrimVideoScreen() {
       <View style={styles.controls}>
         {needsTrim ? (
           <Text style={styles.instructionText}>
-            Drag the handles to select up to 60s from your {formatTime(totalDuration)} video
+            Drag the orange handles to select up to 60s from your {formatTime(totalDuration)} video
           </Text>
         ) : (
           <Text style={styles.instructionText}>
-            Adjust clip range or upload the full {formatTime(totalDuration)} video
+            Drag the orange handles to adjust, or upload the full {formatTime(totalDuration)} video
           </Text>
         )}
 
@@ -280,63 +282,53 @@ export default function TrimVideoScreen() {
         </View>
 
         <View style={styles.sliderArea}>
-          <View style={styles.sliderWrapper}>
+          <View style={styles.trimRow} onLayout={handleTrackLayout}>
             <View
-              style={styles.track}
-              onLayout={handleTrackLayout}
+              {...startPan.panHandlers}
+              style={[
+                styles.handle,
+                { transform: [{ translateX: startX }] },
+              ]}
             >
+              <View style={styles.handleInner}>
+                <View style={styles.gripLine} />
+                <View style={styles.gripLine} />
+              </View>
+            </View>
+
+            <View style={styles.trackMiddle}>
               {trackWidth > 0 && (
                 <>
                   {startX > 0 && (
-                    <View style={[styles.dimRegion, { left: 0, width: startX }]} />
+                    <View style={[styles.dimOverlay, { left: 0, width: startX }]} />
                   )}
                   {endX < trackWidth && (
-                    <View style={[styles.dimRegion, { left: endX, width: trackWidth - endX }]} />
+                    <View style={[styles.dimOverlay, { right: 0, width: trackWidth - endX }]} />
                   )}
-
                   <View
-                    style={[styles.selectedRegion, { left: startX, width: Math.max(endX - startX, 2) }]}
+                    style={[styles.selectedZone, { left: startX, width: Math.max(endX - startX, 2) }]}
                     {...regionPan.panHandlers}
                   />
-
                   {totalDuration > 0 && (
-                    <View
-                      style={[styles.playhead, { left: Math.min(playheadX, trackWidth - 2) }]}
-                    />
+                    <View style={[styles.playhead, { left: Math.min(playheadX, trackWidth - 2) }]} />
                   )}
                 </>
               )}
             </View>
 
-            {trackWidth > 0 && (
-              <>
-                <View
-                  {...startPan.panHandlers}
-                  style={[
-                    styles.handleTouch,
-                    { left: WRAPPER_PAD + startX - HANDLE_TOUCH / 2 },
-                  ]}
-                >
-                  <View style={styles.handleBar}>
-                    <View style={styles.gripLine} />
-                    <View style={styles.gripLine} />
-                  </View>
-                </View>
-
-                <View
-                  {...endPan.panHandlers}
-                  style={[
-                    styles.handleTouch,
-                    { left: WRAPPER_PAD + endX - HANDLE_TOUCH / 2 },
-                  ]}
-                >
-                  <View style={styles.handleBar}>
-                    <View style={styles.gripLine} />
-                    <View style={styles.gripLine} />
-                  </View>
-                </View>
-              </>
-            )}
+            <View
+              {...endPan.panHandlers}
+              style={[
+                styles.handle,
+                styles.handleEnd,
+                { transform: [{ translateX: endX - trackWidth }] },
+              ]}
+            >
+              <View style={styles.handleInner}>
+                <View style={styles.gripLine} />
+                <View style={styles.gripLine} />
+              </View>
+            </View>
           </View>
 
           <View style={styles.trackLabels}>
@@ -427,58 +419,55 @@ const styles = StyleSheet.create({
   timePillLabel: { fontFamily: 'Rubik_500Medium', fontSize: 10, color: Colors.colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   timePillValue: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text, marginTop: 2 },
   sliderArea: { marginTop: 4 },
-  sliderWrapper: {
-    paddingHorizontal: WRAPPER_PAD,
-    height: TRACK_H + 20,
-    justifyContent: 'center',
-  },
-  track: {
-    height: TRACK_H,
-    backgroundColor: Colors.colors.surface,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.colors.border,
-    overflow: 'hidden',
-  },
-  dimRegion: {
-    position: 'absolute', top: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  selectedRegion: {
-    position: 'absolute', top: 0, bottom: 0,
-    backgroundColor: 'rgba(232,81,47,0.15)',
-    borderTopWidth: 3, borderBottomWidth: 3, borderColor: Colors.colors.primary,
-  },
-  handleTouch: {
-    position: 'absolute',
-    top: (TRACK_H + 20 - TRACK_H - 8) / 2 - 4,
-    width: HANDLE_TOUCH,
-    height: TRACK_H + 8,
+  trimRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 20,
+    height: TRACK_H,
   },
-  handleBar: {
+  handle: {
     width: HANDLE_W,
     height: TRACK_H,
     borderRadius: 6,
     backgroundColor: Colors.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    zIndex: 10,
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 4 },
       android: { elevation: 6 },
       web: {},
     }),
   },
+  handleEnd: {},
+  handleInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
   gripLine: {
     width: 8, height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.8)',
+  },
+  trackMiddle: {
+    flex: 1,
+    height: TRACK_H,
+    backgroundColor: Colors.colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.colors.border,
+    overflow: 'hidden',
+  },
+  dimOverlay: {
+    position: 'absolute', top: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  selectedZone: {
+    position: 'absolute', top: 0, bottom: 0,
+    backgroundColor: 'rgba(232,81,47,0.15)',
+    borderTopWidth: 3, borderBottomWidth: 3, borderColor: Colors.colors.primary,
   },
   playhead: {
     position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: '#fff', borderRadius: 1, zIndex: 5,
   },
-  trackLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: WRAPPER_PAD + 2 },
+  trackLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 2 },
   trackLabelText: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted },
   footer: { paddingHorizontal: 20, paddingTop: 16, gap: 10 },
   savePhotosBtn: {
