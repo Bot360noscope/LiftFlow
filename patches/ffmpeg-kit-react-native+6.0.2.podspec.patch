@@ -1,0 +1,7 @@
+This is a reference file - apply manually.
+
+In node_modules/ffmpeg-kit-react-native/ffmpeg-kit-react-native.podspec,
+replace the dependency line:
+  s.dependency "ffmpeg-kit-ios-#{ffmpeg_kit_package}", "6.0"
+with:
+  s.dependency "liftflow-ffmpeg-kit-ios-https"

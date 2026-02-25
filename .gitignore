@@ -48,6 +48,9 @@ yarn-error.*
 
 .env
 
+# FFmpeg Kit local xcframeworks (built from source)
+ffmpeg-kit-ios-https/
+
 # Zip files
 *.zip
 
