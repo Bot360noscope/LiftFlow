@@ -82,7 +82,7 @@ export default function TrimVideoScreen() {
   }, [player]);
 
   const handleTrackLayout = useCallback((e: LayoutChangeEvent) => {
-    const w = e.nativeEvent.layout.width;
+    const w = e.nativeEvent.layout.width - (HANDLE_W * 2);
     if (w > 0) {
       trackWidthRef.current = w;
       setTrackWidth(w);
