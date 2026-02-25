@@ -12,7 +12,7 @@ import { showAlert } from "@/lib/confirm";
 import { trimResult } from "@/lib/trim-result";
 
 const MAX_DURATION = 60;
-const HANDLE_HIT = 36;
+const HANDLE_HIT = 44;
 
 export default function TrimVideoScreen() {
   const insets = useSafeAreaInsets();
@@ -80,12 +80,9 @@ export default function TrimVideoScreen() {
     return () => sub.remove();
   }, [player]);
 
-  const handleTrackLayout = useCallback(() => {
-    setTimeout(() => {
-      trackRef.current?.measureInWindow((x, _y, width) => {
-        if (width > 0) trackWidthRef.current = width;
-      });
-    }, 150);
+  const handleTrackLayout = useCallback((e: any) => {
+    const w = e?.nativeEvent?.layout?.width;
+    if (w && w > 0) trackWidthRef.current = w;
   }, []);
 
   const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
