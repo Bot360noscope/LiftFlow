@@ -283,51 +283,39 @@ export default function TrimVideoScreen() {
 
         <View style={styles.sliderArea}>
           <View style={styles.trimRow} onLayout={handleTrackLayout}>
-            <View
-              {...startPan.panHandlers}
-              style={[
-                styles.handle,
-                { left: startX, position: 'absolute', zIndex: 10 },
-              ]}
-            >
-              <View style={styles.handleInner}>
-                <View style={styles.gripLine} />
-                <View style={styles.gripLine} />
-              </View>
-            </View>
+            {trackWidth > 0 && (
+              <>
+                <View
+                  {...startPan.panHandlers}
+                  style={[styles.handle, { left: startX }]}
+                >
+                  <View style={styles.handleInner}>
+                    <View style={styles.gripLine} />
+                    <View style={styles.gripLine} />
+                  </View>
+                </View>
 
-            <View style={styles.trackMiddle}>
-              {trackWidth > 0 && (
-                <>
-                  {startX > 0 && (
-                    <View style={[styles.dimOverlay, { left: 0, width: startX }]} />
-                  )}
-                  {endX < trackWidth && (
-                    <View style={[styles.dimOverlay, { right: 0, width: trackWidth - endX }]} />
-                  )}
+                <View style={styles.trackMiddle}>
+                  {startX > 0 && <View style={[styles.dimOverlay, { left: 0, width: startX }]} />}
+                  {endX < trackWidth && <View style={[styles.dimOverlay, { right: 0, width: trackWidth - endX }]} />}
                   <View
                     style={[styles.selectedZone, { left: startX, width: Math.max(endX - startX, 2) }]}
                     {...regionPan.panHandlers}
                   />
-                  {totalDuration > 0 && (
-                    <View style={[styles.playhead, { left: Math.min(playheadX, trackWidth - 2) }]} />
-                  )}
-                </>
-              )}
-            </View>
+                  <View style={[styles.playhead, { left: Math.min(playheadX, trackWidth - 2) }]} />
+                </View>
 
-            <View
-              {...endPan.panHandlers}
-              style={[
-                styles.handle,
-                { left: endX, position: 'absolute', zIndex: 10 },
-              ]}
-            >
-              <View style={styles.handleInner}>
-                <View style={styles.gripLine} />
-                <View style={styles.gripLine} />
-              </View>
-            </View>
+                <View
+                  {...endPan.panHandlers}
+                  style={[styles.handle, { left: endX }]}
+                >
+                  <View style={styles.handleInner}>
+                    <View style={styles.gripLine} />
+                    <View style={styles.gripLine} />
+                  </View>
+                </View>
+              </>
+            )}
           </View>
 
           <View style={styles.trackLabels}>
@@ -422,6 +410,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     height: TRACK_H,
+    position: 'relative',
   },
   handle: {
     width: HANDLE_W,
@@ -430,6 +419,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'absolute',
+    top: 0,
+    zIndex: 10,
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 4 },
       android: { elevation: 6 },
@@ -451,6 +443,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.colors.border,
     overflow: 'hidden',
+    position: 'relative',
   },
   dimOverlay: {
     position: 'absolute', top: 0, bottom: 0,
