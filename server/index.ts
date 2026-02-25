@@ -31,19 +31,26 @@ function setupCors(app: express.Application) {
 
     const origin = req.header("origin");
 
-    // Allow localhost origins for Expo web development (any port)
     const isLocalhost =
       origin?.startsWith("http://localhost:") ||
       origin?.startsWith("http://127.0.0.1:");
 
-    if (origin && (origins.has(origin) || isLocalhost)) {
+    const isRenderDomain = origin?.includes("onrender.com");
+    const isReplitDomain = origin?.includes("replit");
+
+    if (origin && (origins.has(origin) || isLocalhost || isRenderDomain || isReplitDomain)) {
       res.header("Access-Control-Allow-Origin", origin);
       res.header(
         "Access-Control-Allow-Methods",
         "GET, POST, PUT, DELETE, OPTIONS",
       );
-      res.header("Access-Control-Allow-Headers", "Content-Type");
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
       res.header("Access-Control-Allow-Credentials", "true");
+    }
+
+    if (!origin) {
+      res.header("Access-Control-Allow-Origin", "*");
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
     }
 
     if (req.method === "OPTIONS") {
@@ -254,13 +261,17 @@ function setupErrorHandler(app: express.Application) {
   });
 }
 
+let dbReady = false;
+
 (async () => {
   setupCors(app);
   app.use(compression());
   setupBodyParsing(app);
   setupRequestLogging(app);
 
-  await initializeDatabase();
+  app.get("/healthz", (_req: Request, res: Response) => {
+    res.status(200).json({ status: "ok", db: dbReady });
+  });
 
   configureExpoAndLanding(app);
 
@@ -298,4 +309,14 @@ function setupErrorHandler(app: express.Application) {
       log(`express server serving on port ${port}`);
     },
   );
+
+  initializeDatabase()
+    .then(() => {
+      dbReady = true;
+      log("Database initialized successfully");
+    })
+    .catch((err) => {
+      console.error("Database initialization failed:", err.message);
+      console.error("Server is running but database features may not work");
+    });
 })();
