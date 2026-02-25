@@ -82,7 +82,7 @@ export default function TrimVideoScreen() {
   }, [player]);
 
   const handleTrackLayout = useCallback((e: LayoutChangeEvent) => {
-    const w = e.nativeEvent.layout.width - (HANDLE_W * 2);
+    const w = e.nativeEvent.layout.width;
     if (w > 0) {
       trackWidthRef.current = w;
       setTrackWidth(w);
@@ -287,7 +287,7 @@ export default function TrimVideoScreen() {
               {...startPan.panHandlers}
               style={[
                 styles.handle,
-                { transform: [{ translateX: startX }] },
+                { left: startX, position: 'absolute', zIndex: 10 },
               ]}
             >
               <View style={styles.handleInner}>
@@ -320,8 +320,7 @@ export default function TrimVideoScreen() {
               {...endPan.panHandlers}
               style={[
                 styles.handle,
-                styles.handleEnd,
-                { transform: [{ translateX: endX - trackWidth }] },
+                { left: endX, position: 'absolute', zIndex: 10 },
               ]}
             >
               <View style={styles.handleInner}>
@@ -431,14 +430,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 4 },
       android: { elevation: 6 },
       web: {},
     }),
   },
-  handleEnd: {},
   handleInner: {
     alignItems: 'center',
     justifyContent: 'center',
