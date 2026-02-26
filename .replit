@@ -3,7 +3,7 @@ modules = ["nodejs-22", "postgresql-16"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["unzip", "zip", "ffmpeg"]
+packages = ["unzip", "zip", "ffmpeg", "imagemagick"]
 
 [deployment]
 deploymentTarget = "autoscale"
