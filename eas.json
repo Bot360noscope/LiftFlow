@@ -1,0 +1,25 @@
+{
+  "cli": {
+    "version": ">= 3.0.0"
+  },
+  "build": {
+    "production": {
+      "distribution": "store",
+      "ios": {
+        "buildConfiguration": "Release",
+        "cache": {
+          "disabled": false,
+          "key": "v2-no-ffmpeg"
+        }
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "sambaayno@gmail.com",
+        "ascAppId": "com.liftflow"
+      }
+    }
+  }
+}
