@@ -420,8 +420,7 @@ export default function ProfileScreen() {
             accessibilityLabel="Privacy Policy"
             accessibilityRole="link"
             onPress={() => {
-              const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
-              WebBrowser.openBrowserAsync(`${base}/privacy`);
+              WebBrowser.openBrowserAsync('https://new-liftflow-for-render-hosting-backend.onrender.com/privacy');
             }}
           >
             <Ionicons name="shield-checkmark-outline" size={18} color={colors.textMuted} />
@@ -433,8 +432,7 @@ export default function ProfileScreen() {
             accessibilityLabel="Terms of Service"
             accessibilityRole="link"
             onPress={() => {
-              const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
-              WebBrowser.openBrowserAsync(`${base}/terms`);
+              WebBrowser.openBrowserAsync('https://new-liftflow-for-render-hosting-backend.onrender.com/terms');
             }}
           >
             <Ionicons name="document-text-outline" size={18} color={colors.textMuted} />
