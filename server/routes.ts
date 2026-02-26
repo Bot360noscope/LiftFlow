@@ -71,7 +71,16 @@ function verifyToken(token: string): { userId: string; profileId: string } | nul
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
 
+async function checkAndDowngradeExpiredPlan(profileId: string): Promise<void> {
+  const [profile] = await db.select().from(profiles).where(eq(profiles.id, profileId));
+  if (!profile) return;
+  if (profile.planExpiresAt && new Date(profile.planExpiresAt) < new Date() && profile.plan !== 'free') {
+    await db.update(profiles).set({ plan: 'free', planUserLimit: 1, planExpiresAt: null }).where(eq(profiles.id, profileId));
+  }
+}
+
 async function isCoachOverLimit(coachProfileId: string): Promise<{ overLimit: boolean; plan: string; limit: number; clientCount: number }> {
+  await checkAndDowngradeExpiredPlan(coachProfileId);
   const [coach] = await db.select().from(profiles).where(eq(profiles.id, coachProfileId));
   if (!coach) return { overLimit: false, plan: 'free', limit: 1, clientCount: 0 };
   const plan = coach.plan || 'free';
@@ -195,6 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const decoded = verifyToken(authHeader.slice(7));
       if (!decoded) return res.status(401).json({ error: "Invalid token" });
 
+      await checkAndDowngradeExpiredPlan(decoded.profileId);
       const [profile] = await db.select().from(profiles).where(eq(profiles.id, decoded.profileId));
       if (!profile) return res.status(404).json({ error: "Profile not found" });
 
@@ -1325,6 +1335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const profileId = req.query.profileId as string;
       if (!profileId) return res.status(400).json({ error: "profileId required" });
 
+      await checkAndDowngradeExpiredPlan(profileId);
       const [[profile], allPrograms, allPRs, allNotifs] = await Promise.all([
         db.select().from(profiles).where(eq(profiles.id, profileId)),
         db.select().from(programs),
