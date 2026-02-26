@@ -51,27 +51,33 @@ function AppContent() {
   const { isLoggedIn, isLoading } = useAuth();
   const { colors } = useTheme();
   const [hasOnboarded, setHasOnboarded] = useState<boolean | null>(null);
+  const [appReady, setAppReady] = useState(false);
 
   useEffect(() => {
     if (isLoggedIn) {
-      loadCacheFromDisk().then(() => {
-        const cached = getCachedProfile();
-        if (cached?.id) connectWebSocket(cached.id);
-      });
-      AsyncStorage.getItem("liftflow_onboarding_done").then((val) => {
-        setHasOnboarded(val === "true");
-      });
+      Promise.all([
+        loadCacheFromDisk().then(() => {
+          const cached = getCachedProfile();
+          if (cached?.id) connectWebSocket(cached.id);
+        }),
+        AsyncStorage.getItem("liftflow_onboarding_done").then((val) => {
+          setHasOnboarded(val === "true");
+        }),
+      ]).then(() => setAppReady(true));
     } else {
       disconnectWebSocket();
+      setAppReady(true);
     }
   }, [isLoggedIn]);
 
-  if (isLoading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+  useEffect(() => {
+    if (!isLoading && appReady) {
+      SplashScreen.hideAsync();
+    }
+  }, [isLoading, appReady]);
+
+  if (isLoading || !appReady) {
+    return null;
   }
 
   if (!isLoggedIn) {
@@ -79,11 +85,7 @@ function AppContent() {
   }
 
   if (hasOnboarded === null) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    return null;
   }
 
   if (!hasOnboarded) {
@@ -107,12 +109,6 @@ export default function RootLayout() {
     Rubik_600SemiBold,
     Rubik_700Bold,
   });
-
-  useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
 
   if (!fontsLoaded) return null;
 
