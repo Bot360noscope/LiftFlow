@@ -82,7 +82,6 @@ export async function seedTestData() {
     id: coachId,
     name: 'Coach Mike',
     role: 'coach',
-    weightUnit: 'kg',
     coachCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
   };
 

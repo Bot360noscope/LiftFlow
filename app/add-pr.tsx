@@ -26,7 +26,7 @@ export default function AddPRScreen() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    getProfile().then(p => setUnit(p.weightUnit));
+    setUnit('kg');
   }, []);
 
   const handleSave = useCallback(async () => {

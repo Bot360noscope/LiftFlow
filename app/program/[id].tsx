@@ -666,7 +666,7 @@ export default function ProgramDetailScreen() {
                 await addPR({
                   liftType,
                   weight: weightNum,
-                  unit: profile.weightUnit as 'kg' | 'lbs',
+                  unit: 'kg',
                   date: new Date().toISOString().split('T')[0],
                   notes: `Auto-logged from ${program.title} - ${ex.name}`,
                 });

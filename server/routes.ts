@@ -159,7 +159,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: profileId,
         name: name || '',
         role: role || 'client',
-        weightUnit: 'kg',
         coachCode: generateCode(),
       }).returning();
 
@@ -233,12 +232,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // === PROFILES ===
   app.post("/api/profiles", async (req, res) => {
     try {
-      const { name, role, weightUnit } = req.body;
+      const { name, role } = req.body;
       const [profile] = await db.insert(profiles).values({
         id: randomUUID(),
         name: name || '',
         role: role || 'client',
-        weightUnit: weightUnit || 'kg',
         coachCode: generateCode(),
       }).returning();
       res.json(profile);
@@ -256,11 +254,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/profiles/:id", async (req, res) => {
     try {
-      const { name, role, weightUnit, coachCode } = req.body;
+      const { name, role, coachCode } = req.body;
       const updates: any = {};
       if (name !== undefined) updates.name = name;
       if (role !== undefined) updates.role = role;
-      if (weightUnit !== undefined) updates.weightUnit = weightUnit;
       if (coachCode !== undefined) updates.coachCode = coachCode;
       const [updated] = await db.update(profiles).set(updates).where(eq(profiles.id, req.params.id)).returning();
       res.json(updated);
@@ -888,7 +885,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: coachId,
         name: 'Coach Mike',
         role: 'coach',
-        weightUnit: 'kg',
         coachCode: generateCode(),
       }).returning();
 
@@ -896,8 +892,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const client2ProfileId = randomUUID();
 
       await db.insert(profiles).values([
-        { id: client1ProfileId, name: 'Sarah J.', role: 'client', weightUnit: 'kg', coachCode: generateCode() },
-        { id: client2ProfileId, name: 'Alex T.', role: 'client', weightUnit: 'kg', coachCode: generateCode() },
+        { id: client1ProfileId, name: 'Sarah J.', role: 'client', coachCode: generateCode() },
+        { id: client2ProfileId, name: 'Alex T.', role: 'client', coachCode: generateCode() },
       ]);
 
       await db.insert(clients).values([
