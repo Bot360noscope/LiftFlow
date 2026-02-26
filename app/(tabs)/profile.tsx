@@ -418,26 +418,22 @@ export default function ProfileScreen() {
           <Pressable
             style={[styles.legalLink, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
             accessibilityLabel="Privacy Policy"
-            accessibilityRole="link"
-            onPress={() => {
-              WebBrowser.openBrowserAsync('https://new-liftflow-for-render-hosting-backend.onrender.com/privacy');
-            }}
+            accessibilityRole="button"
+            onPress={() => router.push({ pathname: "/legal", params: { type: "privacy" } })}
           >
             <Ionicons name="shield-checkmark-outline" size={18} color={colors.textMuted} />
             <Text style={[styles.legalLinkText, { color: colors.textSecondary }]}>Privacy Policy</Text>
-            <Ionicons name="open-outline" size={14} color={colors.textMuted} />
+            <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
           </Pressable>
           <Pressable
             style={[styles.legalLink, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
             accessibilityLabel="Terms of Service"
-            accessibilityRole="link"
-            onPress={() => {
-              WebBrowser.openBrowserAsync('https://new-liftflow-for-render-hosting-backend.onrender.com/terms');
-            }}
+            accessibilityRole="button"
+            onPress={() => router.push({ pathname: "/legal", params: { type: "terms" } })}
           >
             <Ionicons name="document-text-outline" size={18} color={colors.textMuted} />
             <Text style={[styles.legalLinkText, { color: colors.textSecondary }]}>Terms of Service</Text>
-            <Ionicons name="open-outline" size={14} color={colors.textMuted} />
+            <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
           </Pressable>
         </Animated.View>
 

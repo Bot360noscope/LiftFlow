@@ -43,6 +43,7 @@ function RootLayoutNav() {
       <Stack.Screen name="client/[id]" options={{ headerShown: false, presentation: "card" }} />
       <Stack.Screen name="conversation" options={{ headerShown: false, presentation: "card" }} />
       <Stack.Screen name="trim-video" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="legal" options={{ headerShown: false, presentation: "modal" }} />
     </Stack>
   );
 }
