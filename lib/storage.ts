@@ -51,6 +51,7 @@ export interface UserProfile {
   id: string;
   name: string;
   role: 'coach' | 'client';
+  weightUnit: 'kg' | 'lbs';
   coachCode: string;
   avatarUrl: string;
   plan: string;
@@ -219,6 +220,7 @@ function mapProfile(profile: any): UserProfile {
     id: profile.id,
     name: profile.name,
     role: profile.role as 'coach' | 'client',
+    weightUnit: (profile.weightUnit || profile.weight_unit || 'kg') as 'kg' | 'lbs',
     coachCode: profile.coachCode || profile.coach_code,
     avatarUrl: profile.avatarUrl || profile.avatar_url || '',
     plan: profile.plan || 'free',
@@ -252,6 +254,7 @@ async function _fetchProfile(): Promise<UserProfile> {
   const profile = await apiPost<any>('/api/profiles', {
     name: '',
     role: 'client',
+    weightUnit: 'kg',
   });
   await setProfileId(profile.id);
   const result = mapProfile(profile);
@@ -273,6 +276,7 @@ export async function saveProfile(profile: UserProfile): Promise<void> {
   await apiPut(`/api/profiles/${profile.id}`, {
     name: profile.name,
     role: profile.role,
+    weightUnit: profile.weightUnit,
     coachCode: profile.coachCode,
   });
 }

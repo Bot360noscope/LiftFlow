@@ -97,7 +97,7 @@ export default function ProgressScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [prs, setPRs] = useState<LiftPR[]>(getCachedPRs());
-  const [unit, setUnit] = useState<'kg' | 'lbs'>('kg');
+  const [unit, setUnit] = useState<'kg' | 'lbs'>((getCachedProfile()?.weightUnit as 'kg' | 'lbs') || 'kg');
   const [isCoach, setIsCoach] = useState(getCachedProfile()?.role === 'coach');
   const [programs, setPrograms] = useState<Program[]>(getCachedPrograms());
   const [clients, setClients] = useState<ClientInfo[]>(getCachedClients());
@@ -109,7 +109,7 @@ export default function ProgressScreen() {
     try {
       const [prData, profile, progs, cl] = await Promise.all([getPRs(), getProfile(), getPrograms(), getClients()]);
       setPRs(prData);
-      setUnit('kg');
+      setUnit(profile.weightUnit);
       setIsCoach(profile.role === 'coach');
       setPrograms(progs);
       setClients(cl);

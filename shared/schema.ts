@@ -7,6 +7,7 @@ export const profiles = pgTable("profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().default(''),
   role: text("role").notNull().default('client'),
+  weightUnit: text("weight_unit").notNull().default('kg'),
   coachCode: text("coach_code").notNull(),
   avatarUrl: text("avatar_url").notNull().default(''),
   plan: text("plan").notNull().default('free'),

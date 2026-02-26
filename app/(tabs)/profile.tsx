@@ -58,7 +58,7 @@ export default function ProfileScreen() {
   const { logout: authLogout } = useAuth();
   const { colors, theme, toggleTheme } = useTheme();
   const cached = getCachedProfile();
-  const [profile, setProfile] = useState<UserProfile>(cached || { id: '', name: '', role: 'coach', coachCode: '', avatarUrl: '', plan: 'free', planUserLimit: 1 });
+  const [profile, setProfile] = useState<UserProfile>(cached || { id: '', name: '', role: 'coach', weightUnit: 'kg', coachCode: '', avatarUrl: '', plan: 'free', planUserLimit: 1 });
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(cached?.name || '');
   const [stats, setStats] = useState({ prs: getCachedPRs().length, programs: getCachedPrograms().length, clients: getCachedClients().length });
