@@ -71,6 +71,15 @@ function verifyToken(token: string): { userId: string; profileId: string } | nul
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
 
+async function isCoachOverLimit(coachProfileId: string): Promise<{ overLimit: boolean; plan: string; limit: number; clientCount: number }> {
+  const [coach] = await db.select().from(profiles).where(eq(profiles.id, coachProfileId));
+  if (!coach) return { overLimit: false, plan: 'free', limit: 1, clientCount: 0 };
+  const plan = coach.plan || 'free';
+  const limit = coach.planUserLimit || 1;
+  const currentClients = await db.select().from(clients).where(eq(clients.coachId, coachProfileId));
+  return { overLimit: currentClients.length > limit, plan, limit, clientCount: currentClients.length };
+}
+
 async function trimVideoBuffer(buffer: Buffer, startTime: number, endTime: number): Promise<Buffer> {
   const tmpDir = os.tmpdir();
   const inputPath = path.join(tmpDir, `input_${randomUUID()}.mp4`);
@@ -305,6 +314,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/programs", async (req, res) => {
     try {
       const { title, description, weeks, daysPerWeek, coachId, clientId, status } = req.body;
+      if (coachId && clientId) {
+        const check = await isCoachOverLimit(coachId);
+        if (check.overLimit) {
+          return res.status(403).json({ error: `Your plan supports ${check.limit} client${check.limit !== 1 ? 's' : ''} but you have ${check.clientCount}. Please upgrade your plan or remove clients to assign programs.`, code: 'PLAN_LIMIT_EXCEEDED' });
+        }
+      }
       const [program] = await db.insert(programs).values({
         id: randomUUID(),
         title,
@@ -323,6 +338,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/programs/:id", async (req, res) => {
     try {
       const { title, description, weeks, daysPerWeek, clientId, status } = req.body;
+      const [existingProgram] = await db.select().from(programs).where(eq(programs.id, req.params.id));
+      if (existingProgram?.coachId && existingProgram?.clientId) {
+        const check = await isCoachOverLimit(existingProgram.coachId);
+        if (check.overLimit) {
+          return res.status(403).json({ error: `Your plan supports ${check.limit} client${check.limit !== 1 ? 's' : ''} but you have ${check.clientCount}. Please upgrade your plan or remove clients to continue editing shared programs.`, code: 'PLAN_LIMIT_EXCEEDED' });
+        }
+      }
       const updates: any = {};
       if (title !== undefined) updates.title = title;
       if (description !== undefined) updates.description = description;
@@ -519,6 +541,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/notifications", async (req, res) => {
     try {
       const { profileId, type, title, message, programId, programTitle, exerciseName, fromRole } = req.body;
+      if (fromRole === 'coach' && programId) {
+        const check = await isCoachOverLimit(programId);
+        if (check.overLimit) {
+          return res.status(403).json({ error: `Plan limit exceeded. Upgrade to continue.`, code: 'PLAN_LIMIT_EXCEEDED' });
+        }
+      }
       const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
       const conditions = [
         eq(notifications.profileId, profileId),
@@ -622,6 +650,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/messages", async (req, res) => {
     try {
       const { coachId, clientProfileId, senderRole, text: msgText } = req.body;
+      if (senderRole === 'coach') {
+        const check = await isCoachOverLimit(coachId);
+        if (check.overLimit) {
+          return res.status(403).json({ error: `Your plan supports ${check.limit} client${check.limit !== 1 ? 's' : ''} but you have ${check.clientCount}. Please upgrade your plan or remove clients to continue messaging.`, code: 'PLAN_LIMIT_EXCEEDED' });
+        }
+      }
       if (containsProfanity(msgText)) {
         return res.status(400).json({ error: "Message contains inappropriate language. Please rephrase." });
       }
