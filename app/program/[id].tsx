@@ -295,6 +295,15 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
           </View>
         </View>
         <View style={styles.exerciseHeaderRight}>
+          {Platform.OS === 'web' && canEditAll && (
+            <Pressable
+              style={styles.exerciseWebDeleteBtn}
+              onPress={(e) => { e.stopPropagation(); confirmAction("Delete Exercise", `Remove "${exercise.name || 'this exercise'}"?`, onDelete, "Delete"); }}
+              hitSlop={4}
+            >
+              <Ionicons name="trash-outline" size={14} color={colors.textMuted} />
+            </Pressable>
+          )}
           {(exercise.coachComment || exercise.clientNotes) && (
             <Ionicons name="chatbubble" size={12} color={colors.accent} />
           )}
@@ -992,21 +1001,31 @@ export default function ProgramDetailScreen() {
       <View style={[styles.weekSelector, { borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekScrollContent}>
           {program.weeks.map(week => (
-            <Pressable
-              key={week.weekNumber}
-              style={[styles.weekChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, activeWeek === week.weekNumber && [styles.weekChipActive, { backgroundColor: colors.primary, borderColor: colors.primary }]]}
-              onPress={() => { Haptics.selectionAsync(); setActiveWeek(week.weekNumber); setActiveDay(1); }}
-              onLongPress={() => {
-                if ((isCoach || !isShared) && !planLocked) {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  deleteWeek(week.weekNumber);
-                }
-              }}
-            >
-              <Text style={[styles.weekChipText, { color: colors.textSecondary }, activeWeek === week.weekNumber && styles.weekChipTextActive]}>
-                W{week.weekNumber}
-              </Text>
-            </Pressable>
+            <View key={week.weekNumber} style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Pressable
+                style={[styles.weekChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, activeWeek === week.weekNumber && [styles.weekChipActive, { backgroundColor: colors.primary, borderColor: colors.primary }]]}
+                onPress={() => { Haptics.selectionAsync(); setActiveWeek(week.weekNumber); setActiveDay(1); }}
+                onLongPress={() => {
+                  if ((isCoach || !isShared) && !planLocked) {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    deleteWeek(week.weekNumber);
+                  }
+                }}
+              >
+                <Text style={[styles.weekChipText, { color: colors.textSecondary }, activeWeek === week.weekNumber && styles.weekChipTextActive]}>
+                  W{week.weekNumber}
+                </Text>
+              </Pressable>
+              {Platform.OS === 'web' && (isCoach || !isShared) && !planLocked && program.weeks.length > 1 && (
+                <Pressable
+                  style={styles.chipDeleteBtn}
+                  onPress={() => deleteWeek(week.weekNumber)}
+                  hitSlop={4}
+                >
+                  <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+                </Pressable>
+              )}
+            </View>
           ))}
           {(isCoach || !isShared) && (
             <Pressable style={[styles.addWeekChip, { borderColor: colors.primary }]} onPress={addWeek} accessibilityLabel="Add week" accessibilityRole="button">
@@ -1025,21 +1044,31 @@ export default function ProgramDetailScreen() {
       <View style={[styles.daySelector, { borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayScrollContent}>
           {(currentWeek?.days || []).map(day => (
-            <Pressable
-              key={day.dayNumber}
-              style={[styles.dayChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, activeDay === day.dayNumber && [styles.dayChipActive, { backgroundColor: colors.accent, borderColor: colors.accent }]]}
-              onPress={() => { Haptics.selectionAsync(); setActiveDay(day.dayNumber); }}
-              onLongPress={() => {
-                if (isCoach || !isShared) {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  deleteDay(day.dayNumber);
-                }
-              }}
-            >
-              <Text style={[styles.dayChipText, { color: colors.textSecondary }, activeDay === day.dayNumber && styles.dayChipTextActive]}>
-                Day {day.dayNumber}
-              </Text>
-            </Pressable>
+            <View key={day.dayNumber} style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Pressable
+                style={[styles.dayChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, activeDay === day.dayNumber && [styles.dayChipActive, { backgroundColor: colors.accent, borderColor: colors.accent }]]}
+                onPress={() => { Haptics.selectionAsync(); setActiveDay(day.dayNumber); }}
+                onLongPress={() => {
+                  if (isCoach || !isShared) {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    deleteDay(day.dayNumber);
+                  }
+                }}
+              >
+                <Text style={[styles.dayChipText, { color: colors.textSecondary }, activeDay === day.dayNumber && styles.dayChipTextActive]}>
+                  Day {day.dayNumber}
+                </Text>
+              </Pressable>
+              {Platform.OS === 'web' && (isCoach || !isShared) && !planLocked && (currentWeek?.days || []).length > 1 && (
+                <Pressable
+                  style={styles.chipDeleteBtn}
+                  onPress={() => deleteDay(day.dayNumber)}
+                  hitSlop={4}
+                >
+                  <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+                </Pressable>
+              )}
+            </View>
           ))}
         </ScrollView>
       </View>
@@ -1266,4 +1295,10 @@ const styles = StyleSheet.create({
   },
   modalDeleteBtnDisabled: { opacity: 0.4 },
   modalDeleteText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: '#fff' },
+  chipDeleteBtn: {
+    marginLeft: -4, marginRight: 4, padding: 2, opacity: 0.6,
+  },
+  exerciseWebDeleteBtn: {
+    padding: 4, marginRight: 4, opacity: 0.5,
+  },
 });
