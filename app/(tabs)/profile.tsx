@@ -12,7 +12,7 @@ import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { ProfileSkeleton } from "@/components/SkeletonLoader";
 import { confirmAction, showAlert } from "@/lib/confirm";
-import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, seedDemoData, deleteAccount, getCachedProfile, getCachedPRs, getCachedPrograms, getCachedClients, leaveCoach, getMyCoach, type UserProfile } from "@/lib/storage";
+import { getProfile, saveProfile, getPRs, getPrograms, getClients, resetCoachCode, deleteAccount, getCachedProfile, getCachedPRs, getCachedPrograms, getCachedClients, leaveCoach, getMyCoach, type UserProfile } from "@/lib/storage";
 import { useAuth } from "@/lib/auth-context";
 import { uploadAvatar, deleteAvatar, getAvatarUrl } from "@/lib/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -367,6 +367,11 @@ export default function ProfileScreen() {
             <Ionicons name={theme === 'dark' ? 'sunny-outline' : 'moon-outline'} size={20} color={colors.textMuted} />
           </Pressable>
 
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+          <Text style={[styles.sectionTitle, { marginTop: 24, color: colors.textSecondary }]}>Data</Text>
+
           {!isCoach && myCoach && (
             <Pressable style={[styles.settingItem, styles.dangerItem, { backgroundColor: colors.backgroundCard }]} onPress={() => { setRemoveCoachInput(''); setShowRemoveCoachModal(true); }} accessibilityLabel="Remove coach" accessibilityRole="button">
               <View style={styles.settingLeft}>
@@ -375,33 +380,11 @@ export default function ProfileScreen() {
                 </View>
                 <View style={styles.settingTextWrap}>
                   <Text style={[styles.settingLabel, { color: colors.text }]} numberOfLines={1}>Remove Coach</Text>
-                  <Text style={styles.settingValue} numberOfLines={2}>Disconnect from {myCoach.coachName}</Text>
+                  <Text style={[styles.settingValue, { color: colors.textMuted }]} numberOfLines={2}>Disconnect from {myCoach.coachName}</Text>
                 </View>
               </View>
             </Pressable>
           )}
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-          <Text style={[styles.sectionTitle, { marginTop: 24, color: colors.textSecondary }]}>Data</Text>
-
-          <Pressable style={[styles.settingItem, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]} onPress={async () => {
-            await seedDemoData();
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            loadData();
-            showAlert("Demo Data Loaded", "Coach Mike with 3 clients (Sarah, Alex, and yourself) has been set up. Each client has their own program with exercise data, notes, and videos.");
-          }}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.settingIcon, { backgroundColor: 'rgba(102, 102, 102, 0.12)' }]}>
-                <Ionicons name="flask" size={18} color={colors.textMuted} />
-              </View>
-              <View style={styles.settingTextWrap}>
-                <Text style={[styles.settingLabel, { color: colors.text }]} numberOfLines={1}>Load Demo Data</Text>
-                <Text style={[styles.settingValue, { color: colors.textMuted }]} numberOfLines={1}>Set up coach with clients and programs</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </Pressable>
 
           <Pressable style={[styles.settingItem, styles.dangerItem, { backgroundColor: colors.backgroundCard }]} onPress={() => { setDeleteInput(''); setShowDeleteModal(true); }} accessibilityLabel="Delete account" accessibilityRole="button">
             <View style={styles.settingLeft}>
