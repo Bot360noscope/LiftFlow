@@ -43,11 +43,11 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 ## Core Screens
 - **Home** (tabs/index.tsx): Role-based dashboard, coach code display, stats, recent programs, client cards
 - **Programs** (tabs/programs.tsx): List of all programs with share codes, progress bars
-- **Program Detail** (program/[id].tsx): Excel-style spreadsheet with week selector, day columns, exercise rows. Video recording via native camera
+- **Program Detail** (program/[id].tsx): Excel-style spreadsheet with week selector, day columns, exercise rows. Video recording via native camera. Long-press week/day chips to delete them, long-press exercise to delete. Plan lock banner when coach exceeds client limit on shared programs
 - **Progress** (tabs/progress.tsx): PR tracking for squat/bench/deadlift with estimated total
 - **Profile** (tabs/profile.tsx): Name, role toggle, weight unit, coach code, plan card (Free/Premium with client count), "Load Demo Data" button
 - **Chat Tab** (tabs/chat.tsx): Coach sees client list, client sees direct chat. Coach taps client to open conversation
-- **Conversation** (conversation.tsx): Standalone chat screen between coach and specific client, auto-refresh
+- **Conversation** (conversation.tsx): Standalone chat screen between coach and specific client, auto-refresh. Plan lock banner replaces input when coach exceeds client limit
 - **Client Detail** (client/[id].tsx): Client's programs with "New Program" button, chat button in header
 - **Create Program** (create-program.tsx): Configure weeks/days/rows or use quick-start template
 - **Add PR** (add-pr.tsx): Log personal records

@@ -11,7 +11,7 @@ import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import * as Crypto from "expo-crypto";
-import { getProgram, updateProgram, deleteProgram, getProfile, getClients, addNotification, markNotificationsReadByProgram, getPRs, addPR, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type LiftPR } from "@/lib/storage";
+import { getProgram, updateProgram, deleteProgram, getProfile, getClients, addNotification, markNotificationsReadByProgram, getPRs, addPR, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type LiftPR, type UserProfile } from "@/lib/storage";
 import { uploadVideo, getVideoUrl, getDirectVideoUrl, markVideoViewed } from "@/lib/api";
 import { trimResult } from "@/lib/trim-result";
 
@@ -196,6 +196,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   coachId: string;
   profileId: string;
   initialExpanded?: boolean;
+  planLocked?: boolean;
 }) {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(initialExpanded || false);
@@ -219,7 +220,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
     setIsCompleted(exercise.isCompleted);
   }, [exercise]);
 
-  const canEditAll = isCoach || !isShared;
+  const canEditAll = (isCoach || !isShared) && !planLocked;
 
   const saveChanges = () => {
     onUpdate({
@@ -237,6 +238,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (planLocked) return;
     if (isCoach && isShared) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
@@ -489,11 +491,13 @@ export default function ProgramDetailScreen() {
   const [isShared, setIsShared] = useState(false);
   const [profileId, setProfileId] = useState('');
   const [highlightedExerciseId, setHighlightedExerciseId] = useState<string | null>(null);
+  const [planLocked, setPlanLocked] = useState(false);
+  const [planLockMessage, setPlanLockMessage] = useState('');
   const clientAutoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (id) {
-      Promise.all([getProgram(id), getProfile()]).then(([p, prof]) => {
+      Promise.all([getProgram(id), getProfile()]).then(async ([p, prof]) => {
         if (p) {
           setProgram(p);
           if (highlightExercise) {
@@ -520,6 +524,17 @@ export default function ProgramDetailScreen() {
         setIsCoach(prof.role === 'coach');
         setProfileId(prof.id);
         markNotificationsReadByProgram(id).catch(() => {});
+
+        if (prof.role === 'coach' && shared) {
+          try {
+            const clientList = await getClients();
+            const limit = prof.planUserLimit || 1;
+            if (clientList.length > limit) {
+              setPlanLocked(true);
+              setPlanLockMessage(`Your ${prof.plan === 'free' ? 'Free' : prof.plan} plan supports ${limit} client${limit !== 1 ? 's' : ''} but you have ${clientList.length}. Upgrade your plan to edit shared programs.`);
+            }
+          } catch {}
+        }
       });
     }
   }, [id]);
@@ -563,6 +578,10 @@ export default function ProgramDetailScreen() {
 
   const save = useCallback(async () => {
     if (!program) return;
+    if (planLocked) {
+      showAlert('Plan Limit Exceeded', planLockMessage || 'Upgrade your plan to edit shared programs.');
+      return;
+    }
     const oldProgram = await getProgram(program.id);
 
     setHasChanges(false);
@@ -681,7 +700,7 @@ export default function ProgramDetailScreen() {
   }, [program, isCoach]);
 
   const addWeek = useCallback(() => {
-    if (!program) return;
+    if (!program || planLocked) return;
     const lastWeek = program.weeks[program.weeks.length - 1];
     const newWeekNumber = lastWeek ? lastWeek.weekNumber + 1 : 1;
     const daysPerWeek = lastWeek ? lastWeek.days.length : program.daysPerWeek;
@@ -757,7 +776,7 @@ export default function ProgramDetailScreen() {
   }, [currentWeek]);
 
   const updateExercise = useCallback((exerciseId: string, updates: Partial<Exercise>) => {
-    if (!program) return;
+    if (!program || planLocked) return;
 
     const currentDay = program.weeks
       .find(w => w.weekNumber === activeWeek)?.days
@@ -806,7 +825,7 @@ export default function ProgramDetailScreen() {
   }, [program, activeWeek, activeDay]);
 
   const deleteExercise = useCallback((exerciseId: string) => {
-    if (!program) return;
+    if (!program || planLocked) return;
     const updatedWeeks = program.weeks.map(week => {
       if (week.weekNumber !== activeWeek) return week;
       return {
@@ -825,8 +844,62 @@ export default function ProgramDetailScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [program, activeWeek, activeDay]);
 
+  const deleteWeek = useCallback((weekNumber: number) => {
+    if (!program || planLocked) return;
+    if (program.weeks.length <= 1) {
+      showAlert('Cannot Delete', 'A program must have at least one week.');
+      return;
+    }
+    confirmAction(
+      'Delete Week',
+      `Remove Week ${weekNumber} and all its exercises? This cannot be undone after saving.`,
+      () => {
+        const filtered = program.weeks.filter(w => w.weekNumber !== weekNumber);
+        const renumbered = filtered.map((w, i) => ({ ...w, weekNumber: i + 1 }));
+        setProgram({ ...program, weeks: renumbered });
+        if (activeWeek >= weekNumber) {
+          setActiveWeek(Math.max(1, activeWeek > renumbered.length ? renumbered.length : activeWeek - 1));
+        }
+        setActiveDay(1);
+        setHasChanges(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      },
+      'Delete'
+    );
+  }, [program, activeWeek, planLocked]);
+
+  const deleteDay = useCallback((dayNumber: number) => {
+    if (!program || planLocked) return;
+    const currentWeekData = program.weeks.find(w => w.weekNumber === activeWeek);
+    if (!currentWeekData || currentWeekData.days.length <= 1) {
+      showAlert('Cannot Delete', 'A week must have at least one day.');
+      return;
+    }
+    confirmAction(
+      'Delete Day',
+      `Remove Day ${dayNumber} and all its exercises from Week ${activeWeek}? This cannot be undone after saving.`,
+      () => {
+        const updatedWeeks = program.weeks.map(week => {
+          if (week.weekNumber !== activeWeek) return week;
+          const filtered = week.days.filter(d => d.dayNumber !== dayNumber);
+          const renumbered = filtered.map((d, i) => ({ ...d, dayNumber: i + 1 }));
+          return { ...week, days: renumbered };
+        });
+        const newProgram = { ...program, weeks: updatedWeeks };
+        setProgram(newProgram);
+        if (activeDay >= dayNumber) {
+          const newDayCount = (currentWeekData.days.length - 1);
+          setActiveDay(Math.max(1, activeDay > newDayCount ? newDayCount : activeDay - 1));
+        }
+        setHasChanges(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      },
+      'Delete'
+    );
+  }, [program, activeWeek, activeDay, planLocked]);
+
   const addExercise = useCallback(() => {
-    if (!program) return;
+    if (!program || planLocked) return;
     const newExercise: Exercise = {
       id: Crypto.randomUUID(),
       name: '',
@@ -886,14 +959,27 @@ export default function ProgramDetailScreen() {
           </View>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Pressable onPress={() => { setDeleteInput(''); setShowDeleteModal(true); }} hitSlop={8} accessibilityLabel="Delete program" accessibilityRole="button">
-            <Ionicons name="trash-outline" size={22} color={colors.danger} />
-          </Pressable>
-          <Pressable onPress={save} hitSlop={8}>
-            <Ionicons name="checkmark-circle" size={26} color={hasChanges ? colors.primary : colors.textMuted} />
-          </Pressable>
+          {!planLocked && (
+            <Pressable onPress={() => { setDeleteInput(''); setShowDeleteModal(true); }} hitSlop={8} accessibilityLabel="Delete program" accessibilityRole="button">
+              <Ionicons name="trash-outline" size={22} color={colors.danger} />
+            </Pressable>
+          )}
+          {planLocked ? (
+            <Ionicons name="lock-closed" size={22} color={colors.danger} />
+          ) : (
+            <Pressable onPress={save} hitSlop={8}>
+              <Ionicons name="checkmark-circle" size={26} color={hasChanges ? colors.primary : colors.textMuted} />
+            </Pressable>
+          )}
         </View>
       </View>
+
+      {planLocked && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: colors.danger + '18', borderBottomWidth: 1, borderBottomColor: colors.danger + '30' }}>
+          <Ionicons name="lock-closed" size={16} color={colors.danger} />
+          <Text style={{ flex: 1, color: colors.danger, fontSize: 12, fontFamily: 'Rubik_400Regular', lineHeight: 16 }}>{planLockMessage}</Text>
+        </View>
+      )}
 
       <View style={[styles.weekSelector, { borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekScrollContent}>
@@ -902,13 +988,19 @@ export default function ProgramDetailScreen() {
               key={week.weekNumber}
               style={[styles.weekChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, activeWeek === week.weekNumber && styles.weekChipActive]}
               onPress={() => { Haptics.selectionAsync(); setActiveWeek(week.weekNumber); setActiveDay(1); }}
+              onLongPress={() => {
+                if ((isCoach || !isShared) && !planLocked) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  deleteWeek(week.weekNumber);
+                }
+              }}
             >
               <Text style={[styles.weekChipText, { color: colors.textSecondary }, activeWeek === week.weekNumber && styles.weekChipTextActive]}>
                 W{week.weekNumber}
               </Text>
             </Pressable>
           ))}
-          {(isCoach || !isShared) && (
+          {(isCoach || !isShared) && !planLocked && (
             <Pressable style={styles.addWeekChip} onPress={addWeek} accessibilityLabel="Add week" accessibilityRole="button">
               <Ionicons name="add" size={16} color={colors.primary} />
             </Pressable>
@@ -929,6 +1021,12 @@ export default function ProgramDetailScreen() {
               key={day.dayNumber}
               style={[styles.dayChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, activeDay === day.dayNumber && styles.dayChipActive]}
               onPress={() => { Haptics.selectionAsync(); setActiveDay(day.dayNumber); }}
+              onLongPress={() => {
+                if ((isCoach || !isShared) && !planLocked) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  deleteDay(day.dayNumber);
+                }
+              }}
             >
               <Text style={[styles.dayChipText, { color: colors.textSecondary }, activeDay === day.dayNumber && styles.dayChipTextActive]}>
                 Day {day.dayNumber}
@@ -962,12 +1060,13 @@ export default function ProgramDetailScreen() {
                 coachId={program.coachId}
                 profileId={profileId}
                 initialExpanded={ex.id === highlightedExerciseId}
+                planLocked={planLocked}
               />
             </Animated.View>
           ))
         )}
 
-        {(isCoach || !isShared) && (
+        {(isCoach || !isShared) && !planLocked && (
           <Pressable style={[styles.addExerciseBtn, { borderColor: colors.border }]} onPress={addExercise}>
             <Ionicons name="add" size={16} color={colors.primary} />
             <Text style={[styles.addExerciseText, { color: colors.primary }]}>Add Exercise</Text>

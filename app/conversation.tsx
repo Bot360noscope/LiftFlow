@@ -6,7 +6,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
-import { getProfile, getMessages, sendMessage, getMyCoach, getNotifications, markNotificationRead, type ChatMessage, type UserProfile } from "@/lib/storage";
+import { getProfile, getMessages, sendMessage, getMyCoach, getNotifications, markNotificationRead, getClients, type ChatMessage, type UserProfile } from "@/lib/storage";
 import { addWSListener } from "@/lib/websocket";
 
 export default function ChatScreen() {
@@ -24,6 +24,8 @@ export default function ChatScreen() {
   const [sendError, setSendError] = useState('');
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [planLocked, setPlanLocked] = useState(false);
+  const [planLockMessage, setPlanLockMessage] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -59,6 +61,16 @@ export default function ChatScreen() {
             notifs.filter(n => n.type === 'chat' && !n.read && n.programTitle === resolvedClientProfileId)
               .forEach(n => markNotificationRead(n.id).catch(() => {}));
           }).catch(() => {});
+        }
+        if (prof.role === 'coach') {
+          try {
+            const clientList = await getClients();
+            const limit = prof.planUserLimit || 1;
+            if (clientList.length > limit) {
+              setPlanLocked(true);
+              setPlanLockMessage(`Your plan supports ${limit} client${limit !== 1 ? 's' : ''} but you have ${clientList.length}. Upgrade to send messages.`);
+            }
+          } catch {}
         }
       } catch (e) {
         console.warn('Chat init error:', e);
@@ -219,6 +231,14 @@ export default function ChatScreen() {
               <Text style={[styles.errorText, { color: colors.danger }]}>{sendError}</Text>
             </View>
           ) : null}
+          {planLocked ? (
+            <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 12), backgroundColor: colors.danger + '12', borderTopColor: colors.danger + '30' }]}>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }}>
+                <Ionicons name="lock-closed" size={16} color={colors.danger} />
+                <Text style={{ flex: 1, color: colors.danger, fontSize: 12, fontFamily: 'Rubik_400Regular' }}>{planLockMessage}</Text>
+              </View>
+            </View>
+          ) : (
           <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 12), backgroundColor: colors.backgroundCard, borderTopColor: colors.border }]}>
             <TextInput
               style={[styles.textInput, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]}
@@ -239,6 +259,7 @@ export default function ChatScreen() {
               <Ionicons name="send" size={18} color={input.trim() && !sending ? '#fff' : colors.textMuted} />
             </Pressable>
           </View>
+          )}
         </>
       )}
     </KeyboardAvoidingView>
