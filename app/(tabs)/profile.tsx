@@ -221,17 +221,17 @@ export default function ProfileScreen() {
         <Animated.View entering={FadeInDown.duration(400)} style={[styles.profileCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
           <Pressable style={styles.avatarContainer} onPress={handlePickAvatar} onLongPress={profile.avatarUrl ? handleRemoveAvatar : undefined} accessibilityLabel="Change profile picture" accessibilityRole="imagebutton">
             {avatarUploading ? (
-              <View style={styles.avatar}>
+              <View style={[styles.avatar, { borderColor: colors.primary }]}>
                 <ActivityIndicator size="small" color={colors.primary} />
               </View>
             ) : profile.avatarUrl ? (
-              <Image source={{ uri: getAvatarUrl(profile.avatarUrl) }} style={styles.avatarImage} />
+              <Image source={{ uri: getAvatarUrl(profile.avatarUrl) }} style={[styles.avatarImage, { borderColor: colors.primary }]} />
             ) : (
-              <View style={styles.avatar}>
+              <View style={[styles.avatar, { borderColor: colors.primary }]}>
                 <Ionicons name="person" size={32} color={colors.primary} />
               </View>
             )}
-            <View style={styles.avatarBadge}>
+            <View style={[styles.avatarBadge, { backgroundColor: colors.primary, borderColor: colors.backgroundCard }]}>
               <Ionicons name="camera" size={12} color="#fff" />
             </View>
           </Pressable>
@@ -257,7 +257,7 @@ export default function ProfileScreen() {
             </Pressable>
           )}
           <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>{isCoach ? 'Coach' : 'Athlete'}</Text>
+            <Text style={[styles.roleText, { color: colors.primary }]}>{isCoach ? 'Coach' : 'Athlete'}</Text>
           </View>
         </Animated.View>
 
@@ -286,7 +286,7 @@ export default function ProfileScreen() {
                     WebBrowser.openBrowserAsync('https://liftflow-paysite.onrender.com/pricing');
                   }}
                 >
-                  <Text style={styles.upgradeBtnSmallText}>{profile.plan === 'free' ? 'Upgrade' : 'Manage'}</Text>
+                  <Text style={[styles.upgradeBtnSmallText, { color: colors.primary }]}>{profile.plan === 'free' ? 'Upgrade' : 'Manage'}</Text>
                 </Pressable>
               </View>
               <View style={styles.planDetails}>
@@ -448,7 +448,7 @@ export default function ProfileScreen() {
 
       <Modal visible={showRemoveCoachModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
             <Ionicons name="person-remove" size={40} color={colors.danger} />
             <Text style={[styles.modalTitle, { color: colors.danger }]}>Remove Coach</Text>
             <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
@@ -466,11 +466,11 @@ export default function ProfileScreen() {
               accessibilityLabel="Type REMOVE to confirm coach removal"
             />
             <View style={styles.modalButtons}>
-              <Pressable style={styles.modalCancelBtn} onPress={() => setShowRemoveCoachModal(false)} accessibilityLabel="Cancel" accessibilityRole="button">
-                <Text style={styles.modalCancelText}>Cancel</Text>
+              <Pressable style={[styles.modalCancelBtn, { backgroundColor: colors.surfaceLight }]} onPress={() => setShowRemoveCoachModal(false)} accessibilityLabel="Cancel" accessibilityRole="button">
+                <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={[styles.modalDeleteBtn, removeCoachInput !== 'REMOVE' && styles.modalDeleteBtnDisabled]}
+                style={[styles.modalDeleteBtn, { backgroundColor: colors.danger }, removeCoachInput !== 'REMOVE' && styles.modalDeleteBtnDisabled]}
                 onPress={handleRemoveCoach}
                 disabled={removeCoachInput !== 'REMOVE' || removingCoach}
                 accessibilityLabel="Remove coach permanently"
@@ -485,7 +485,7 @@ export default function ProfileScreen() {
 
       <Modal visible={showDeleteModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
             <Ionicons name="warning" size={40} color={colors.danger} />
             <Text style={[styles.modalTitle, { color: colors.danger }]}>Delete Account</Text>
             <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
@@ -503,11 +503,11 @@ export default function ProfileScreen() {
               accessibilityLabel="Type DELETE to confirm account deletion"
             />
             <View style={styles.modalButtons}>
-              <Pressable style={styles.modalCancelBtn} onPress={() => setShowDeleteModal(false)} accessibilityLabel="Cancel" accessibilityRole="button">
-                <Text style={styles.modalCancelText}>Cancel</Text>
+              <Pressable style={[styles.modalCancelBtn, { backgroundColor: colors.surfaceLight }]} onPress={() => setShowDeleteModal(false)} accessibilityLabel="Cancel" accessibilityRole="button">
+                <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={[styles.modalDeleteBtn, deleteInput !== 'DELETE' && styles.modalDeleteBtnDisabled]}
+                style={[styles.modalDeleteBtn, { backgroundColor: colors.danger }, deleteInput !== 'DELETE' && styles.modalDeleteBtnDisabled]}
                 onPress={handleDeleteAccount}
                 disabled={deleteInput !== 'DELETE' || deleting}
                 accessibilityLabel="Delete account permanently"

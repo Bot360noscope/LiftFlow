@@ -156,9 +156,9 @@ export default function ChatScreen() {
 
     return (
       <View style={[styles.messageBubbleRow, isMe && styles.messageBubbleRowMe]}>
-        <View style={[styles.messageBubble, isMe ? styles.messageBubbleMe : [styles.messageBubbleThem, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]]}>
+        <View style={[styles.messageBubble, isMe ? [styles.messageBubbleMe, { backgroundColor: colors.primary }] : [styles.messageBubbleThem, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]]}>
           <Text style={[styles.messageText, { color: colors.text }, isMe && styles.messageTextMe]}>{item.text}</Text>
-          <Text style={[styles.messageTime, isMe && styles.messageTimeMe]}>{time}</Text>
+          <Text style={[styles.messageTime, { color: colors.textMuted }, isMe && styles.messageTimeMe]}>{time}</Text>
         </View>
       </View>
     );
@@ -191,7 +191,7 @@ export default function ChatScreen() {
           <Ionicons name="people-outline" size={40} color={colors.textMuted} />
           <Text style={[styles.emptyChatText, { color: colors.textSecondary }]}>No coach connected</Text>
           <Text style={[styles.emptyChatSub, { color: colors.textMuted }]}>Join a coach first to start chatting</Text>
-          <Pressable style={styles.joinBtn} onPress={() => router.push('/join-coach')}>
+          <Pressable style={[styles.joinBtn, { backgroundColor: colors.primary }]} onPress={() => router.push('/join-coach')}>
             <Text style={styles.joinBtnText}>Join Coach</Text>
           </Pressable>
         </View>
@@ -252,7 +252,7 @@ export default function ChatScreen() {
               blurOnSubmit={false}
             />
             <Pressable
-              style={[styles.sendBtn, (!input.trim() || sending) && [styles.sendBtnDisabled, { backgroundColor: colors.surfaceLight }]]}
+              style={[styles.sendBtn, { backgroundColor: colors.primary }, (!input.trim() || sending) && [styles.sendBtnDisabled, { backgroundColor: colors.surfaceLight }]]}
               onPress={handleSend}
               disabled={!input.trim() || sending}
             >

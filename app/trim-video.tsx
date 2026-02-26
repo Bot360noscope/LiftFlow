@@ -307,7 +307,7 @@ export default function TrimVideoScreen() {
                 <View
                   {...startPan.panHandlers}
                   hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-                  style={[styles.handle, { left: startX }]}
+                  style={[styles.handle, { left: startX, backgroundColor: colors.primary }]}
                 >
                   <View style={styles.handleInner}>
                     <View style={styles.gripLine} />
@@ -319,7 +319,7 @@ export default function TrimVideoScreen() {
                   {startX > 0 && <View style={[styles.dimOverlay, { left: 0, width: startX }]} />}
                   {endX < trackWidth && <View style={[styles.dimOverlay, { right: 0, width: trackWidth - endX }]} />}
                   <View
-                    style={[styles.selectedZone, { left: startX, width: Math.max(endX - startX, 2) }]}
+                    style={[styles.selectedZone, { left: startX, width: Math.max(endX - startX, 2), borderColor: colors.primary }]}
                     {...regionPan.panHandlers}
                   />
                   <View style={[styles.playhead, { left: Math.min(playheadX, trackWidth - 2) }]} />
@@ -328,7 +328,7 @@ export default function TrimVideoScreen() {
                 <View
                   {...endPan.panHandlers}
                   hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-                  style={[styles.handle, { left: endX }]}
+                  style={[styles.handle, { left: endX, backgroundColor: colors.primary }]}
                 >
                   <View style={styles.handleInner}>
                     <View style={styles.gripLine} />
@@ -365,7 +365,7 @@ export default function TrimVideoScreen() {
           </Pressable>
         )}
         <Pressable
-          style={[styles.submitBtn, (!isValidClip || uploading) && styles.submitBtnDisabled]}
+          style={[styles.submitBtn, { backgroundColor: colors.primary }, (!isValidClip || uploading) && styles.submitBtnDisabled]}
           onPress={handleSubmit}
           disabled={!isValidClip || uploading}
           accessibilityLabel="Upload video" accessibilityRole="button"

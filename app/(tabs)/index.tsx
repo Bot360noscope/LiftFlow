@@ -57,26 +57,26 @@ function ClientCard({ client, programs, hasUnread, colors }: { client: ClientInf
     >
       <View style={styles.clientCardHeader}>
         {client.avatarUrl ? (
-          <Image source={{ uri: getAvatarUrl(client.avatarUrl) }} style={styles.clientAvatarImage} />
+          <Image source={{ uri: getAvatarUrl(client.avatarUrl) }} style={[styles.clientAvatarImage, { borderColor: colors.primary }]} />
         ) : (
           <View style={styles.clientAvatar}>
-            <Text style={styles.clientAvatarText}>{(client.name || '?')[0].toUpperCase()}</Text>
+            <Text style={[styles.clientAvatarText, { color: colors.primary }]}>{(client.name || '?')[0].toUpperCase()}</Text>
           </View>
         )}
         <View style={styles.clientInfo}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Text style={[styles.clientName, { color: colors.text }]}>{client.name || 'Client'}</Text>
-            {hasUnread && <View style={styles.clientUnreadDot} />}
+            {hasUnread && <View style={[styles.clientUnreadDot, { backgroundColor: colors.primary }]} />}
           </View>
           <Text style={[styles.clientMeta, { color: colors.textMuted }]}>{clientPrograms.length} program{clientPrograms.length !== 1 ? 's' : ''}</Text>
         </View>
       </View>
       {totalEx > 0 && (
         <View style={styles.clientProgress}>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${progress}%` }]} />
+          <View style={[styles.progressBar, { backgroundColor: colors.surfaceLight }]}>
+            <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: colors.primary }]} />
           </View>
-          <Text style={styles.clientProgressText}>{progress}% complete</Text>
+          <Text style={[styles.clientProgressText, { color: colors.textSecondary }]}>{progress}% complete</Text>
         </View>
       )}
     </Pressable>
@@ -111,8 +111,8 @@ function ProgramCard({ program, colors }: { program: Program; colors: any }) {
       <Text style={[styles.programDesc, { color: colors.textMuted }]} numberOfLines={1}>{program.description}</Text>
       <View style={styles.programMeta}>
         <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{program.weeks.length}W / {program.daysPerWeek}D</Text>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${progress}%` }]} />
+        <View style={[styles.progressBar, { backgroundColor: colors.surfaceLight }]}>
+          <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: colors.primary }]} />
         </View>
         <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{progress}%</Text>
       </View>
@@ -132,7 +132,7 @@ function NotificationItem({ notification, onDismiss, colors }: { notification: A
 
   return (
     <Pressable
-      style={[styles.notifItem, !notification.read && styles.notifItemUnread]}
+      style={[styles.notifItem, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, !notification.read && styles.notifItemUnread]}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onDismiss(notification.id);
@@ -162,7 +162,7 @@ function NotificationItem({ notification, onDismiss, colors }: { notification: A
         <Text style={[styles.notifTitle, { color: colors.text }]} numberOfLines={1}>{notification.title}</Text>
         <Text style={[styles.notifMsg, { color: colors.textMuted }]} numberOfLines={2}>{notification.message}</Text>
       </View>
-      {!notification.read && <View style={styles.notifDot} />}
+      {!notification.read && <View style={[styles.notifDot, { backgroundColor: colors.primary }]} />}
     </Pressable>
   );
 }
@@ -184,13 +184,13 @@ function HomeCoachCodeCard({ coachCode, colors }: { coachCode: string; colors: a
       >
         {revealed ? (
           <>
-            <Text style={styles.coachCodeValue}>{coachCode}</Text>
+            <Text style={[styles.coachCodeValue, { color: colors.primary }]}>{coachCode}</Text>
             <Ionicons name="eye-off-outline" size={14} color={colors.primary} />
           </>
         ) : (
           <>
             <Ionicons name="eye-outline" size={14} color={colors.textMuted} />
-            <Text style={styles.coachCodeHiddenText}>Tap to reveal</Text>
+            <Text style={[styles.coachCodeHiddenText, { color: colors.textMuted }]}>Tap to reveal</Text>
           </>
         )}
       </Pressable>
@@ -356,7 +356,7 @@ export default function HomeScreen() {
               onPress={() => router.push('/(tabs)/profile')}
             >
               <Ionicons name={isCoach ? 'school' : 'fitness'} size={14} color={colors.primary} />
-              <Text style={styles.roleChipText}>{isCoach ? 'Coach' : 'Client'}</Text>
+              <Text style={[styles.roleChipText, { color: colors.primary }]}>{isCoach ? 'Coach' : 'Client'}</Text>
             </Pressable>
           </View>
         </View>
@@ -444,7 +444,7 @@ export default function HomeScreen() {
               <View style={styles.sectionHeader}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
                 <Pressable
-                  style={styles.clearBtn}
+                  style={[styles.clearBtn, { backgroundColor: colors.surfaceLight }]}
                   onPress={handleClearAllNotifications}
                   hitSlop={8}
                   accessibilityLabel="Clear all notifications"
@@ -483,7 +483,7 @@ export default function HomeScreen() {
                 <Text style={[styles.emptyText, { color: colors.text }]}>No programs yet</Text>
                 <Text style={[styles.emptySubText, { color: colors.textMuted }]}>Connect with your coach to receive your first program</Text>
                 <Pressable
-                  style={styles.emptyBtn}
+                  style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
                   accessibilityLabel="Join a coach"
                   accessibilityRole="button"
                   onPress={() => router.push('/join-coach')}
@@ -504,7 +504,7 @@ export default function HomeScreen() {
                 accessibilityRole="button"
                 onPress={() => router.push('/(tabs)/programs')}
               >
-                <Text style={styles.seeAllText}>See all programs</Text>
+                <Text style={[styles.seeAllText, { color: colors.primary }]}>See all programs</Text>
                 <Ionicons name="arrow-forward" size={16} color={colors.primary} />
               </Pressable>
             )}

@@ -45,7 +45,7 @@ export default function AddPRScreen() {
     router.back();
   }, [selectedLift, weight, unit, notes]);
 
-  const selectedColor = LIFT_OPTIONS.find(l => l.type === selectedLift)?.color || Colors.colors.primary;
+  const selectedColor = LIFT_OPTIONS.find(l => l.type === selectedLift)?.color || colors.primary;
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   return (

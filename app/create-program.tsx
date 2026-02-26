@@ -159,18 +159,18 @@ export default function CreateProgramScreen() {
             <Text style={[styles.assignHint, { color: colors.textMuted }]}>Optional — leave unassigned to use as a template</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.clientChipScroll} contentContainerStyle={styles.clientChipScrollContent}>
               <Pressable
-                style={[styles.clientChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, !selectedClientId && styles.clientChipSelected]}
+                style={[styles.clientChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, !selectedClientId && [styles.clientChipSelected, { borderColor: colors.primary }]]}
                 onPress={() => { setSelectedClientId(null); setSelectedClientName(''); Haptics.selectionAsync(); }}
               >
-                <Text style={[styles.clientChipText, { color: colors.textSecondary }, !selectedClientId && styles.clientChipTextSelected]}>Unassigned</Text>
+                <Text style={[styles.clientChipText, { color: colors.textSecondary }, !selectedClientId && [styles.clientChipTextSelected, { color: colors.primary }]]}>Unassigned</Text>
               </Pressable>
               {clientList.map(c => (
                 <Pressable
                   key={c.id}
-                  style={[styles.clientChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, selectedClientId === c.id && styles.clientChipSelected]}
+                  style={[styles.clientChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, selectedClientId === c.id && [styles.clientChipSelected, { borderColor: colors.primary }]]}
                   onPress={() => { setSelectedClientId(c.id); setSelectedClientName(c.name); Haptics.selectionAsync(); }}
                 >
-                  <Text style={[styles.clientChipText, { color: colors.textSecondary }, selectedClientId === c.id && styles.clientChipTextSelected]}>{c.name}</Text>
+                  <Text style={[styles.clientChipText, { color: colors.textSecondary }, selectedClientId === c.id && [styles.clientChipTextSelected, { color: colors.primary }]]}>{c.name}</Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -188,7 +188,7 @@ export default function CreateProgramScreen() {
         </View>
 
         <Pressable
-          style={[styles.createButton, (!title.trim() || saving) && styles.createButtonDisabled]}
+          style={[styles.createButton, { backgroundColor: colors.primary }, (!title.trim() || saving) && styles.createButtonDisabled]}
           onPress={handleCreate}
           disabled={!title.trim() || saving}
         >

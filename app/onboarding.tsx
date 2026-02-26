@@ -93,7 +93,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
               style={[
                 styles.dot,
                 { backgroundColor: colors.border },
-                i === currentPage && styles.dotActive,
+                i === currentPage && [styles.dotActive, { backgroundColor: colors.primary }],
               ]}
             />
           ))}

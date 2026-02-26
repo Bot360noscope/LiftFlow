@@ -186,9 +186,9 @@ export default function ChatTab() {
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isMe = item.senderRole === (profile?.role || 'client');
     return (
-      <View style={[styles.bubble, isMe ? styles.myBubble : styles.theirBubble]}>
-        <Text style={[styles.bubbleText, isMe ? styles.myBubbleText : styles.theirBubbleText]}>{item.text}</Text>
-        <Text style={[styles.timestamp, isMe ? styles.myTimestamp : styles.theirTimestamp]}>
+      <View style={[styles.bubble, isMe ? [styles.myBubble, { backgroundColor: colors.primary }] : [styles.theirBubble, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]]}>
+        <Text style={[styles.bubbleText, isMe ? styles.myBubbleText : [styles.theirBubbleText, { color: colors.text }]]}>{item.text}</Text>
+        <Text style={[styles.timestamp, isMe ? styles.myTimestamp : [styles.theirTimestamp, { color: colors.textMuted }]]}>
           {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </Text>
       </View>
@@ -357,7 +357,7 @@ export default function ChatTab() {
           accessibilityLabel="Message input"
         />
         <Pressable
-          style={[styles.sendBtn, (!input.trim() || sending) && styles.sendBtnDisabled]}
+          style={[styles.sendBtn, { backgroundColor: colors.primary }, (!input.trim() || sending) && styles.sendBtnDisabled]}
           onPress={handleSend}
           disabled={!input.trim() || sending}
           accessibilityLabel="Send message"

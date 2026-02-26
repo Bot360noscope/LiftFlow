@@ -81,9 +81,9 @@ function VideoPlayerInline({ videoUrl, isCoach }: { videoUrl: string; isCoach?: 
   }
 
   return (
-    <View style={styles.videoPlayerContainer}>
-      <View style={styles.videoPlayerHeader}>
-        <Text style={styles.videoPlayerTitle}>Video Playback</Text>
+    <View style={[styles.videoPlayerContainer, { borderColor: colors.border }]}>
+      <View style={[styles.videoPlayerHeader, { backgroundColor: colors.backgroundCard }]}>
+        <Text style={[styles.videoPlayerTitle, { color: colors.text }]}>Video Playback</Text>
         <Pressable onPress={() => setShowPlayer(false)} hitSlop={8}>
           <Ionicons name="close-circle" size={24} color={colors.textMuted} />
         </Pressable>
@@ -158,21 +158,21 @@ function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programI
   return (
     <View style={{ gap: 8, marginTop: 16 }}>
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        <Pressable style={[styles.videoBtn, { flex: 1 }]} onPress={handleRecord} disabled={uploading}>
+        <Pressable style={[styles.videoBtn, { flex: 1, borderColor: colors.primary }]} onPress={handleRecord} disabled={uploading}>
           {uploading ? (
             <>
               <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={styles.videoBtnText}>Uploading...</Text>
+              <Text style={[styles.videoBtnText, { color: colors.primary }]}>Uploading...</Text>
             </>
           ) : (
             <>
               <Ionicons name="videocam-outline" size={18} color={colors.primary} />
-              <Text style={styles.videoBtnText}>{hasVideo ? 'Re-record' : 'Record Video'}</Text>
+              <Text style={[styles.videoBtnText, { color: colors.primary }]}>{hasVideo ? 'Re-record' : 'Record Video'}</Text>
             </>
           )}
         </Pressable>
         {hasVideo && (
-          <Pressable style={styles.videoDeleteBtn} onPress={handleDelete}>
+          <Pressable style={[styles.videoDeleteBtn, { borderColor: colors.danger }]} onPress={handleDelete}>
             <Ionicons name="trash-outline" size={18} color={colors.danger} />
           </Pressable>
         )}
@@ -184,7 +184,7 @@ function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programI
   );
 }
 
-function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId, initialExpanded }: {
+function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId, initialExpanded, planLocked }: {
   exercise: Exercise;
   index: number;
   isCoach: boolean;
@@ -258,7 +258,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   };
 
   return (
-    <View style={[styles.exerciseRow, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, exercise.isCompleted && styles.exerciseRowCompleted]}>
+    <View style={[styles.exerciseRow, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, exercise.isCompleted && [styles.exerciseRowCompleted, { borderColor: colors.success }]]}>
       <Pressable
         style={styles.exerciseHeader}
         onPress={() => setExpanded(!expanded)}
@@ -286,7 +286,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
             )
           )}
           <View style={styles.exerciseHeaderInfo}>
-            <Text style={[styles.exerciseName, { color: colors.text }, !exercise.name && prevWeekExercise?.name ? styles.ghostText : null]} numberOfLines={1}>
+            <Text style={[styles.exerciseName, { color: colors.text }, !exercise.name && prevWeekExercise?.name ? [styles.ghostText, { color: colors.textGhost }] : null]} numberOfLines={1}>
               {exercise.name || prevWeekExercise?.name || `Exercise ${index + 1}`}
             </Text>
             <Text style={[styles.exerciseMeta, { color: colors.textSecondary }]}>
@@ -319,7 +319,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
             />
           ) : (
             <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
-              <Text style={[styles.readOnlyText, { color: colors.textMuted }, !name && prevWeekExercise?.name ? styles.ghostText : null]}>
+              <Text style={[styles.readOnlyText, { color: colors.textMuted }, !name && prevWeekExercise?.name ? [styles.ghostText, { color: colors.textGhost }] : null]}>
                 {name || prevWeekExercise?.name || 'No exercise name'}
               </Text>
             </View>
@@ -339,7 +339,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
                 />
               ) : (
                 <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
-                  <Text style={[styles.readOnlyText, { color: colors.textMuted }, !repsSets && prevWeekExercise?.repsSets ? styles.ghostText : null]}>
+                  <Text style={[styles.readOnlyText, { color: colors.textMuted }, !repsSets && prevWeekExercise?.repsSets ? [styles.ghostText, { color: colors.textGhost }] : null]}>
                     {repsSets || prevWeekExercise?.repsSets || '-'}
                   </Text>
                 </View>
@@ -358,7 +358,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
                 />
               ) : (
                 <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
-                  <Text style={[styles.readOnlyText, { color: colors.textMuted }, !weight && prevWeekExercise?.weight ? styles.ghostText : null]}>
+                  <Text style={[styles.readOnlyText, { color: colors.textMuted }, !weight && prevWeekExercise?.weight ? [styles.ghostText, { color: colors.textGhost }] : null]}>
                     {weight || prevWeekExercise?.weight || '-'}
                   </Text>
                 </View>
@@ -378,7 +378,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
                 />
               ) : (
                 <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
-                  <Text style={[styles.readOnlyText, { color: colors.textMuted }, !rpe && prevWeekExercise?.rpe ? styles.ghostText : null]}>
+                  <Text style={[styles.readOnlyText, { color: colors.textMuted }, !rpe && prevWeekExercise?.rpe ? [styles.ghostText, { color: colors.textGhost }] : null]}>
                     {rpe || prevWeekExercise?.rpe || '-'}
                   </Text>
                 </View>
@@ -387,7 +387,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
           </View>
 
           {isCoach && isShared && exercise.isCompleted && (
-            <View style={[styles.completionToggle, styles.completionToggleActive, { backgroundColor: colors.surface, borderColor: colors.success }]}>
+            <View style={[styles.completionToggle, styles.completionToggleActive, { backgroundColor: colors.surface, borderColor: colors.success }]} >
               <Ionicons name="checkmark-circle" size={22} color={colors.success} />
               <Text style={[styles.completionText, { color: colors.success }]}>Client completed this</Text>
             </View>
@@ -398,7 +398,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
           </Text>
           {(isCoach && isShared) ? (
             <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
-              <Text style={[styles.readOnlyText, { color: colors.textMuted }, !clientNotes && prevWeekExercise?.clientNotes ? styles.ghostText : null]}>
+              <Text style={[styles.readOnlyText, { color: colors.textMuted }, !clientNotes && prevWeekExercise?.clientNotes ? [styles.ghostText, { color: colors.textGhost }] : null]}>
                 {clientNotes || prevWeekExercise?.clientNotes || 'No client notes yet'}
               </Text>
             </View>
@@ -421,7 +421,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
               </Text>
               {isCoach ? (
                 <TextInput
-                  style={[styles.fieldInput, styles.coachInput, { minHeight: 50, color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+                  style={[styles.fieldInput, styles.coachInput, { minHeight: 50, color: colors.text, backgroundColor: colors.surface, borderColor: colors.accent }]}
                   value={coachComment}
                   onChangeText={setCoachComment}
                   onBlur={saveChanges}
@@ -431,8 +431,8 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
                   textAlignVertical="top"
                 />
               ) : (
-                <View style={[styles.fieldInput, styles.coachInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
-                  <Text style={[styles.readOnlyText, { color: colors.textMuted }, !coachComment && prevWeekExercise?.coachComment ? styles.ghostText : null]}>
+                <View style={[styles.fieldInput, styles.coachInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.accent }]}>
+                  <Text style={[styles.readOnlyText, { color: colors.textMuted }, !coachComment && prevWeekExercise?.coachComment ? [styles.ghostText, { color: colors.textGhost }] : null]}>
                     {coachComment || prevWeekExercise?.coachComment || 'No coach comments yet'}
                   </Text>
                 </View>
@@ -460,7 +460,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
 
           {(!isCoach || !isShared) && (
             <Pressable
-              style={[styles.completionToggle, { backgroundColor: colors.surface, borderColor: colors.border }, isCompleted && styles.completionToggleActive]}
+              style={[styles.completionToggle, { backgroundColor: colors.surface, borderColor: colors.border }, isCompleted && [styles.completionToggleActive, { borderColor: colors.success }]]}
               onPress={handleToggleComplete}
             >
               <Ionicons
@@ -975,18 +975,26 @@ export default function ProgramDetailScreen() {
       </View>
 
       {planLocked && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: colors.danger + '18', borderBottomWidth: 1, borderBottomColor: colors.danger + '30' }}>
-          <Ionicons name="lock-closed" size={16} color={colors.danger} />
-          <Text style={{ flex: 1, color: colors.danger, fontSize: 12, fontFamily: 'Rubik_400Regular', lineHeight: 16 }}>{planLockMessage}</Text>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+          <Ionicons name="lock-closed" size={48} color={colors.danger} />
+          <Text style={{ color: colors.text, fontSize: 18, fontFamily: 'Rubik_600SemiBold', marginTop: 16, textAlign: 'center' }}>Plan Limit Exceeded</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 14, fontFamily: 'Rubik_400Regular', marginTop: 8, textAlign: 'center', lineHeight: 20 }}>{planLockMessage}</Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={{ marginTop: 24, backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 }}
+          >
+            <Text style={{ color: '#fff', fontFamily: 'Rubik_600SemiBold', fontSize: 15 }}>Go Back</Text>
+          </Pressable>
         </View>
       )}
 
+      {!planLocked && (<>
       <View style={[styles.weekSelector, { borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekScrollContent}>
           {program.weeks.map(week => (
             <Pressable
               key={week.weekNumber}
-              style={[styles.weekChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, activeWeek === week.weekNumber && styles.weekChipActive]}
+              style={[styles.weekChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, activeWeek === week.weekNumber && [styles.weekChipActive, { backgroundColor: colors.primary, borderColor: colors.primary }]]}
               onPress={() => { Haptics.selectionAsync(); setActiveWeek(week.weekNumber); setActiveDay(1); }}
               onLongPress={() => {
                 if ((isCoach || !isShared) && !planLocked) {
@@ -1000,15 +1008,15 @@ export default function ProgramDetailScreen() {
               </Text>
             </Pressable>
           ))}
-          {(isCoach || !isShared) && !planLocked && (
-            <Pressable style={styles.addWeekChip} onPress={addWeek} accessibilityLabel="Add week" accessibilityRole="button">
+          {(isCoach || !isShared) && (
+            <Pressable style={[styles.addWeekChip, { borderColor: colors.primary }]} onPress={addWeek} accessibilityLabel="Add week" accessibilityRole="button">
               <Ionicons name="add" size={16} color={colors.primary} />
             </Pressable>
           )}
         </ScrollView>
         <View style={styles.weekProgressRow}>
           <View style={[styles.weekProgressBar, { backgroundColor: colors.surfaceLight }]}>
-            <View style={[styles.weekProgressFill, { width: `${weekProgress}%` }]} />
+            <View style={[styles.weekProgressFill, { width: `${weekProgress}%`, backgroundColor: colors.success }]} />
           </View>
           <Text style={[styles.weekProgressText, { color: colors.textSecondary }]}>{weekProgress}%</Text>
         </View>
@@ -1019,10 +1027,10 @@ export default function ProgramDetailScreen() {
           {(currentWeek?.days || []).map(day => (
             <Pressable
               key={day.dayNumber}
-              style={[styles.dayChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, activeDay === day.dayNumber && styles.dayChipActive]}
+              style={[styles.dayChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, activeDay === day.dayNumber && [styles.dayChipActive, { backgroundColor: colors.accent, borderColor: colors.accent }]]}
               onPress={() => { Haptics.selectionAsync(); setActiveDay(day.dayNumber); }}
               onLongPress={() => {
-                if ((isCoach || !isShared) && !planLocked) {
+                if (isCoach || !isShared) {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   deleteDay(day.dayNumber);
                 }
@@ -1060,13 +1068,13 @@ export default function ProgramDetailScreen() {
                 coachId={program.coachId}
                 profileId={profileId}
                 initialExpanded={ex.id === highlightedExerciseId}
-                planLocked={planLocked}
+                planLocked={false}
               />
             </Animated.View>
           ))
         )}
 
-        {(isCoach || !isShared) && !planLocked && (
+        {(isCoach || !isShared) && (
           <Pressable style={[styles.addExerciseBtn, { borderColor: colors.border }]} onPress={addExercise}>
             <Ionicons name="add" size={16} color={colors.primary} />
             <Text style={[styles.addExerciseText, { color: colors.primary }]}>Add Exercise</Text>
@@ -1074,14 +1082,16 @@ export default function ProgramDetailScreen() {
         )}
       </ScrollView>
 
-      {hasChanges && (
+      {hasChanges && !planLocked && (
         <Animated.View entering={FadeIn.duration(200)} style={[styles.saveBar, { paddingBottom: insets.bottom + 10, backgroundColor: colors.backgroundElevated, borderTopColor: colors.border }]}>
-          <View style={styles.saveBarDot} />
+          <View style={[styles.saveBarDot, { backgroundColor: colors.warning }]} />
           <Text style={[styles.saveBarText, { color: colors.textSecondary }]}>Unsaved changes</Text>
-          <Pressable style={styles.saveBarButton} onPress={save}>
+          <Pressable style={[styles.saveBarButton, { backgroundColor: colors.primary }]} onPress={save}>
             <Text style={styles.saveBarButtonText}>Save</Text>
           </Pressable>
         </Animated.View>
+      )}
+      </>
       )}
 
       <Modal visible={showDeleteModal} transparent animationType="fade">
@@ -1108,7 +1118,7 @@ export default function ProgramDetailScreen() {
                 <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={[styles.modalDeleteBtn, deleteInput !== 'DELETE' && styles.modalDeleteBtnDisabled]}
+                style={[styles.modalDeleteBtn, { backgroundColor: colors.danger }, deleteInput !== 'DELETE' && styles.modalDeleteBtnDisabled]}
                 onPress={handleDeleteProgram}
                 disabled={deleteInput !== 'DELETE' || deleting}
                 accessibilityLabel="Delete program permanently"

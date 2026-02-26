@@ -84,7 +84,7 @@ function ClientProgressCard({ client, programs, delay, colors }: { client: Clien
 
         <View style={styles.clientProgressRow}>
           <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceLight }]}>
-            <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+            <View style={[styles.progressBarFill, { width: `${progress}%`, backgroundColor: colors.primary }]} />
           </View>
           <Text style={[styles.clientProgressText, { color: colors.textSecondary }]}>{progress}%</Text>
         </View>
@@ -216,7 +216,7 @@ export default function ProgressScreen() {
       <View style={styles.headerRow}>
         <Text style={[styles.pageTitle, { color: colors.text }]}>Progress</Text>
         <Pressable
-          style={styles.addBtn}
+          style={[styles.addBtn, { backgroundColor: colors.primary }]}
           accessibilityLabel="Log a new PR"
           accessibilityRole="button"
           onPress={() => {

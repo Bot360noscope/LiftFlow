@@ -94,7 +94,7 @@ export default function ProgramsScreen() {
       <View style={styles.headerRow}>
         <Text style={[styles.pageTitle, { color: colors.text }]}>Programs</Text>
         <Pressable
-          style={styles.newBtn}
+          style={[styles.newBtn, { backgroundColor: colors.primary }]}
           accessibilityLabel="Create new program"
           accessibilityRole="button"
           onPress={() => {
@@ -116,14 +116,14 @@ export default function ProgramsScreen() {
               ? 'Create a program and share it with clients'
               : 'Create your own program or join a coach to get started'}
           </Text>
-          <Pressable style={styles.createBtn} onPress={() => router.push('/create-program')} accessibilityLabel="Create program" accessibilityRole="button">
+          <Pressable style={[styles.createBtn, { backgroundColor: colors.primary }]} onPress={() => router.push('/create-program')} accessibilityLabel="Create program" accessibilityRole="button">
             <Ionicons name="add-circle" size={18} color="#fff" />
             <Text style={styles.createBtnText}>{role === 'coach' ? 'Create Program' : 'Create My Program'}</Text>
           </Pressable>
           {role === 'client' && (
-            <Pressable style={[styles.createBtn, styles.secondaryBtn]} onPress={() => router.push('/join-coach')} accessibilityLabel="Join a coach" accessibilityRole="button">
+            <Pressable style={[styles.createBtn, styles.secondaryBtn, { borderColor: colors.primary }]} onPress={() => router.push('/join-coach')} accessibilityLabel="Join a coach" accessibilityRole="button">
               <Ionicons name="people" size={18} color={colors.primary} />
-              <Text style={[styles.createBtnText, styles.secondaryBtnText]}>Join a Coach</Text>
+              <Text style={[styles.createBtnText, styles.secondaryBtnText, { color: colors.primary }]}>Join a Coach</Text>
             </Pressable>
           )}
         </View>
@@ -190,7 +190,7 @@ export default function ProgramsScreen() {
 
                 <View style={styles.progressRow}>
                   <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceLight }]}>
-                    <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+                    <View style={[styles.progressBarFill, { width: `${progress}%`, backgroundColor: colors.primary }]} />
                   </View>
                   <Text style={[styles.progressText, { color: colors.textSecondary }]}>{progress}%</Text>
                 </View>
@@ -224,7 +224,7 @@ export default function ProgramsScreen() {
                 <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={[styles.modalDeleteBtn, deleteInput !== 'DELETE' && styles.modalDeleteBtnDisabled]}
+                style={[styles.modalDeleteBtn, { backgroundColor: colors.danger }, deleteInput !== 'DELETE' && styles.modalDeleteBtnDisabled]}
                 onPress={handleDelete}
                 disabled={deleteInput !== 'DELETE' || deleting}
                 accessibilityLabel="Delete program permanently"

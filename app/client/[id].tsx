@@ -49,7 +49,7 @@ function ProgramCard({ program }: { program: Program }) {
         <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{dateStr}</Text>
         <View style={styles.progressBarWrap}>
           <View style={[styles.progressBar, { backgroundColor: colors.surfaceLight }]}>
-            <View style={[styles.progressFill, { width: `${progress}%` }]} />
+            <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: colors.primary }]} />
           </View>
           <Text style={[styles.progressText, { color: colors.textSecondary }]}>{progress}%</Text>
         </View>
@@ -124,10 +124,10 @@ export default function ClientDetailScreen() {
         <Animated.View entering={FadeInDown.duration(350)}>
           <View style={styles.clientHeader}>
             {client?.avatarUrl ? (
-              <Image source={{ uri: getAvatarUrl(client.avatarUrl) }} style={styles.avatarImage} />
+              <Image source={{ uri: getAvatarUrl(client.avatarUrl) }} style={[styles.avatarImage, { borderColor: colors.primary }]} />
             ) : (
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{displayName[0].toUpperCase()}</Text>
+              <View style={[styles.avatar, { borderColor: colors.primary }]}>
+                <Text style={[styles.avatarText, { color: colors.primary }]}>{displayName[0].toUpperCase()}</Text>
               </View>
             )}
             <View style={styles.clientHeaderInfo}>
@@ -162,13 +162,13 @@ export default function ClientDetailScreen() {
 
         <Animated.View entering={FadeInDown.delay(150).duration(350)}>
           <Pressable
-            style={({ pressed }) => [styles.newProgramBtn, { backgroundColor: colors.backgroundCard }, pressed && { opacity: 0.85 }]}
+            style={({ pressed }) => [styles.newProgramBtn, { backgroundColor: colors.backgroundCard, borderColor: colors.primary }, pressed && { opacity: 0.85 }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push({ pathname: '/create-program', params: { clientId: id, clientName: displayName } });
             }}
           >
-            <View style={styles.newProgramIcon}>
+            <View style={[styles.newProgramIcon, { backgroundColor: colors.primary }]}>
               <Ionicons name="add" size={20} color="#fff" />
             </View>
             <View style={styles.newProgramInfo}>
@@ -233,7 +233,7 @@ export default function ClientDetailScreen() {
                 <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={[styles.modalDeleteBtn, removeInput !== 'REMOVE' && styles.modalDeleteBtnDisabled]}
+                style={[styles.modalDeleteBtn, { backgroundColor: colors.danger }, removeInput !== 'REMOVE' && styles.modalDeleteBtnDisabled]}
                 onPress={handleRemoveClient}
                 disabled={removeInput !== 'REMOVE' || removing}
                 accessibilityLabel="Remove client permanently"

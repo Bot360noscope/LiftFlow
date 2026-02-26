@@ -63,7 +63,7 @@ export default function AuthScreen() {
       >
         <View style={styles.logoSection}>
           <View style={styles.logoIcon}>
-            <Ionicons name="barbell-outline" size={36} color={Colors.colors.primary} />
+            <Ionicons name="barbell-outline" size={36} color={colors.primary} />
           </View>
           <Text style={[styles.logoText, { color: colors.text }]}>LiftFlow</Text>
           <Text style={[styles.logoSub, { color: colors.textSecondary }]}>
@@ -128,14 +128,14 @@ export default function AuthScreen() {
               <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>I am a...</Text>
               <View style={styles.roleRow}>
                 <Pressable
-                  style={[styles.roleBtn, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, role === 'coach' && styles.roleBtnActive]}
+                  style={[styles.roleBtn, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, role === 'coach' && [styles.roleBtnActive, { backgroundColor: colors.primary, borderColor: colors.primary }]]}
                   onPress={() => { setRole('coach'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 >
                   <Ionicons name="fitness-outline" size={20} color={role === 'coach' ? '#fff' : colors.textSecondary} />
                   <Text style={[styles.roleBtnText, { color: colors.textSecondary }, role === 'coach' && styles.roleBtnTextActive]}>Coach</Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.roleBtn, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, role === 'client' && styles.roleBtnActive]}
+                  style={[styles.roleBtn, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, role === 'client' && [styles.roleBtnActive, { backgroundColor: colors.primary, borderColor: colors.primary }]]}
                   onPress={() => { setRole('client'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 >
                   <Ionicons name="person-outline" size={20} color={role === 'client' ? '#fff' : colors.textSecondary} />
@@ -153,7 +153,7 @@ export default function AuthScreen() {
           ) : null}
 
           <Pressable
-            style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+            style={[styles.submitBtn, { backgroundColor: colors.primary }, loading && styles.submitBtnDisabled]}
             onPress={handleSubmit}
             disabled={loading}
             accessibilityLabel={mode === 'login' ? 'Sign in' : 'Create account'}
@@ -178,12 +178,12 @@ export default function AuthScreen() {
           <View style={styles.legalRow}>
             <Text style={[styles.legalText, { color: colors.textMuted }]}>
               By continuing, you agree to our{' '}
-              <Text style={styles.legalLink} accessibilityRole="link" accessibilityLabel="Terms of Service" onPress={() => {
+              <Text style={[styles.legalLink, { color: colors.primary }]} accessibilityRole="link" accessibilityLabel="Terms of Service" onPress={() => {
                 const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
                 WebBrowser.openBrowserAsync(`${base}/terms`);
               }}>Terms of Service</Text>
               {' '}and{' '}
-              <Text style={styles.legalLink} accessibilityRole="link" accessibilityLabel="Privacy Policy" onPress={() => {
+              <Text style={[styles.legalLink, { color: colors.primary }]} accessibilityRole="link" accessibilityLabel="Privacy Policy" onPress={() => {
                 const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
                 WebBrowser.openBrowserAsync(`${base}/privacy`);
               }}>Privacy Policy</Text>
