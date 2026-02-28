@@ -143,7 +143,11 @@ function generateCode(): string {
 async function sendPushNotification(targetProfileId: string, title: string, body: string, data?: Record<string, any>): Promise<void> {
   try {
     const [profile] = await db.select().from(profiles).where(eq(profiles.id, targetProfileId));
-    if (!profile?.pushToken || !profile.pushToken.startsWith('ExponentPushToken[')) return;
+    if (!profile?.pushToken || !profile.pushToken.startsWith('ExponentPushToken[')) {
+      console.log("[PushNotif] No valid push token for profile:", targetProfileId);
+      return;
+    }
+    console.log("[PushNotif] Sending to:", profile.pushToken.substring(0, 30) + "...", "title:", title);
 
     const message = {
       to: profile.pushToken,
@@ -163,14 +167,16 @@ async function sendPushNotification(targetProfileId: string, title: string, body
       body: JSON.stringify(message),
     });
 
-    if (res.ok) {
-      const result = await res.json();
-      if (result?.data?.status === 'error' &&
-          (result.data.details?.error === 'DeviceNotRegistered' || result.data.details?.error === 'InvalidCredentials')) {
-        await db.update(profiles).set({ pushToken: null }).where(eq(profiles.id, targetProfileId));
-      }
+    const result = await res.json();
+    console.log("[PushNotif] Expo API response:", JSON.stringify(result));
+    if (result?.data?.status === 'error' &&
+        (result.data.details?.error === 'DeviceNotRegistered' || result.data.details?.error === 'InvalidCredentials')) {
+      await db.update(profiles).set({ pushToken: null }).where(eq(profiles.id, targetProfileId));
+      console.log("[PushNotif] Removed invalid token for profile:", targetProfileId);
     }
-  } catch {}
+  } catch (err: any) {
+    console.log("[PushNotif] Error sending:", err?.message || err);
+  }
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -575,6 +581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/push-token", async (req, res) => {
     try {
       const { profileId, pushToken } = req.body;
+      console.log("[PushToken] Registration request for profile:", profileId, "token:", pushToken?.substring(0, 30) + "...");
       if (!profileId || !pushToken) return res.status(400).json({ error: "profileId and pushToken required" });
       if (!pushToken.startsWith('ExponentPushToken[')) return res.status(400).json({ error: "Invalid push token format" });
       const authHeader = req.headers.authorization;
@@ -582,8 +589,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const decoded = verifyToken(authHeader.slice(7));
       if (!decoded || decoded.profileId !== profileId) return res.status(403).json({ error: "Forbidden" });
       await db.update(profiles).set({ pushToken }).where(eq(profiles.id, profileId));
+      console.log("[PushToken] Token saved successfully for profile:", profileId);
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) {
+      console.log("[PushToken] Error:", e.message);
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // === NOTIFICATIONS ===
