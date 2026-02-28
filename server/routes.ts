@@ -406,6 +406,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  app.post("/api/programs/:id/assign", async (req, res) => {
+    try {
+      const { clientId } = req.body;
+      if (!clientId) return res.status(400).json({ error: "clientId required" });
+
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: "Unauthorized" });
+      const decoded = verifyToken(authHeader.slice(7));
+      if (!decoded) return res.status(401).json({ error: "Invalid token" });
+
+      const [original] = await db.select().from(programs).where(eq(programs.id, req.params.id));
+      if (!original) return res.status(404).json({ error: "Program not found" });
+      if (!original.coachId) return res.status(400).json({ error: "Only coach programs can be assigned" });
+      if (original.coachId !== decoded.profileId) return res.status(403).json({ error: "You can only assign your own programs" });
+
+      const clientRecord = await db.select().from(clients).where(
+        and(eq(clients.id, clientId), eq(clients.coachId, original.coachId))
+      );
+      if (clientRecord.length === 0) return res.status(400).json({ error: "Client not found or not linked to you" });
+
+      const check = await isCoachOverLimit(original.coachId);
+      if (check.overLimit) {
+        return res.status(403).json({ error: `Your plan supports ${check.limit} client${check.limit !== 1 ? 's' : ''} but you have ${check.clientCount}. Please upgrade your plan or remove clients to assign programs.`, code: 'PLAN_LIMIT_EXCEEDED' });
+      }
+
+      const sourceWeeks = Array.isArray(original.weeks) ? (original.weeks as any[]) : [];
+      const cleanWeeks = sourceWeeks.map((week: any) => ({
+        ...week,
+        days: week.days.map((day: any) => ({
+          ...day,
+          exercises: day.exercises.map((ex: any) => ({
+            ...ex,
+            id: randomUUID(),
+            videoUrl: '',
+            isCompleted: false,
+            clientNotes: '',
+            coachComment: '',
+          })),
+        })),
+      }));
+
+      const [copy] = await db.insert(programs).values({
+        id: randomUUID(),
+        title: original.title,
+        description: original.description || '',
+        weeks: cleanWeeks,
+        daysPerWeek: original.daysPerWeek,
+        shareCode: '',
+        coachId: original.coachId,
+        clientId,
+        status: 'active',
+      }).returning();
+      res.json(copy);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.delete("/api/programs/:id", async (req, res) => {
     try {
       await db.delete(programs).where(eq(programs.id, req.params.id));

@@ -11,7 +11,7 @@ import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import * as Crypto from "expo-crypto";
-import { getProgram, updateProgram, deleteProgram, getProfile, getClients, addNotification, markNotificationsReadByProgram, getPRs, addPR, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type LiftPR, type UserProfile, type ClientInfo } from "@/lib/storage";
+import { getProgram, updateProgram, deleteProgram, getProfile, getClients, addNotification, markNotificationsReadByProgram, getPRs, addPR, assignProgramToClient, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type LiftPR, type UserProfile, type ClientInfo } from "@/lib/storage";
 import { uploadVideo, getVideoUrl, getDirectVideoUrl, markVideoViewed } from "@/lib/api";
 import { trimResult } from "@/lib/trim-result";
 
@@ -744,6 +744,9 @@ export default function ProgramDetailScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignClients, setAssignClients] = useState<ClientInfo[]>([]);
+  const [assigning, setAssigning] = useState(false);
 
   const handleDeleteProgram = async () => {
     if (deleteInput !== 'DELETE' || !program) return;
@@ -757,6 +760,31 @@ export default function ProgramDetailScreen() {
       showAlert('Error', e.message || 'Failed to delete program');
     }
     setDeleting(false);
+  };
+
+  const openAssignModal = async () => {
+    try {
+      const clientList = await getClients();
+      setAssignClients(clientList);
+      setShowAssignModal(true);
+    } catch (e: any) {
+      showAlert('Error', 'Failed to load clients');
+    }
+  };
+
+  const handleAssignToClient = async (clientId: string, clientName: string) => {
+    if (!program) return;
+    setAssigning(true);
+    try {
+      const copy = await assignProgramToClient(program.id, clientId);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowAssignModal(false);
+      showAlert('Assigned', `"${program.title}" has been copied and assigned to ${clientName}.`);
+      router.replace({ pathname: '/program/[id]', params: { id: copy.id } });
+    } catch (e: any) {
+      showAlert('Error', e.message || 'Failed to assign program');
+    }
+    setAssigning(false);
   };
 
   const currentWeek = program?.weeks.find(w => w.weekNumber === activeWeek);
@@ -968,6 +996,11 @@ export default function ProgramDetailScreen() {
           </View>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          {isCoach && !isShared && !planLocked && (
+            <Pressable onPress={openAssignModal} hitSlop={8} accessibilityLabel="Assign to client" accessibilityRole="button">
+              <Ionicons name="person-add-outline" size={22} color={colors.primary} />
+            </Pressable>
+          )}
           {!planLocked && (
             <Pressable onPress={() => { setDeleteInput(''); setShowDeleteModal(true); }} hitSlop={8} accessibilityLabel="Delete program" accessibilityRole="button">
               <Ionicons name="trash-outline" size={22} color={colors.danger} />
@@ -1159,6 +1192,53 @@ export default function ProgramDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={showAssignModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <Ionicons name="person-add" size={40} color={colors.primary} />
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Assign to Client</Text>
+            <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
+              A copy of "{program?.title}" will be created and assigned to the selected client. The original template stays unchanged.
+            </Text>
+            {assignClients.length === 0 ? (
+              <Text style={{ color: colors.textMuted, fontFamily: 'Rubik_400Regular', fontSize: 14, marginTop: 12, textAlign: 'center' }}>
+                No clients found. Clients need to join you using your coach code first.
+              </Text>
+            ) : (
+              <ScrollView style={{ maxHeight: 240, width: '100%', marginTop: 12 }}>
+                {assignClients.map(client => (
+                  <Pressable
+                    key={client.id}
+                    style={[styles.assignClientItem, { borderColor: colors.border }]}
+                    onPress={() => handleAssignToClient(client.id, client.name)}
+                    disabled={assigning}
+                  >
+                    <View style={[styles.assignClientAvatar, { backgroundColor: colors.surfaceLight }]}>
+                      <Ionicons name="person" size={18} color={colors.textMuted} />
+                    </View>
+                    <Text style={[styles.assignClientName, { color: colors.text }]} numberOfLines={1}>{client.name}</Text>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+            {assigning && (
+              <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={{ color: colors.textMuted, fontFamily: 'Rubik_400Regular', fontSize: 13 }}>Creating copy...</Text>
+              </View>
+            )}
+            <Pressable
+              style={[styles.modalCancelBtn, { backgroundColor: colors.surfaceLight, marginTop: 16, width: '100%', alignItems: 'center' }]}
+              onPress={() => setShowAssignModal(false)}
+              disabled={assigning}
+            >
+              <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1300,5 +1380,18 @@ const styles = StyleSheet.create({
   },
   exerciseWebDeleteBtn: {
     padding: 4, marginRight: 4, opacity: 0.5,
+  },
+  assignClientItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 12, paddingHorizontal: 12,
+    borderBottomWidth: 1, borderBottomColor: Colors.colors.border,
+  },
+  assignClientAvatar: {
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.colors.surfaceLight,
+  },
+  assignClientName: {
+    flex: 1, fontFamily: 'Rubik_500Medium', fontSize: 15, color: Colors.colors.text,
   },
 });

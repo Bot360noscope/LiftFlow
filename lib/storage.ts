@@ -367,6 +367,20 @@ export async function updateProgram(program: Program): Promise<void> {
   });
 }
 
+export async function assignProgramToClient(programId: string, clientId: string): Promise<Program> {
+  const result = await apiPost<any>(`/api/programs/${programId}/assign`, { clientId });
+  return {
+    id: result.id,
+    title: result.title,
+    description: result.description || '',
+    weeks: result.weeks || [],
+    daysPerWeek: result.daysPerWeek || result.days_per_week || 3,
+    coachId: result.coachId || result.coach_id || '',
+    clientId: result.clientId || result.client_id || null,
+    status: result.status || 'active',
+  };
+}
+
 export async function deleteProgram(id: string): Promise<void> {
   await apiDelete(`/api/programs/${id}`);
 }
