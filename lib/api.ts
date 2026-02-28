@@ -133,21 +133,17 @@ async function tryNativeCompress(uri: string): Promise<string | null> {
 
 async function tryLocalTrimAndCompress(uri: string, startTime: number, endTime: number): Promise<string | null> {
   if (isExpoGo || Platform.OS === 'web') return null;
+  if (!Number.isFinite(endTime) || endTime <= startTime) return null;
   try {
-    const { FFmpegKit, ReturnCode } = require('ffmpeg-kit-react-native');
-    const Crypto = require('expo-crypto');
-    const duration = endTime - startTime;
-    const dirPath = uri.substring(0, uri.lastIndexOf('/'));
-    const outputPath = `${dirPath}/trimmed_${Crypto.randomUUID()}.mp4`;
-    const inputPath = uri.replace('file://', '');
-    const outputClean = outputPath.replace('file://', '');
-    const command = `-y -i "${inputPath}" -ss ${startTime} -t ${duration} -c:v libx264 -preset fast -crf 28 -b:v 2000000 -vf "scale='min(720,iw)':'min(720,ih)':force_original_aspect_ratio=decrease" -c:a aac -movflags +faststart "${outputClean}"`;
-    const session = await FFmpegKit.execute(command);
-    const returnCode = await session.getReturnCode();
-    if (ReturnCode.isSuccess(returnCode)) {
-      return outputPath.startsWith('file://') ? outputPath : `file://${outputClean}`;
-    }
-    return null;
+    const { Video } = require('react-native-compressor');
+    const result = await Video.compress(uri, {
+      compressionMethod: 'manual',
+      bitrate: 2000000,
+      maxSize: 720,
+      startTime,
+      endTime,
+    });
+    return result;
   } catch {
     return null;
   }

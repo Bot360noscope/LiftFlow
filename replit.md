@@ -15,7 +15,7 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **Theme**: Light/Dark mode with energetic orange/red palette (#E8512F). Theme context in lib/theme-context.tsx provides useTheme() hook. Colors defined in constants/colors.ts with darkColors and lightColors. Toggle in Profile settings. Persisted to AsyncStorage under 'liftflow_theme' key. All screens use useTheme() for dynamic colors via inline style overrides on key elements
 
 ## Database Schema (shared/schema.ts)
-- **profiles**: id, name, role (coach/client), weightUnit, coachCode, plan, planUserLimit, planExpiresAt, createdAt
+- **profiles**: id, name, role (coach/client), weightUnit, coachCode, pushToken, plan, planUserLimit, planExpiresAt, createdAt
 - **programs**: id, profileId, clientId, title, totalWeeks, daysPerWeek, rowCount, shareCode, exercises (JSONB), createdAt, updatedAt
 - **clients**: id, coachId, name, email, joinedAt
 - **prs**: id, profileId, liftType, weight, date
@@ -59,7 +59,8 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **Permissions**: NSCameraUsageDescription, NSPhotoLibraryUsageDescription, NSMicrophoneUsageDescription set in app.json
 - **Account Deletion**: Full data cleanup including avatar files, video files, and all DB records
 - **Accessibility**: accessibilityLabel and accessibilityRole on key interactive elements across all screens
-- **Video Recording**: 60-second max enforced at camera level via videoMaxDuration. Records at Medium quality. No native iOS editing screen (allowsEditing: false) — goes directly to custom trim screen. "Save Original to Photos" button saves to camera roll via expo-media-library. Video processing: on-device trim+compress via ffmpeg-kit-react-native (dev builds), falls back to react-native-compressor for compression-only, then server-side ffmpeg trim as last resort (Expo Go/web). Delete video button available.
+- **Video Recording**: 60-second max enforced at camera level via videoMaxDuration. Records at Medium quality. No native iOS editing screen (allowsEditing: false) — goes directly to custom trim screen. "Save Original to Photos" button saves to camera roll via expo-media-library. Video processing: on-device trim+compress via react-native-compressor (production builds) using startTime/endTime options, falls back to server-side ffmpeg trim (Expo Go/web). Delete video button available.
+- **Push Notifications**: expo-notifications for iOS/Android. Push tokens stored in profiles.pushToken. Registration in lib/push-notifications.ts on login. Server sends via Expo Push API (exp.host/--/api/v2/push/send) when notifications or chat messages are created. Deep linking: tapping chat notification opens conversation, tapping other notifications opens program detail.
 
 ## User Preferences
 - Fonts: Rubik (400, 500, 600, 700)

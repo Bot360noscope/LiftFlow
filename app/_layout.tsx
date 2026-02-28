@@ -13,6 +13,8 @@ import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { ThemeProvider, useTheme } from "@/lib/theme-context";
 import { loadCacheFromDisk, getCachedProfile } from "@/lib/storage";
 import { connectWebSocket, disconnectWebSocket } from "@/lib/websocket";
+import { registerForPushNotifications, setupNotificationResponseHandler } from "@/lib/push-notifications";
+import { router } from "expo-router";
 import AuthScreen from "./auth";
 import OnboardingScreen from "./onboarding";
 import Colors from "@/constants/colors";
@@ -59,7 +61,10 @@ function AppContent() {
       Promise.all([
         loadCacheFromDisk().then(() => {
           const cached = getCachedProfile();
-          if (cached?.id) connectWebSocket(cached.id);
+          if (cached?.id) {
+            connectWebSocket(cached.id);
+            registerForPushNotifications(cached.id);
+          }
         }),
         AsyncStorage.getItem("liftflow_onboarding_done").then((val) => {
           setHasOnboarded(val === "true");
@@ -69,6 +74,18 @@ function AppContent() {
       disconnectWebSocket();
       setAppReady(true);
     }
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const sub = setupNotificationResponseHandler((data) => {
+      if (data.type === 'chat' && data.programId && data.programTitle) {
+        router.push({ pathname: '/conversation', params: { coachId: data.programId, clientProfileId: data.programTitle } });
+      } else if (data.programId) {
+        router.push({ pathname: '/program/[id]', params: { id: data.programId } });
+      }
+    });
+    return () => sub.remove();
   }, [isLoggedIn]);
 
   useEffect(() => {

@@ -140,6 +140,39 @@ function generateCode(): string {
   return code;
 }
 
+async function sendPushNotification(targetProfileId: string, title: string, body: string, data?: Record<string, any>): Promise<void> {
+  try {
+    const [profile] = await db.select().from(profiles).where(eq(profiles.id, targetProfileId));
+    if (!profile?.pushToken || !profile.pushToken.startsWith('ExponentPushToken[')) return;
+
+    const message = {
+      to: profile.pushToken,
+      sound: 'default' as const,
+      title,
+      body,
+      data: data || {},
+    };
+
+    const res = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+
+    if (res.ok) {
+      const result = await res.json();
+      if (result?.data?.status === 'error' &&
+          (result.data.details?.error === 'DeviceNotRegistered' || result.data.details?.error === 'InvalidCredentials')) {
+        await db.update(profiles).set({ pushToken: null }).where(eq(profiles.id, targetProfileId));
+      }
+    }
+  } catch {}
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
 
   // === AUTH ===
@@ -538,6 +571,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // === PUSH TOKENS ===
+  app.post("/api/push-token", async (req, res) => {
+    try {
+      const { profileId, pushToken } = req.body;
+      if (!profileId || !pushToken) return res.status(400).json({ error: "profileId and pushToken required" });
+      if (!pushToken.startsWith('ExponentPushToken[')) return res.status(400).json({ error: "Invalid push token format" });
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: "Unauthorized" });
+      const decoded = verifyToken(authHeader.slice(7));
+      if (!decoded || decoded.profileId !== profileId) return res.status(403).json({ error: "Forbidden" });
+      await db.update(profiles).set({ pushToken }).where(eq(profiles.id, profileId));
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // === NOTIFICATIONS ===
   app.get("/api/notifications", async (req, res) => {
     try {
@@ -569,6 +617,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existing.length > 0) {
         const [updated] = await db.update(notifications).set({ message, title, read: false, createdAt: new Date() }).where(eq(notifications.id, existing[0].id)).returning();
         broadcastToProfile(profileId, { type: 'new_notification', notification: updated });
+        sendPushNotification(profileId, title, message, { type, programId, programTitle, exerciseName });
         return res.json(updated);
       }
       const [notif] = await db.insert(notifications).values({
@@ -583,6 +632,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fromRole,
       }).returning();
       broadcastToProfile(profileId, { type: 'new_notification', notification: notif });
+      sendPushNotification(profileId, title, message, { type, programId, programTitle, exerciseName });
       res.json(notif);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -687,17 +737,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         senderName = clientProfile?.name || 'Client';
       }
 
+      const chatNotifTitle = `Message from ${senderName}`;
+      const chatNotifBody = msgText.length > 80 ? msgText.slice(0, 80) + '...' : msgText;
       const [notif] = await db.insert(notifications).values({
         id: randomUUID(),
         profileId: targetProfileId,
         type: 'chat',
-        title: `Message from ${senderName}`,
-        message: msgText.length > 80 ? msgText.slice(0, 80) + '...' : msgText,
+        title: chatNotifTitle,
+        message: chatNotifBody,
         programId: coachId,
         programTitle: clientProfileId,
         exerciseName: senderName,
         fromRole: senderRole,
       }).returning();
+
+      sendPushNotification(targetProfileId, chatNotifTitle, chatNotifBody, { type: 'chat', programId: coachId, programTitle: clientProfileId });
 
       broadcastToProfile(targetProfileId, {
         type: 'new_message',

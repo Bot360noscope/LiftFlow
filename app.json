@@ -51,6 +51,13 @@
           "cameraPermission": "LiftFlow needs access to your camera to record form check videos for your coach to review.",
           "photosPermission": "LiftFlow needs access to your photo library to upload a profile picture."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#E8512F"
+        }
       ]
     ],
     "experiments": {
