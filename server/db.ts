@@ -28,11 +28,14 @@ export async function initializeDatabase() {
         weight_unit TEXT NOT NULL DEFAULT 'kg',
         coach_code TEXT NOT NULL,
         avatar_url TEXT NOT NULL DEFAULT '',
+        push_token TEXT,
         plan TEXT NOT NULL DEFAULT 'free',
         plan_user_limit INTEGER NOT NULL DEFAULT 1,
         plan_expires_at TIMESTAMP,
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
       );
+
+      ALTER TABLE profiles ADD COLUMN IF NOT EXISTS push_token TEXT;
 
       CREATE TABLE IF NOT EXISTS programs (
         id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
