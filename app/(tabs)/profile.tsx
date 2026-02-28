@@ -379,6 +379,21 @@ export default function ProfileScreen() {
             </Pressable>
           )}
 
+          {!isCoach && !myCoach && (
+            <Pressable style={[styles.settingItem, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]} onPress={() => router.push('/join-coach')} accessibilityLabel="Add coach" accessibilityRole="button">
+              <View style={styles.settingLeft}>
+                <View style={[styles.settingIcon, { backgroundColor: 'rgba(102, 102, 102, 0.12)' }]}>
+                  <Ionicons name="person-add" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.settingTextWrap}>
+                  <Text style={[styles.settingLabel, { color: colors.text }]} numberOfLines={1}>Add Coach</Text>
+                  <Text style={[styles.settingValue, { color: colors.textMuted }]} numberOfLines={2}>Enter a coach code to connect</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+            </Pressable>
+          )}
+
           <Pressable style={[styles.settingItem, styles.dangerItem, { backgroundColor: colors.backgroundCard }]} onPress={() => { setDeleteInput(''); setShowDeleteModal(true); }} accessibilityLabel="Delete account" accessibilityRole="button">
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: 'rgba(102, 102, 102, 0.12)' }]}>

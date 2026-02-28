@@ -11,7 +11,7 @@ import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import * as Crypto from "expo-crypto";
-import { getProgram, updateProgram, deleteProgram, getProfile, getClients, addNotification, markNotificationsReadByProgram, getPRs, addPR, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type LiftPR, type UserProfile } from "@/lib/storage";
+import { getProgram, updateProgram, deleteProgram, getProfile, getClients, addNotification, markNotificationsReadByProgram, getPRs, addPR, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type LiftPR, type UserProfile, type ClientInfo } from "@/lib/storage";
 import { uploadVideo, getVideoUrl, getDirectVideoUrl, markVideoViewed } from "@/lib/api";
 import { trimResult } from "@/lib/trim-result";
 
