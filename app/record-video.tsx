@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View, Pressable, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
@@ -24,9 +24,11 @@ export default function RecordVideoScreen() {
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [facing, setFacing] = useState<'front' | 'back'>('back');
+  const [cameraMode, setCameraMode] = useState<'picture' | 'video'>('picture');
   const cameraRef = useRef<CameraView>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef = useRef(0);
+  const readyToRecord = useRef(false);
 
   useEffect(() => {
     if (!permission?.granted) {
@@ -46,8 +48,9 @@ export default function RecordVideoScreen() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const startRecording = async () => {
-    if (!cameraRef.current) return;
+  const actuallyStartRecording = useCallback(async () => {
+    if (!cameraRef.current || !readyToRecord.current) return;
+    readyToRecord.current = false;
     setRecording(true);
     setElapsed(0);
     elapsedRef.current = 0;
@@ -86,7 +89,20 @@ export default function RecordVideoScreen() {
       setRecording(false);
       showAlert("Error", "Failed to record video.");
     }
-  };
+  }, [params]);
+
+  const startRecording = useCallback(() => {
+    readyToRecord.current = true;
+    setCameraMode('video');
+  }, []);
+
+  const onCameraReady = useCallback(() => {
+    if (readyToRecord.current && cameraMode === 'video') {
+      setTimeout(() => {
+        actuallyStartRecording();
+      }, 300);
+    }
+  }, [cameraMode, actuallyStartRecording]);
 
   const stopRecording = () => {
     if (cameraRef.current && recording) {
@@ -123,7 +139,8 @@ export default function RecordVideoScreen() {
         ref={cameraRef}
         style={styles.camera}
         facing={facing}
-        mode="video"
+        mode={cameraMode}
+        onCameraReady={onCameraReady}
       />
 
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
