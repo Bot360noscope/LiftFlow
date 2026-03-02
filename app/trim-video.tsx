@@ -1,0 +1,497 @@
+import { StyleSheet, Text, View, Pressable, Platform, ActivityIndicator, PanResponder, LayoutChangeEvent } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useVideoPlayer, VideoView } from "expo-video";
+import * as Haptics from "expo-haptics";
+import * as MediaLibrary from "expo-media-library";
+import Colors from "@/constants/colors";
+import { useTheme } from "@/lib/theme-context";
+import { uploadVideo } from "@/lib/api";
+import { showAlert } from "@/lib/confirm";
+import { trimResult } from "@/lib/trim-result";
+
+const MAX_DURATION = 60;
+const TRACK_H = 48;
+const HANDLE_W = 22;
+
+export default function TrimVideoScreen() {
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{
+    videoUri: string;
+    videoDuration: string;
+    programId: string;
+    exerciseId: string;
+    uploadedBy: string;
+    coachId: string;
+    exerciseName: string;
+  }>();
+
+  const videoUri = params.videoUri || '';
+  const totalDurationMs = Number(params.videoDuration || '0');
+  const totalDuration = Math.max(1, Math.round(totalDurationMs / 1000));
+  const programId = params.programId || '';
+  const exerciseId = params.exerciseId || '';
+  const uploadedBy = params.uploadedBy || '';
+  const coachId = params.coachId || '';
+  const exerciseName = params.exerciseName || 'Exercise';
+  const needsTrim = totalDuration > MAX_DURATION;
+
+  const startRef = useRef(0);
+  const endRef = useRef(Math.min(totalDuration, MAX_DURATION));
+  const [startTime, _setStartTime] = useState(0);
+  const [endTime, _setEndTime] = useState(Math.min(totalDuration, MAX_DURATION));
+  const [uploading, setUploading] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [trackWidth, setTrackWidth] = useState(0);
+  const trackWidthRef = useRef(0);
+  const dragOriginRef = useRef({ start: 0, end: 0 });
+  const lastPlayheadUpdateRef = useRef(0);
+  const isDraggingRef = useRef(false);
+
+  const setStartTime = useCallback((v: number) => {
+    startRef.current = v;
+    _setStartTime(v);
+  }, []);
+
+  const setEndTime = useCallback((v: number) => {
+    endRef.current = v;
+    _setEndTime(v);
+  }, []);
+
+  const clipDuration = endTime - startTime;
+  const isValidClip = clipDuration > 0 && clipDuration <= MAX_DURATION;
+  const [saving, setSaving] = useState(false);
+  const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions();
+
+  const player = useVideoPlayer(videoUri || null, (p) => {
+    p.loop = true;
+    p.play();
+  });
+
+  const playerRef = useRef(player);
+  playerRef.current = player;
+
+  useEffect(() => {
+    if (!player) return;
+    const sub = player.addListener('timeUpdate', ({ currentTime: ct }) => {
+      if (!isDraggingRef.current && Date.now() - lastPlayheadUpdateRef.current > 200) {
+        setCurrentTime(ct);
+        lastPlayheadUpdateRef.current = Date.now();
+      }
+      if (ct >= endRef.current) {
+        player.currentTime = startRef.current;
+      }
+    });
+    return () => sub.remove();
+  }, [player]);
+
+  const handleTrackLayout = useCallback((e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    if (w > 0) {
+      trackWidthRef.current = w;
+      setTrackWidth(w);
+    }
+  }, []);
+
+  const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+
+  const timeToX = (t: number) => {
+    if (totalDuration <= 0 || trackWidth <= 0) return 0;
+    return (t / totalDuration) * trackWidth;
+  };
+
+  const xToTime = useCallback((dx: number) => {
+    if (trackWidthRef.current <= 0) return 0;
+    return (dx / trackWidthRef.current) * totalDuration;
+  }, [totalDuration]);
+
+  const startPan = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderGrant: () => {
+      isDraggingRef.current = true;
+      dragOriginRef.current = { start: startRef.current, end: endRef.current };
+      playerRef.current?.pause();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    onPanResponderMove: (_, gs) => {
+      const dt = xToTime(gs.dx);
+      let ns = Math.round(clamp(dragOriginRef.current.start + dt, 0, dragOriginRef.current.end - 1));
+      if (dragOriginRef.current.end - ns > MAX_DURATION) ns = dragOriginRef.current.end - MAX_DURATION;
+      setStartTime(ns);
+      if (playerRef.current) playerRef.current.currentTime = ns;
+    },
+    onPanResponderRelease: () => {
+      isDraggingRef.current = false;
+      playerRef.current?.play();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+  }), [totalDuration]);
+
+  const endPan = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderGrant: () => {
+      isDraggingRef.current = true;
+      dragOriginRef.current = { start: startRef.current, end: endRef.current };
+      playerRef.current?.pause();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    onPanResponderMove: (_, gs) => {
+      const dt = xToTime(gs.dx);
+      let ne = Math.round(clamp(dragOriginRef.current.end + dt, dragOriginRef.current.start + 1, totalDuration));
+      if (ne - dragOriginRef.current.start > MAX_DURATION) ne = dragOriginRef.current.start + MAX_DURATION;
+      setEndTime(ne);
+    },
+    onPanResponderRelease: () => {
+      isDraggingRef.current = false;
+      playerRef.current?.play();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+  }), [totalDuration]);
+
+  const regionPan = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 4,
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderGrant: () => {
+      isDraggingRef.current = true;
+      dragOriginRef.current = { start: startRef.current, end: endRef.current };
+      playerRef.current?.pause();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    onPanResponderMove: (_, gs) => {
+      const dt = xToTime(gs.dx);
+      const dur = dragOriginRef.current.end - dragOriginRef.current.start;
+      let ns = dragOriginRef.current.start + dt;
+      let ne = ns + dur;
+      if (ns < 0) { ns = 0; ne = dur; }
+      if (ne > totalDuration) { ne = totalDuration; ns = totalDuration - dur; }
+      setStartTime(Math.round(clamp(ns, 0, totalDuration)));
+      setEndTime(Math.round(clamp(ne, 0, totalDuration)));
+      if (playerRef.current) playerRef.current.currentTime = Math.round(clamp(ns, 0, totalDuration));
+    },
+    onPanResponderRelease: () => {
+      isDraggingRef.current = false;
+      playerRef.current?.play();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+  }), [totalDuration]);
+
+  const handleSubmit = async () => {
+    if (!isValidClip) return;
+    setUploading(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      const shouldTrim = startTime > 0 || endTime < totalDuration;
+      const serverUrl = await uploadVideo(videoUri, {
+        programId,
+        exerciseId,
+        uploadedBy,
+        coachId,
+      }, shouldTrim ? { startTime, endTime } : undefined);
+      trimResult.videoUrl = serverUrl;
+      trimResult.exerciseId = exerciseId;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.back();
+    } catch (err: any) {
+      showAlert("Upload Failed", "Failed to upload the video. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSaveToPhotos = async () => {
+    if (Platform.OS === 'web') {
+      showAlert("Not Available", "Saving to photos is only available on mobile devices.");
+      return;
+    }
+    setSaving(true);
+    try {
+      let perm = mediaPermission;
+      if (!perm?.granted) {
+        perm = await requestMediaPermission();
+        if (!perm.granted) {
+          showAlert("Permission Required", "Please allow access to your photo library to save videos.");
+          setSaving(false);
+          return;
+        }
+      }
+      await MediaLibrary.saveToLibraryAsync(videoUri);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showAlert("Saved", "Original video saved to your Photos.");
+    } catch (err) {
+      showAlert("Error", "Failed to save video to Photos.");
+    }
+    setSaving(false);
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const { colors } = useTheme();
+  const webTopInset = Platform.OS === 'web' ? 67 : 0;
+
+  const startX = timeToX(startTime);
+  const endX = timeToX(endTime);
+  const playheadX = timeToX(currentTime);
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top + webTopInset, backgroundColor: colors.background }]}>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn} accessibilityLabel="Close" accessibilityRole="button">
+          <Ionicons name="close" size={24} color={colors.text} />
+        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>Trim & Upload</Text>
+          <Text style={[styles.headerSub, { color: colors.textMuted }]} numberOfLines={1}>{exerciseName}</Text>
+        </View>
+        <View style={styles.durationBadge}>
+          <Ionicons name="time-outline" size={14} color={clipDuration > MAX_DURATION ? colors.danger : colors.primary} />
+          <Text style={[styles.durationText, { color: colors.primary }, clipDuration > MAX_DURATION && { color: colors.danger }]}>
+            {formatTime(clipDuration)}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.videoContainer}>
+        {videoUri ? (
+          <VideoView
+            player={player}
+            style={styles.video}
+            nativeControls={false}
+            contentFit="contain"
+          />
+        ) : (
+          <View style={styles.videoPlaceholder}>
+            <Ionicons name="videocam-off" size={48} color={colors.textMuted} />
+            <Text style={[styles.videoPlaceholderText, { color: colors.textMuted }]}>Video not available</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.controls}>
+        {needsTrim ? (
+          <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
+            Drag the orange handles to select up to 60s from your {formatTime(totalDuration)} video
+          </Text>
+        ) : (
+          <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
+            Drag the orange handles to adjust, or upload the full {formatTime(totalDuration)} video
+          </Text>
+        )}
+
+        <View style={styles.timeDisplay}>
+          <View style={[styles.timePill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.timePillLabel, { color: colors.textMuted }]}>Start</Text>
+            <Text style={[styles.timePillValue, { color: colors.text }]}>{formatTime(startTime)}</Text>
+          </View>
+          <Ionicons name="arrow-forward" size={16} color={colors.textMuted} />
+          <View style={[styles.timePill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.timePillLabel, { color: colors.textMuted }]}>End</Text>
+            <Text style={[styles.timePillValue, { color: colors.text }]}>{formatTime(endTime)}</Text>
+          </View>
+        </View>
+
+        <View style={styles.sliderArea}>
+          <View style={styles.trimRow} onLayout={handleTrackLayout}>
+            {trackWidth > 0 && (
+              <>
+                <View
+                  {...startPan.panHandlers}
+                  hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                  style={[styles.handle, { left: startX, backgroundColor: colors.primary }]}
+                >
+                  <View style={styles.handleInner}>
+                    <View style={styles.gripLine} />
+                    <View style={styles.gripLine} />
+                  </View>
+                </View>
+
+                <View style={[styles.trackMiddle, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  {startX > 0 && <View style={[styles.dimOverlay, { left: 0, width: startX }]} />}
+                  {endX < trackWidth && <View style={[styles.dimOverlay, { right: 0, width: trackWidth - endX }]} />}
+                  <View
+                    style={[styles.selectedZone, { left: startX, width: Math.max(endX - startX, 2), borderColor: colors.primary }]}
+                    {...regionPan.panHandlers}
+                  />
+                  <View style={[styles.playhead, { left: Math.min(playheadX, trackWidth - 2) }]} />
+                </View>
+
+                <View
+                  {...endPan.panHandlers}
+                  hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                  style={[styles.handle, { left: endX, backgroundColor: colors.primary }]}
+                >
+                  <View style={styles.handleInner}>
+                    <View style={styles.gripLine} />
+                    <View style={styles.gripLine} />
+                  </View>
+                </View>
+              </>
+            )}
+          </View>
+
+          <View style={styles.trackLabels}>
+            <Text style={[styles.trackLabelText, { color: colors.textMuted }]}>0:00</Text>
+            <Text style={[styles.trackLabelText, { color: colors.textMuted }]}>{formatTime(totalDuration)}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+        {Platform.OS !== 'web' && (
+          <Pressable
+            style={[styles.savePhotosBtn, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
+            onPress={handleSaveToPhotos}
+            disabled={saving || uploading}
+            accessibilityLabel="Save original video to photos" accessibilityRole="button"
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <>
+                <Ionicons name="download-outline" size={18} color={colors.primary} />
+                <Text style={[styles.savePhotosBtnText, { color: colors.primary }]}>Save Original to Photos</Text>
+              </>
+            )}
+          </Pressable>
+        )}
+        <Pressable
+          style={[styles.submitBtn, { backgroundColor: colors.primary }, (!isValidClip || uploading) && styles.submitBtnDisabled]}
+          onPress={handleSubmit}
+          disabled={!isValidClip || uploading}
+          accessibilityLabel="Upload video" accessibilityRole="button"
+        >
+          {uploading ? (
+            <>
+              <ActivityIndicator size="small" color="#fff" />
+              <Text style={styles.submitBtnText}>Uploading...</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="cloud-upload" size={20} color="#fff" />
+              <Text style={styles.submitBtnText}>
+                Upload {formatTime(clipDuration)} clip
+              </Text>
+            </>
+          )}
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.colors.background },
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 20, paddingVertical: 12,
+  },
+  backBtn: { padding: 4 },
+  headerTitle: { fontFamily: 'Rubik_600SemiBold', fontSize: 18, color: Colors.colors.text },
+  headerSub: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 2 },
+  durationBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(232,81,47,0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20,
+  },
+  durationText: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: Colors.colors.primary },
+  videoContainer: {
+    flex: 1, maxHeight: 320, marginHorizontal: 16, borderRadius: 12, overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  video: { flex: 1, width: '100%' },
+  videoPlaceholder: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  videoPlaceholderText: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textMuted },
+  controls: { paddingHorizontal: 20, paddingTop: 20, gap: 14 },
+  instructionText: {
+    fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textSecondary, textAlign: 'center',
+  },
+  timeDisplay: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12,
+  },
+  timePill: {
+    alignItems: 'center', backgroundColor: Colors.colors.surface,
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10,
+    borderWidth: 1, borderColor: Colors.colors.border,
+  },
+  timePillLabel: { fontFamily: 'Rubik_500Medium', fontSize: 10, color: Colors.colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  timePillValue: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text, marginTop: 2 },
+  sliderArea: { marginTop: 4 },
+  trimRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: TRACK_H,
+    position: 'relative',
+  },
+  handle: {
+    width: HANDLE_W,
+    height: TRACK_H,
+    borderRadius: 6,
+    backgroundColor: Colors.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'absolute',
+    top: 0,
+    zIndex: 10,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 4 },
+      android: { elevation: 6 },
+      web: {},
+    }),
+  },
+  handleInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  gripLine: {
+    width: 8, height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.8)',
+  },
+  trackMiddle: {
+    flex: 1,
+    height: TRACK_H,
+    backgroundColor: Colors.colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.colors.border,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  dimOverlay: {
+    position: 'absolute', top: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  selectedZone: {
+    position: 'absolute', top: 0, bottom: 0,
+    backgroundColor: 'rgba(232,81,47,0.15)',
+    borderTopWidth: 3, borderBottomWidth: 3, borderColor: Colors.colors.primary,
+  },
+  playhead: {
+    position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: '#fff', borderRadius: 1, zIndex: 5,
+  },
+  trackLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 2 },
+  trackLabelText: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted },
+  footer: { paddingHorizontal: 20, paddingTop: 16, gap: 10 },
+  savePhotosBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 12, borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.colors.border,
+    backgroundColor: Colors.colors.backgroundCard,
+  },
+  savePhotosBtnText: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: Colors.colors.primary },
+  submitBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: Colors.colors.primary, paddingVertical: 16, borderRadius: 12,
+  },
+  submitBtnDisabled: { opacity: 0.5 },
+  submitBtnText: { fontFamily: 'Rubik_600SemiBold', fontSize: 16, color: '#fff' },
+});
