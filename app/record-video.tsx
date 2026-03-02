@@ -61,6 +61,7 @@ export default function RecordVideoScreen() {
     try {
       const video = await cameraRef.current.recordAsync({
         maxDuration: 120,
+        mute: true,
       });
 
       if (timerRef.current) clearInterval(timerRef.current);
