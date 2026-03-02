@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Linking, ActivityIndicator, Modal } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Linking, ActivityIndicator, Modal, Alert } from "react-native";
 import { confirmAction, showAlert } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -96,40 +96,38 @@ function VideoPlayerInline({ videoUrl, isCoach }: { videoUrl: string; isCoach?: 
 function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programId, coachId, uploadedBy }: { exercise: Exercise; onVideoRecorded: (url: string) => void; onVideoDeleted: () => void; programId: string; coachId: string; uploadedBy: string }) {
   const { colors } = useTheme();
   const [uploading, setUploading] = useState(false);
-  const [cameraPermission, requestCameraPermission] = ImagePicker.useCameraPermissions();
 
-  const launchRecorder = async () => {
-    if (!cameraPermission?.granted) {
-      if (cameraPermission?.status === 'denied' && !cameraPermission.canAskAgain) {
-        if (Platform.OS !== 'web') {
-          showAlert(
-            "Camera Access Required",
-            "Please enable camera access in your device settings to record videos."
-          );
-        }
-        return;
-      }
-      const result = await requestCameraPermission();
-      if (!result.granted) return;
+  const handleRecord = () => {
+    if (Platform.OS === 'web') {
+      handleWebRecord();
+      return;
     }
+    router.push({
+      pathname: '/record-video',
+      params: {
+        programId,
+        exerciseId: exercise.id,
+        uploadedBy,
+        coachId,
+        exerciseName: exercise.name || 'Exercise',
+      },
+    });
+  };
 
+  const handleWebRecord = async () => {
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['videos'],
         videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
         allowsEditing: false,
       });
-
       if (result.canceled || !result.assets?.[0]) return;
-
       const asset = result.assets[0];
-      const duration = asset.duration || 0;
-      
       router.push({
         pathname: '/trim-video',
         params: {
           videoUri: asset.uri,
-          videoDuration: String(duration),
+          videoDuration: String(asset.duration || 0),
           programId,
           exerciseId: exercise.id,
           uploadedBy,
@@ -137,24 +135,35 @@ function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programI
           exerciseName: exercise.name || 'Exercise',
         },
       });
-    } catch (err: any) {
-      showAlert("Error", "Failed to open camera. Please try again.");
+    } catch {
+      showAlert("Error", "Failed to open camera.");
     }
   };
 
-  const handleRecord = () => {
-    if (Platform.OS === 'web') {
-      launchRecorder();
-      return;
+  const handleUpload = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['videos'],
+        videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
+        allowsEditing: false,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      router.push({
+        pathname: '/trim-video',
+        params: {
+          videoUri: asset.uri,
+          videoDuration: String(asset.duration || 0),
+          programId,
+          exerciseId: exercise.id,
+          uploadedBy,
+          coachId,
+          exerciseName: exercise.name || 'Exercise',
+        },
+      });
+    } catch {
+      showAlert("Error", "Failed to open library.");
     }
-    Alert.alert(
-      "Heads Up",
-      "Recording video will temporarily pause background music. Your music will resume after you finish recording.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Record", style: "default", onPress: () => launchRecorder() },
-      ]
-    );
   };
 
   const handleDelete = () => {
@@ -182,9 +191,13 @@ function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programI
           ) : (
             <>
               <Ionicons name="videocam-outline" size={18} color={colors.primary} />
-              <Text style={[styles.videoBtnText, { color: colors.primary }]}>{hasVideo ? 'Re-record' : 'Record Video'}</Text>
+              <Text style={[styles.videoBtnText, { color: colors.primary }]}>{hasVideo ? 'Re-record' : 'Record'}</Text>
             </>
           )}
+        </Pressable>
+        <Pressable style={[styles.videoBtn, { flex: 1, borderColor: colors.textSecondary }]} onPress={handleUpload} disabled={uploading}>
+          <Ionicons name="cloud-upload-outline" size={18} color={colors.textSecondary} />
+          <Text style={[styles.videoBtnText, { color: colors.textSecondary }]}>Upload</Text>
         </Pressable>
         {hasVideo && (
           <Pressable style={[styles.videoDeleteBtn, { borderColor: colors.danger }]} onPress={handleDelete}>
