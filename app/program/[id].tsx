@@ -477,7 +477,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
             </>
           )}
 
-          {(!isCoach || !isShared) && (
+          {!isCoach && isShared && (
             <VideoRecordButton
               exercise={exercise}
               programId={programId}
