@@ -813,73 +813,77 @@ export default function ProgramDetailScreen() {
   }, [currentWeek]);
 
   const updateExercise = useCallback((exerciseId: string, updates: Partial<Exercise>) => {
-    if (!program || planLocked) return;
+    setProgram(prev => {
+      if (!prev || planLocked) return prev;
 
-    const currentDay = program.weeks
-      .find(w => w.weekNumber === activeWeek)?.days
-      .find(d => d.dayNumber === activeDay);
-    const exerciseIndex = currentDay?.exercises.findIndex(e => e.id === exerciseId) ?? -1;
-    const oldExercise = currentDay?.exercises[exerciseIndex];
-    const nameChanged = updates.name !== undefined && oldExercise && updates.name !== oldExercise.name;
+      const currentDay = prev.weeks
+        .find(w => w.weekNumber === activeWeek)?.days
+        .find(d => d.dayNumber === activeDay);
+      const exerciseIndex = currentDay?.exercises.findIndex(e => e.id === exerciseId) ?? -1;
+      const oldExercise = currentDay?.exercises[exerciseIndex];
+      const nameChanged = updates.name !== undefined && oldExercise && updates.name !== oldExercise.name;
 
-    const updatedWeeks = program.weeks.map(week => {
-      if (week.weekNumber === activeWeek) {
-        return {
-          ...week,
-          days: week.days.map(day => {
-            if (day.dayNumber !== activeDay) return day;
-            return {
-              ...day,
-              exercises: day.exercises.map(ex =>
-                ex.id === exerciseId ? { ...ex, ...updates } : ex
-              ),
-            };
-          }),
-        };
-      }
-      if (nameChanged && week.weekNumber > activeWeek && exerciseIndex >= 0) {
-        return {
-          ...week,
-          days: week.days.map(day => {
-            if (day.dayNumber !== activeDay) return day;
-            const targetEx = day.exercises[exerciseIndex];
-            if (!targetEx) return day;
-            const shouldUpdate = !targetEx.name || targetEx.name === oldExercise.name;
-            if (!shouldUpdate) return day;
-            return {
-              ...day,
-              exercises: day.exercises.map((ex, i) =>
-                i === exerciseIndex ? { ...ex, name: updates.name! } : ex
-              ),
-            };
-          }),
-        };
-      }
-      return week;
+      const updatedWeeks = prev.weeks.map(week => {
+        if (week.weekNumber === activeWeek) {
+          return {
+            ...week,
+            days: week.days.map(day => {
+              if (day.dayNumber !== activeDay) return day;
+              return {
+                ...day,
+                exercises: day.exercises.map(ex =>
+                  ex.id === exerciseId ? { ...ex, ...updates } : ex
+                ),
+              };
+            }),
+          };
+        }
+        if (nameChanged && week.weekNumber > activeWeek && exerciseIndex >= 0) {
+          return {
+            ...week,
+            days: week.days.map(day => {
+              if (day.dayNumber !== activeDay) return day;
+              const targetEx = day.exercises[exerciseIndex];
+              if (!targetEx) return day;
+              const shouldUpdate = !targetEx.name || targetEx.name === oldExercise.name;
+              if (!shouldUpdate) return day;
+              return {
+                ...day,
+                exercises: day.exercises.map((ex, i) =>
+                  i === exerciseIndex ? { ...ex, name: updates.name! } : ex
+                ),
+              };
+            }),
+          };
+        }
+        return week;
+      });
+      return { ...prev, weeks: updatedWeeks };
     });
-    setProgram({ ...program, weeks: updatedWeeks });
     setHasChanges(true);
-  }, [program, activeWeek, activeDay]);
+  }, [activeWeek, activeDay, planLocked]);
 
   const deleteExercise = useCallback((exerciseId: string) => {
-    if (!program || planLocked) return;
-    const updatedWeeks = program.weeks.map(week => {
-      if (week.weekNumber !== activeWeek) return week;
-      return {
-        ...week,
-        days: week.days.map(day => {
-          if (day.dayNumber !== activeDay) return day;
-          return {
-            ...day,
-            exercises: day.exercises.filter(ex => ex.id !== exerciseId),
-          };
-        }),
-      };
+    setProgram(prev => {
+      if (!prev || planLocked) return prev;
+      const updatedWeeks = prev.weeks.map(week => {
+        if (week.weekNumber !== activeWeek) return week;
+        return {
+          ...week,
+          days: week.days.map(day => {
+            if (day.dayNumber !== activeDay) return day;
+            return {
+              ...day,
+              exercises: day.exercises.filter(ex => ex.id !== exerciseId),
+            };
+          }),
+        };
+      });
+      return { ...prev, weeks: updatedWeeks };
     });
-    setProgram({ ...program, weeks: updatedWeeks });
     setHasChanges(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [program, activeWeek, activeDay]);
+  }, [activeWeek, activeDay, planLocked]);
 
   const deleteWeek = useCallback((weekNumber: number) => {
     if (!program || planLocked) return;
