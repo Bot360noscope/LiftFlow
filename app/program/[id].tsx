@@ -98,7 +98,7 @@ function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programI
   const [uploading, setUploading] = useState(false);
   const [cameraPermission, requestCameraPermission] = ImagePicker.useCameraPermissions();
 
-  const handleRecord = async () => {
+  const launchRecorder = async () => {
     if (!cameraPermission?.granted) {
       if (cameraPermission?.status === 'denied' && !cameraPermission.canAskAgain) {
         if (Platform.OS !== 'web') {
@@ -140,6 +140,21 @@ function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programI
     } catch (err: any) {
       showAlert("Error", "Failed to open camera. Please try again.");
     }
+  };
+
+  const handleRecord = () => {
+    if (Platform.OS === 'web') {
+      launchRecorder();
+      return;
+    }
+    Alert.alert(
+      "Heads Up",
+      "Recording video will temporarily pause background music. Your music will resume after you finish recording.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Record", style: "default", onPress: () => launchRecorder() },
+      ]
+    );
   };
 
   const handleDelete = () => {
