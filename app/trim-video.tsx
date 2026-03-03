@@ -107,6 +107,21 @@ export default function TrimVideoScreen() {
     return (dx / trackWidthRef.current) * totalDuration;
   }, [totalDuration]);
 
+  const nudgeStart = useCallback((delta: number) => {
+    const ns = clamp(startRef.current + delta, 0, endRef.current - 1);
+    const finalNs = (endRef.current - ns > MAX_DURATION) ? endRef.current - MAX_DURATION : ns;
+    setStartTime(finalNs);
+    if (playerRef.current) playerRef.current.currentTime = finalNs;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
+
+  const nudgeEnd = useCallback((delta: number) => {
+    let ne = clamp(endRef.current + delta, startRef.current + 1, totalDuration);
+    if (ne - startRef.current > MAX_DURATION) ne = startRef.current + MAX_DURATION;
+    setEndTime(ne);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [totalDuration]);
+
   const startPan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
@@ -237,66 +252,64 @@ export default function TrimVideoScreen() {
   };
 
   const { colors } = useTheme();
-  const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   const startX = timeToX(startTime);
   const endX = timeToX(endTime);
   const playheadX = timeToX(currentTime);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + webTopInset, backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn} accessibilityLabel="Close" accessibilityRole="button">
-          <Ionicons name="close" size={24} color={colors.text} />
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>Trim & Upload</Text>
-          <Text style={[styles.headerSub, { color: colors.textMuted }]} numberOfLines={1}>{exerciseName}</Text>
+    <View style={[styles.container, { backgroundColor: '#000' }]}>
+      {videoUri ? (
+        <VideoView
+          player={player}
+          style={styles.videoFull}
+          nativeControls={false}
+          contentFit="contain"
+        />
+      ) : (
+        <View style={styles.videoPlaceholder}>
+          <Ionicons name="videocam-off" size={48} color="rgba(255,255,255,0.4)" />
         </View>
+      )}
+
+      <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 8) }]}>
+        <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Ionicons name="close" size={28} color="#fff" />
+        </Pressable>
+        <Text style={styles.topTitle} numberOfLines={1}>{exerciseName}</Text>
         <View style={styles.durationBadge}>
-          <Ionicons name="time-outline" size={14} color={clipDuration > MAX_DURATION ? colors.danger : colors.primary} />
-          <Text style={[styles.durationText, { color: colors.primary }, clipDuration > MAX_DURATION && { color: colors.danger }]}>
+          <Text style={[styles.durationText, clipDuration > MAX_DURATION && { color: '#FF6B6B' }]}>
             {formatTime(clipDuration)}
           </Text>
         </View>
       </View>
 
-      <View style={styles.videoContainer}>
-        {videoUri ? (
-          <VideoView
-            player={player}
-            style={styles.video}
-            nativeControls={false}
-            contentFit="contain"
-          />
-        ) : (
-          <View style={styles.videoPlaceholder}>
-            <Ionicons name="videocam-off" size={48} color={colors.textMuted} />
-            <Text style={[styles.videoPlaceholderText, { color: colors.textMuted }]}>Video not available</Text>
+      <View style={[styles.bottomOverlay, { paddingBottom: Math.max(insets.bottom, 16) + (Platform.OS === 'web' ? 34 : 8) }]}>
+        <View style={styles.timeStepperRow}>
+          <View style={styles.stepper}>
+            <Pressable style={styles.stepBtn} onPress={() => nudgeStart(-1)} disabled={startTime <= 0}>
+              <Ionicons name="chevron-back" size={18} color={startTime <= 0 ? 'rgba(255,255,255,0.2)' : '#fff'} />
+            </Pressable>
+            <View style={styles.stepTimeBox}>
+              <Text style={styles.stepLabel}>START</Text>
+              <Text style={styles.stepTime}>{formatTime(startTime)}</Text>
+            </View>
+            <Pressable style={styles.stepBtn} onPress={() => nudgeStart(1)} disabled={startTime >= endTime - 1}>
+              <Ionicons name="chevron-forward" size={18} color={startTime >= endTime - 1 ? 'rgba(255,255,255,0.2)' : '#fff'} />
+            </Pressable>
           </View>
-        )}
-      </View>
 
-      <View style={styles.controls}>
-        {needsTrim ? (
-          <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
-            Drag the orange handles to select up to 60s from your {formatTime(totalDuration)} video
-          </Text>
-        ) : (
-          <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
-            Drag the orange handles to adjust, or upload the full {formatTime(totalDuration)} video
-          </Text>
-        )}
-
-        <View style={styles.timeDisplay}>
-          <View style={[styles.timePill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.timePillLabel, { color: colors.textMuted }]}>Start</Text>
-            <Text style={[styles.timePillValue, { color: colors.text }]}>{formatTime(startTime)}</Text>
-          </View>
-          <Ionicons name="arrow-forward" size={16} color={colors.textMuted} />
-          <View style={[styles.timePill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.timePillLabel, { color: colors.textMuted }]}>End</Text>
-            <Text style={[styles.timePillValue, { color: colors.text }]}>{formatTime(endTime)}</Text>
+          <View style={styles.stepper}>
+            <Pressable style={styles.stepBtn} onPress={() => nudgeEnd(-1)} disabled={endTime <= startTime + 1}>
+              <Ionicons name="chevron-back" size={18} color={endTime <= startTime + 1 ? 'rgba(255,255,255,0.2)' : '#fff'} />
+            </Pressable>
+            <View style={styles.stepTimeBox}>
+              <Text style={styles.stepLabel}>END</Text>
+              <Text style={styles.stepTime}>{formatTime(endTime)}</Text>
+            </View>
+            <Pressable style={styles.stepBtn} onPress={() => nudgeEnd(1)} disabled={endTime >= totalDuration}>
+              <Ionicons name="chevron-forward" size={18} color={endTime >= totalDuration ? 'rgba(255,255,255,0.2)' : '#fff'} />
+            </Pressable>
           </View>
         </View>
 
@@ -307,7 +320,7 @@ export default function TrimVideoScreen() {
                 <View
                   {...startPan.panHandlers}
                   hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-                  style={[styles.handle, { left: startX, backgroundColor: colors.primary }]}
+                  style={[styles.handle, { left: startX }]}
                 >
                   <View style={styles.handleInner}>
                     <View style={styles.gripLine} />
@@ -315,11 +328,11 @@ export default function TrimVideoScreen() {
                   </View>
                 </View>
 
-                <View style={[styles.trackMiddle, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View style={styles.trackMiddle}>
                   {startX > 0 && <View style={[styles.dimOverlay, { left: 0, width: startX }]} />}
                   {endX < trackWidth && <View style={[styles.dimOverlay, { right: 0, width: trackWidth - endX }]} />}
                   <View
-                    style={[styles.selectedZone, { left: startX, width: Math.max(endX - startX, 2), borderColor: colors.primary }]}
+                    style={[styles.selectedZone, { left: startX, width: Math.max(endX - startX, 2) }]}
                     {...regionPan.panHandlers}
                   />
                   <View style={[styles.playhead, { left: Math.min(playheadX, trackWidth - 2) }]} />
@@ -328,7 +341,7 @@ export default function TrimVideoScreen() {
                 <View
                   {...endPan.panHandlers}
                   hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-                  style={[styles.handle, { left: endX, backgroundColor: colors.primary }]}
+                  style={[styles.handle, { left: endX }]}
                 >
                   <View style={styles.handleInner}>
                     <View style={styles.gripLine} />
@@ -338,159 +351,147 @@ export default function TrimVideoScreen() {
               </>
             )}
           </View>
-
           <View style={styles.trackLabels}>
-            <Text style={[styles.trackLabelText, { color: colors.textMuted }]}>0:00</Text>
-            <Text style={[styles.trackLabelText, { color: colors.textMuted }]}>{formatTime(totalDuration)}</Text>
+            <Text style={styles.trackLabelText}>0:00</Text>
+            <Text style={styles.trackLabelText}>{formatTime(totalDuration)}</Text>
           </View>
         </View>
-      </View>
 
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
-        {Platform.OS !== 'web' && (
+        <View style={styles.footerBtns}>
+          {Platform.OS !== 'web' && (
+            <Pressable
+              style={styles.savePhotosBtn}
+              onPress={handleSaveToPhotos}
+              disabled={saving || uploading}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="download-outline" size={20} color="#fff" />
+              )}
+            </Pressable>
+          )}
           <Pressable
-            style={[styles.savePhotosBtn, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
-            onPress={handleSaveToPhotos}
-            disabled={saving || uploading}
-            accessibilityLabel="Save original video to photos" accessibilityRole="button"
+            style={[styles.submitBtn, (!isValidClip || uploading) && styles.submitBtnDisabled]}
+            onPress={handleSubmit}
+            disabled={!isValidClip || uploading}
           >
-            {saving ? (
-              <ActivityIndicator size="small" color={colors.primary} />
+            {uploading ? (
+              <>
+                <ActivityIndicator size="small" color="#fff" />
+                <Text style={styles.submitBtnText}>Uploading...</Text>
+              </>
             ) : (
               <>
-                <Ionicons name="download-outline" size={18} color={colors.primary} />
-                <Text style={[styles.savePhotosBtnText, { color: colors.primary }]}>Save Original to Photos</Text>
+                <Ionicons name="cloud-upload" size={20} color="#fff" />
+                <Text style={styles.submitBtnText}>
+                  Upload {formatTime(clipDuration)}
+                </Text>
               </>
             )}
           </Pressable>
-        )}
-        <Pressable
-          style={[styles.submitBtn, { backgroundColor: colors.primary }, (!isValidClip || uploading) && styles.submitBtnDisabled]}
-          onPress={handleSubmit}
-          disabled={!isValidClip || uploading}
-          accessibilityLabel="Upload video" accessibilityRole="button"
-        >
-          {uploading ? (
-            <>
-              <ActivityIndicator size="small" color="#fff" />
-              <Text style={styles.submitBtnText}>Uploading...</Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="cloud-upload" size={20} color="#fff" />
-              <Text style={styles.submitBtnText}>
-                Upload {formatTime(clipDuration)} clip
-              </Text>
-            </>
-          )}
-        </Pressable>
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.colors.background },
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 20, paddingVertical: 12,
-  },
-  backBtn: { padding: 4 },
-  headerTitle: { fontFamily: 'Rubik_600SemiBold', fontSize: 18, color: Colors.colors.text },
-  headerSub: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 2 },
-  durationBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(232,81,47,0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20,
-  },
-  durationText: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: Colors.colors.primary },
-  videoContainer: {
-    flex: 1, maxHeight: 320, marginHorizontal: 16, borderRadius: 12, overflow: 'hidden',
-    backgroundColor: '#000',
-  },
-  video: { flex: 1, width: '100%' },
+  container: { flex: 1, backgroundColor: '#000' },
+  videoFull: { flex: 1, width: '100%' },
   videoPlaceholder: {
-    flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8,
+    flex: 1, alignItems: 'center', justifyContent: 'center',
   },
-  videoPlaceholderText: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textMuted },
-  controls: { paddingHorizontal: 20, paddingTop: 20, gap: 14 },
-  instructionText: {
-    fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textSecondary, textAlign: 'center',
+  topBar: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingBottom: 12,
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
-  timeDisplay: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12,
+  topTitle: {
+    fontFamily: 'Rubik_600SemiBold', fontSize: 16, color: '#fff',
+    flex: 1, textAlign: 'center', marginHorizontal: 12,
   },
-  timePill: {
-    alignItems: 'center', backgroundColor: Colors.colors.surface,
-    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10,
-    borderWidth: 1, borderColor: Colors.colors.border,
+  durationBadge: {
+    backgroundColor: 'rgba(232,81,47,0.3)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14,
   },
-  timePillLabel: { fontFamily: 'Rubik_500Medium', fontSize: 10, color: Colors.colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  timePillValue: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text, marginTop: 2 },
-  sliderArea: { marginTop: 4 },
+  durationText: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: '#E8512F' },
+  bottomOverlay: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    paddingHorizontal: 16, paddingTop: 16,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  timeStepperRow: {
+    flexDirection: 'row', justifyContent: 'space-around', marginBottom: 14,
+  },
+  stepper: {
+    flexDirection: 'row', alignItems: 'center', gap: 2,
+  },
+  stepBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  stepTimeBox: {
+    alignItems: 'center', minWidth: 60, paddingHorizontal: 8,
+  },
+  stepLabel: {
+    fontFamily: 'Rubik_500Medium', fontSize: 9, color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 1, marginBottom: 2,
+  },
+  stepTime: {
+    fontFamily: 'Rubik_700Bold', fontSize: 18, color: '#fff',
+  },
+  sliderArea: { marginBottom: 14 },
   trimRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: TRACK_H,
-    position: 'relative',
+    flexDirection: 'row', alignItems: 'center',
+    height: TRACK_H, position: 'relative',
   },
   handle: {
-    width: HANDLE_W,
-    height: TRACK_H,
-    borderRadius: 6,
-    backgroundColor: Colors.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'absolute',
-    top: 0,
-    zIndex: 10,
+    width: HANDLE_W, height: TRACK_H, borderRadius: 6,
+    backgroundColor: '#E8512F',
+    alignItems: 'center', justifyContent: 'center',
+    position: 'absolute', top: 0, zIndex: 10,
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 4 },
       android: { elevation: 6 },
       web: {},
     }),
   },
-  handleInner: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
-  },
-  gripLine: {
-    width: 8, height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.8)',
-  },
+  handleInner: { alignItems: 'center', justifyContent: 'center', gap: 3 },
+  gripLine: { width: 8, height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.8)' },
   trackMiddle: {
-    flex: 1,
-    height: TRACK_H,
-    backgroundColor: Colors.colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.colors.border,
-    overflow: 'hidden',
-    position: 'relative',
+    flex: 1, height: TRACK_H,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    overflow: 'hidden', position: 'relative',
   },
   dimOverlay: {
     position: 'absolute', top: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   selectedZone: {
     position: 'absolute', top: 0, bottom: 0,
-    backgroundColor: 'rgba(232,81,47,0.15)',
-    borderTopWidth: 3, borderBottomWidth: 3, borderColor: Colors.colors.primary,
+    backgroundColor: 'rgba(232,81,47,0.2)',
+    borderTopWidth: 3, borderBottomWidth: 3, borderColor: '#E8512F',
   },
   playhead: {
-    position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: '#fff', borderRadius: 1, zIndex: 5,
+    position: 'absolute', top: 0, bottom: 0, width: 2,
+    backgroundColor: '#fff', borderRadius: 1, zIndex: 5,
   },
   trackLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 2 },
-  trackLabelText: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted },
-  footer: { paddingHorizontal: 20, paddingTop: 16, gap: 10 },
-  savePhotosBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 12, borderRadius: 12,
-    borderWidth: 1, borderColor: Colors.colors.border,
-    backgroundColor: Colors.colors.backgroundCard,
+  trackLabelText: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.4)' },
+  footerBtns: {
+    flexDirection: 'row', gap: 10,
   },
-  savePhotosBtnText: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: Colors.colors.primary },
+  savePhotosBtn: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   submitBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: Colors.colors.primary, paddingVertical: 16, borderRadius: 12,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#E8512F', paddingVertical: 14, borderRadius: 12,
   },
   submitBtnDisabled: { opacity: 0.5 },
   submitBtnText: { fontFamily: 'Rubik_600SemiBold', fontSize: 16, color: '#fff' },
