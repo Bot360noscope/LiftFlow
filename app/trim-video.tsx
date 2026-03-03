@@ -65,6 +65,8 @@ export default function TrimVideoScreen() {
   const [saving, setSaving] = useState(false);
   const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions();
 
+  const [isPlaying, setIsPlaying] = useState(true);
+
   const player = useVideoPlayer(videoUri || null, (p) => {
     p.loop = true;
     p.play();
@@ -107,11 +109,25 @@ export default function TrimVideoScreen() {
     return (dx / trackWidthRef.current) * totalDuration;
   }, [totalDuration]);
 
+  const togglePlayPause = useCallback(() => {
+    if (!playerRef.current) return;
+    if (isPlaying) {
+      playerRef.current.pause();
+    } else {
+      playerRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  }, [isPlaying]);
+
   const nudgeStart = useCallback((delta: number) => {
     const ns = clamp(startRef.current + delta, 0, endRef.current - 1);
     const finalNs = (endRef.current - ns > MAX_DURATION) ? endRef.current - MAX_DURATION : ns;
     setStartTime(finalNs);
-    if (playerRef.current) playerRef.current.currentTime = finalNs;
+    if (playerRef.current) {
+      playerRef.current.pause();
+      playerRef.current.currentTime = finalNs;
+    }
+    setIsPlaying(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
@@ -119,6 +135,11 @@ export default function TrimVideoScreen() {
     let ne = clamp(endRef.current + delta, startRef.current + 1, totalDuration);
     if (ne - startRef.current > MAX_DURATION) ne = startRef.current + MAX_DURATION;
     setEndTime(ne);
+    if (playerRef.current) {
+      playerRef.current.pause();
+      playerRef.current.currentTime = ne;
+    }
+    setIsPlaying(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [totalDuration]);
 
@@ -141,7 +162,7 @@ export default function TrimVideoScreen() {
     },
     onPanResponderRelease: () => {
       isDraggingRef.current = false;
-      playerRef.current?.play();
+      setIsPlaying(false);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
   }), [totalDuration]);
@@ -161,10 +182,11 @@ export default function TrimVideoScreen() {
       let ne = Math.round(clamp(dragOriginRef.current.end + dt, dragOriginRef.current.start + 1, totalDuration));
       if (ne - dragOriginRef.current.start > MAX_DURATION) ne = dragOriginRef.current.start + MAX_DURATION;
       setEndTime(ne);
+      if (playerRef.current) playerRef.current.currentTime = ne;
     },
     onPanResponderRelease: () => {
       isDraggingRef.current = false;
-      playerRef.current?.play();
+      setIsPlaying(false);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
   }), [totalDuration]);
@@ -192,7 +214,7 @@ export default function TrimVideoScreen() {
     },
     onPanResponderRelease: () => {
       isDraggingRef.current = false;
-      playerRef.current?.play();
+      setIsPlaying(false);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
   }), [totalDuration]);
@@ -271,6 +293,14 @@ export default function TrimVideoScreen() {
           <Ionicons name="videocam-off" size={48} color="rgba(255,255,255,0.4)" />
         </View>
       )}
+
+      <Pressable style={styles.playPauseOverlay} onPress={togglePlayPause}>
+        {!isPlaying && (
+          <View style={styles.playPauseCircle}>
+            <Ionicons name="play" size={36} color="#fff" style={{ marginLeft: 4 }} />
+          </View>
+        )}
+      </Pressable>
 
       <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 8) }]}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
@@ -401,6 +431,15 @@ const styles = StyleSheet.create({
   videoFull: { flex: 1, width: '100%' },
   videoPlaceholder: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
+  },
+  playPauseOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'center', zIndex: 5,
+  },
+  playPauseCircle: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center', justifyContent: 'center',
   },
   topBar: {
     position: 'absolute', top: 0, left: 0, right: 0,
