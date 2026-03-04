@@ -1,12 +1,12 @@
-diff --git a/node_modules/expo-camera/ios/Current/CameraView.swift b/node_modules/expo-camera/ios/Current/CameraView.swift
-index 6b4c9eb..a4cc481 100644
---- a/node_modules/expo-camera/ios/Current/CameraView.swift
-+++ b/node_modules/expo-camera/ios/Current/CameraView.swift
-@@ -630,26 +630,11 @@ public class CameraView: ExpoView, EXAppLifecycleListener,
+diff --git a/node_modules/expo-camera/ios/Current/CameraSessionManager.swift b/node_modules/expo-camera/ios/Current/CameraSessionManager.swift
+index 1234567..abcdefg 100644
+--- a/node_modules/expo-camera/ios/Current/CameraSessionManager.swift
++++ b/node_modules/expo-camera/ios/Current/CameraSessionManager.swift
+@@ -132,26 +132,11 @@
      session.beginConfiguration()
      defer { session.commitConfiguration() }
  
--    if isMuted {
+-    if delegate.isMuted {
 -      for input in session.inputs {
 -        if let deviceInput = input as? AVCaptureDeviceInput {
 -          if deviceInput.device.hasMediaType(.audio) {
@@ -17,7 +17,7 @@ index 6b4c9eb..a4cc481 100644
 -      }
 -    }
 -
--    if !isMuted && mode == .video {
+-    if !delegate.isMuted && delegate.mode == .video {
 -      if let audioCapturedevice = AVCaptureDevice.default(for: .audio) {
 -        do {
 -          let audioDeviceInput = try AVCaptureDeviceInput(device: audioCapturedevice)
