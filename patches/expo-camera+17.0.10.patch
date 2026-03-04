@@ -1,8 +1,27 @@
+diff --git a/node_modules/expo-camera/android/src/main/java/expo/modules/camera/utils/BarCodeScannerResult.kt b/node_modules/expo-camera/android/src/main/java/expo/modules/camera/utils/BarCodeScannerResult.kt
+index 05a5cbf..0a966b7 100644
+--- a/node_modules/expo-camera/android/src/main/java/expo/modules/camera/utils/BarCodeScannerResult.kt
++++ b/node_modules/expo-camera/android/src/main/java/expo/modules/camera/utils/BarCodeScannerResult.kt
+@@ -18,10 +18,10 @@ class BarCodeScannerResult(
+       if (cornerPoints.isEmpty()) {
+         return BoundingBox(0, 0, 0, 0)
+       }
+-      var minX = Int.Companion.MAX_VALUE
+-      var minY = Int.Companion.MAX_VALUE
+-      var maxX = Int.Companion.MIN_VALUE
+-      var maxY = Int.Companion.MIN_VALUE
++      var minX = Int.MAX_VALUE
++      var minY = Int.MAX_VALUE
++      var maxX = Int.MIN_VALUE
++      var maxY = Int.MIN_VALUE
+ 
+       var i = 0
+       while (i < cornerPoints.size) {
 diff --git a/node_modules/expo-camera/ios/Current/CameraSessionManager.swift b/node_modules/expo-camera/ios/Current/CameraSessionManager.swift
-index 1234567..abcdefg 100644
+index dc2a548..1cac7f8 100644
 --- a/node_modules/expo-camera/ios/Current/CameraSessionManager.swift
 +++ b/node_modules/expo-camera/ios/Current/CameraSessionManager.swift
-@@ -132,26 +132,11 @@
+@@ -132,26 +132,11 @@ class CameraSessionManager: NSObject {
      session.beginConfiguration()
      defer { session.commitConfiguration() }
  
