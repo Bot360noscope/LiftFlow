@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center',
   },
   playPauseOverlay: {
-    position: 'absolute', top: '25%', left: '25%', right: '25%', bottom: '25%',
+    position: 'absolute', top: '20%', left: '25%', right: '25%', bottom: '40%',
     alignItems: 'center', justifyContent: 'center', zIndex: 2,
   },
   playPauseCircle: {
