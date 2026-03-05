@@ -386,12 +386,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/programs/:id", async (req, res) => {
     try {
-      const { title, description, weeks, daysPerWeek, clientId, status } = req.body;
+      const { title, description, weeks, daysPerWeek, clientId, status, updatedAt: clientUpdatedAt, role: senderRole } = req.body;
       const [existingProgram] = await db.select().from(programs).where(eq(programs.id, req.params.id));
-      if (existingProgram?.coachId && existingProgram?.clientId) {
+      if (!existingProgram) return res.status(404).json({ error: "Program not found" });
+      if (existingProgram.coachId && existingProgram.clientId) {
         const check = await isCoachOverLimit(existingProgram.coachId);
         if (check.overLimit) {
           return res.status(403).json({ error: `Your plan supports ${check.limit} client${check.limit !== 1 ? 's' : ''} but you have ${check.clientCount}. Please upgrade your plan or remove clients to continue editing shared programs.`, code: 'PLAN_LIMIT_EXCEEDED' });
+        }
+      }
+      if (senderRole === 'client' && clientUpdatedAt && existingProgram.updatedBy === 'coach') {
+        const serverTime = existingProgram.updatedAt ? new Date(existingProgram.updatedAt).getTime() : 0;
+        const clientTime = new Date(clientUpdatedAt).getTime();
+        if (serverTime > clientTime) {
+          return res.status(409).json({ error: "Coach has updated this program", code: 'COACH_UPDATED', program: existingProgram });
         }
       }
       const updates: any = {};
@@ -401,6 +409,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (daysPerWeek !== undefined) updates.daysPerWeek = daysPerWeek;
       if (clientId !== undefined) updates.clientId = clientId;
       if (status !== undefined) updates.status = status;
+      updates.updatedAt = new Date();
+      updates.updatedBy = senderRole || 'coach';
       const [updated] = await db.update(programs).set(updates).where(eq(programs.id, req.params.id)).returning();
       res.json(updated);
     } catch (e: any) { res.status(500).json({ error: e.message }); }

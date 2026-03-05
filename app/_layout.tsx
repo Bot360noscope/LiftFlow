@@ -18,6 +18,7 @@ import { router } from "expo-router";
 import AuthScreen from "./auth";
 import OnboardingScreen from "./onboarding";
 import Colors from "@/constants/colors";
+import OfflineBanner from "@/components/OfflineBanner";
 import {
   useFonts,
   Rubik_400Regular,
@@ -118,7 +119,12 @@ function AppContent() {
     );
   }
 
-  return <RootLayoutNav />;
+  return (
+    <View style={{ flex: 1 }}>
+      <OfflineBanner />
+      <RootLayoutNav />
+    </View>
+  );
 }
 
 export default function RootLayout() {

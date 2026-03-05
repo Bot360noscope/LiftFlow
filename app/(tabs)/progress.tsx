@@ -10,7 +10,7 @@ import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { ProgressSkeleton } from "@/components/SkeletonLoader";
-import { getPRs, deletePR, getProfile, getBestPR, getPrograms, getClients, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, type LiftPR, type Program, type ClientInfo } from "@/lib/storage";
+import { getPRs, deletePR, getProfile, getBestPR, getPrograms, getClients, getDashboard, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, type LiftPR, type Program, type ClientInfo } from "@/lib/storage";
 
 const LIFT_COLORS: Record<string, string> = {
   squat: Colors.colors.squat,
@@ -107,12 +107,12 @@ export default function ProgressScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [prData, profile, progs, cl] = await Promise.all([getPRs(), getProfile(), getPrograms(), getClients()]);
-      setPRs(prData);
-      setUnit(profile.weightUnit);
-      setIsCoach(profile.role === 'coach');
-      setPrograms(progs);
-      setClients(cl);
+      const dashboard = await getDashboard();
+      setPRs(dashboard.prs);
+      setUnit(dashboard.profile.weightUnit);
+      setIsCoach(dashboard.profile.role === 'coach');
+      setPrograms(dashboard.programs);
+      setClients(dashboard.clients);
       setError(false);
     } catch (e) {
       setError(true);

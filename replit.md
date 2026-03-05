@@ -9,19 +9,27 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **Database**: PostgreSQL via Drizzle ORM (shared/schema.ts)
 - **Data Flow**: Frontend → lib/storage.ts (API client) → Express API → PostgreSQL
 - **WebSocket**: Real-time messaging and notifications via ws library on /ws path. Server: server/websocket.ts broadcasts events. Client: lib/websocket.ts manages connection, auto-reconnect, and event listeners. Events: new_message, message_sent, new_notification
-- **Polling**: Home screen polls /api/dashboard every 10 seconds. Chat screens use 15-30s fallback polling with WebSocket as primary. Tab badge uses 10s polling + WebSocket
-- **Caching**: All data cached in AsyncStorage (lib/storage.ts persistCache/loadCacheFromDisk). App loads instantly from cache, refreshes in background
+- **Polling**: Home screen polls /api/dashboard every 60 seconds. Chat screens use 15-30s fallback polling with WebSocket as primary. Tab badge uses polling + WebSocket
+- **Caching**: All data cached in AsyncStorage (lib/storage.ts persistCache/loadCacheFromDisk). App loads instantly from cache, refreshes in background. STALE_MS = 60 seconds. Per-program persistence via `liftflow_program_${id}` keys
+- **Offline Support**: Full offline-first architecture via lib/offline-queue.ts and lib/sync-manager.ts. Mutations (program updates, PRs, messages) are queued when offline and flushed on reconnect. Network status detected via @react-native-community/netinfo. OfflineBanner component shows connectivity state
+- **Coach-Driven Sync**: Coach updates are source of truth. Server returns 409 when client sends stale update that conflicts with newer coach changes. Client-side handles 409 by refreshing to latest server version. Programs track updatedAt/updatedBy columns
 - **Video/File Storage**: Cloudflare R2 (S3-compatible) via @aws-sdk/client-s3. Videos and avatars stored in R2 bucket `liftflow-uploads` under `videos/` and `avatars/` prefixes. Multer with memory storage for upload handling, auto-cleanup (3 days after coach views, 7 days if unviewed). R2 client helper in server/r2.ts
 - **Theme**: Light/Dark mode with energetic orange/red palette (#E8512F). Theme context in lib/theme-context.tsx provides useTheme() hook. Colors defined in constants/colors.ts with darkColors and lightColors. Toggle in Profile settings. Persisted to AsyncStorage under 'liftflow_theme' key. All screens use useTheme() for dynamic colors via inline style overrides on key elements
 
 ## Database Schema (shared/schema.ts)
 - **profiles**: id, name, role (coach/client), weightUnit, coachCode, pushToken, plan, planUserLimit, planExpiresAt, createdAt
-- **programs**: id, profileId, clientId, title, totalWeeks, daysPerWeek, rowCount, shareCode, exercises (JSONB), createdAt, updatedAt
+- **programs**: id, profileId, clientId, title, totalWeeks, daysPerWeek, rowCount, shareCode, exercises (JSONB), createdAt, updatedAt, updatedBy
 - **clients**: id, coachId, name, email, joinedAt
 - **prs**: id, profileId, liftType, weight, date
 - **notifications**: id, profileId, title, message, type, isRead, createdAt
 - **messages**: id, coachId, clientProfileId, senderRole, text, createdAt
 - **video_uploads**: id, filename, programId, exerciseId, uploadedBy, coachId, coachViewedAt, uploadedAt
+
+## Offline Architecture
+- **lib/offline-queue.ts**: AsyncStorage-backed queue for pending mutations. Entries: {id, type, endpoint, method, data, timestamp}. Functions: enqueue(), dequeue(), flushQueue(), getPendingCount()
+- **lib/sync-manager.ts**: Network detection via NetInfo, sync on reconnect, app foreground sync. Exports: getIsOnline(), useNetworkStatus() hook, registerSyncCallback(). No circular imports — uses callback pattern
+- **components/OfflineBanner.tsx**: Shows offline/syncing/pending status banner. Auto-hides when online and synced
+- **Conflict Resolution**: PUT /api/programs/:id checks updatedAt/updatedBy. Coach updates always win. Client updates rejected with 409 + server version if coach made newer changes
 
 ## API Endpoints (server/routes.ts)
 - POST /api/profiles, GET /api/profiles/:id, PUT /api/profiles/:id

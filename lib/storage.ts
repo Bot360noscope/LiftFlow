@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { apiGet, apiPost, apiPut, apiDelete, setAuthToken, clearAuthToken, getAuthToken } from './api';
+import { enqueue } from './offline-queue';
+import { getIsOnline, registerSyncCallback } from './sync-manager';
 
 export interface LiftPR {
   id: string;
@@ -45,6 +47,8 @@ export interface Program {
   coachId: string;
   clientId: string | null;
   status: 'draft' | 'active' | 'completed';
+  updatedAt?: string;
+  updatedBy?: 'coach' | 'client';
 }
 
 export interface UserProfile {
@@ -121,7 +125,7 @@ const cache: {
   loaded: false,
 };
 
-const STALE_MS = 10000;
+const STALE_MS = 60000;
 
 function isFresh(fetchedAt: number): boolean {
   return Date.now() - fetchedAt < STALE_MS;
@@ -140,6 +144,22 @@ function persistCache() {
   };
   AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data)).catch(() => {});
 }
+
+function persistProgram(id: string, program: Program) {
+  AsyncStorage.setItem(`liftflow_program_${id}`, JSON.stringify(program)).catch(() => {});
+}
+
+async function getPersistedProgram(id: string): Promise<Program | null> {
+  try {
+    const raw = await AsyncStorage.getItem(`liftflow_program_${id}`);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return null;
+}
+
+registerSyncCallback(async () => {
+  try { await getDashboard(); } catch {}
+});
 
 export async function loadCacheFromDisk(): Promise<void> {
   if (cache.loaded) return;
@@ -299,36 +319,50 @@ function mapProgram(p: any): Program {
     coachId: p.coachId || p.coach_id,
     clientId: p.clientId || p.client_id || null,
     status: (p.status || 'active') as 'draft' | 'active' | 'completed',
+    updatedAt: p.updatedAt || p.updated_at || p.createdAt || p.created_at,
+    updatedBy: (p.updatedBy || p.updated_by || 'coach') as 'coach' | 'client',
   };
 }
 
 export async function getPrograms(): Promise<Program[]> {
+  if (cache.programs.length > 0 && isFresh(cache.programsFetchedAt)) return cache.programs;
+
+  if (!getIsOnline()) return cache.programs;
+
   const profileId = await requireProfileId();
   const data = await apiGet<any[]>(`/api/programs?profileId=${profileId}`);
   const result = data.map(mapProgram);
   cache.programs = result;
   cache.programsFetchedAt = Date.now();
   persistCache();
+  for (const prog of result) {
+    persistProgram(prog.id, prog);
+  }
   return result;
 }
 
 export async function getProgram(id: string): Promise<Program | null> {
+  const cached = cache.programs.find(p => p.id === id);
+  if (cached && isFresh(cache.programsFetchedAt)) return cached;
+
+  const persisted = await getPersistedProgram(id);
+
+  if (!getIsOnline()) {
+    return cached || persisted || null;
+  }
+
   try {
     const p = await apiGet<any>(`/api/programs/${id}`);
-    return {
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      weeks: p.weeks as WorkoutWeek[],
-      createdAt: p.createdAt || p.created_at,
-      daysPerWeek: p.daysPerWeek || p.days_per_week,
-      shareCode: p.shareCode || p.share_code,
-      coachId: p.coachId || p.coach_id,
-      clientId: p.clientId || p.client_id || null,
-      status: (p.status || 'active') as 'draft' | 'active' | 'completed',
-    };
+    const mapped = mapProgram(p);
+    cache.programs = cache.programs.map(prog => prog.id === id ? mapped : prog);
+    if (!cache.programs.find(prog => prog.id === id)) {
+      cache.programs.push(mapped);
+    }
+    persistCache();
+    persistProgram(id, mapped);
+    return mapped;
   } catch {
-    return null;
+    return cached || persisted || null;
   }
 }
 
@@ -357,14 +391,70 @@ export async function addProgram(program: Omit<Program, 'id' | 'createdAt' | 'sh
 }
 
 export async function updateProgram(program: Program): Promise<void> {
-  await apiPut(`/api/programs/${program.id}`, {
-    title: program.title,
-    description: program.description,
-    weeks: program.weeks,
-    daysPerWeek: program.daysPerWeek,
-    clientId: program.clientId,
-    status: program.status,
-  });
+  const role = cache.profile?.role || 'client';
+  const now = new Date().toISOString();
+
+  cache.programs = cache.programs.map(p => p.id === program.id ? { ...program, updatedAt: now, updatedBy: role } : p);
+  persistCache();
+  persistProgram(program.id, { ...program, updatedAt: now, updatedBy: role });
+
+  if (!getIsOnline()) {
+    await enqueue({
+      type: 'updateProgram',
+      endpoint: `/api/programs/${program.id}`,
+      method: 'PUT',
+      data: {
+        title: program.title,
+        description: program.description,
+        weeks: program.weeks,
+        daysPerWeek: program.daysPerWeek,
+        clientId: program.clientId,
+        status: program.status,
+        updatedAt: program.updatedAt || now,
+        role,
+      },
+    });
+    return;
+  }
+
+  try {
+    const result = await apiPut<any>(`/api/programs/${program.id}`, {
+      title: program.title,
+      description: program.description,
+      weeks: program.weeks,
+      daysPerWeek: program.daysPerWeek,
+      clientId: program.clientId,
+      status: program.status,
+      updatedAt: program.updatedAt || now,
+      role,
+    });
+    if (result) {
+      const mapped = mapProgram(result);
+      cache.programs = cache.programs.map(p => p.id === mapped.id ? mapped : p);
+      persistCache();
+      persistProgram(mapped.id, mapped);
+    }
+  } catch (e: any) {
+    if (e.message?.includes('Coach has updated')) {
+      cache.programsFetchedAt = 0;
+      throw new Error('Your coach has updated this program. Refreshing to latest version.');
+    }
+    await enqueue({
+      type: 'updateProgram',
+      endpoint: `/api/programs/${program.id}`,
+      method: 'PUT',
+      data: {
+        title: program.title,
+        description: program.description,
+        weeks: program.weeks,
+        daysPerWeek: program.daysPerWeek,
+        clientId: program.clientId,
+        status: program.status,
+        updatedAt: program.updatedAt || now,
+        role,
+      },
+    });
+  }
 }
 
 export async function assignProgramToClient(programId: string, clientId: string): Promise<Program> {
@@ -386,6 +476,9 @@ export async function deleteProgram(id: string): Promise<void> {
 }
 
 export async function getPRs(): Promise<LiftPR[]> {
+  if (cache.prs.length > 0 && isFresh(cache.prsFetchedAt)) return cache.prs;
+  if (!getIsOnline()) return cache.prs;
+
   const profileId = await requireProfileId();
   const data = await apiGet<any[]>(`/api/prs?profileId=${profileId}`);
   const result = data.map(p => ({
@@ -404,26 +497,67 @@ export async function getPRs(): Promise<LiftPR[]> {
 
 export async function addPR(pr: Omit<LiftPR, 'id'>): Promise<LiftPR> {
   const profileId = await requireProfileId();
-  const result = await apiPost<any>('/api/prs', {
-    profileId,
-    liftType: pr.liftType,
-    weight: pr.weight,
-    unit: pr.unit,
-    date: pr.date,
-    notes: pr.notes,
-  });
-  return {
-    id: result.id,
-    liftType: (result.liftType || result.lift_type) as 'squat' | 'deadlift' | 'bench',
-    weight: result.weight,
-    unit: result.unit as 'kg' | 'lbs',
-    date: result.date,
-    notes: result.notes,
-  };
+  const tempId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+  const localPR: LiftPR = { id: tempId, ...pr };
+
+  cache.prs = [localPR, ...cache.prs];
+  persistCache();
+
+  if (!getIsOnline()) {
+    await enqueue({
+      type: 'addPR',
+      endpoint: '/api/prs',
+      method: 'POST',
+      data: { profileId, liftType: pr.liftType, weight: pr.weight, unit: pr.unit, date: pr.date, notes: pr.notes },
+    });
+    return localPR;
+  }
+
+  try {
+    const result = await apiPost<any>('/api/prs', {
+      profileId,
+      liftType: pr.liftType,
+      weight: pr.weight,
+      unit: pr.unit,
+      date: pr.date,
+      notes: pr.notes,
+    });
+    const serverPR: LiftPR = {
+      id: result.id,
+      liftType: (result.liftType || result.lift_type) as 'squat' | 'deadlift' | 'bench',
+      weight: result.weight,
+      unit: result.unit as 'kg' | 'lbs',
+      date: result.date,
+      notes: result.notes,
+    };
+    cache.prs = cache.prs.map(p => p.id === tempId ? serverPR : p);
+    persistCache();
+    return serverPR;
+  } catch {
+    await enqueue({
+      type: 'addPR',
+      endpoint: '/api/prs',
+      method: 'POST',
+      data: { profileId, liftType: pr.liftType, weight: pr.weight, unit: pr.unit, date: pr.date, notes: pr.notes },
+    });
+    return localPR;
+  }
 }
 
 export async function deletePR(id: string): Promise<void> {
-  await apiDelete(`/api/prs/${id}`);
+  cache.prs = cache.prs.filter(p => p.id !== id);
+  persistCache();
+
+  if (!getIsOnline()) {
+    await enqueue({ type: 'deletePR', endpoint: `/api/prs/${id}`, method: 'DELETE', data: {} });
+    return;
+  }
+
+  try {
+    await apiDelete(`/api/prs/${id}`);
+  } catch {
+    await enqueue({ type: 'deletePR', endpoint: `/api/prs/${id}`, method: 'DELETE', data: {} });
+  }
 }
 
 export function getBestPR(prs: LiftPR[], liftType: string): LiftPR | null {
@@ -573,20 +707,50 @@ export async function getMessages(coachId: string, clientProfileId: string, befo
 
 export async function sendMessage(coachId: string, clientProfileId: string, text: string): Promise<ChatMessage> {
   const role = cache.profile?.role || (await getProfile()).role;
-  const msg = await apiPost<any>('/api/messages', {
+  const tempId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+  const localMsg: ChatMessage = {
+    id: tempId,
     coachId,
     clientProfileId,
     senderRole: role,
     text,
-  });
-  return {
-    id: msg.id,
-    coachId: msg.coachId || msg.coach_id,
-    clientProfileId: msg.clientProfileId || msg.client_profile_id,
-    senderRole: (msg.senderRole || msg.sender_role) as 'coach' | 'client',
-    text: msg.text,
-    createdAt: msg.createdAt || msg.created_at,
+    createdAt: new Date().toISOString(),
   };
+
+  if (!getIsOnline()) {
+    await enqueue({
+      type: 'sendMessage',
+      endpoint: '/api/messages',
+      method: 'POST',
+      data: { coachId, clientProfileId, senderRole: role, text },
+    });
+    return localMsg;
+  }
+
+  try {
+    const msg = await apiPost<any>('/api/messages', {
+      coachId,
+      clientProfileId,
+      senderRole: role,
+      text,
+    });
+    return {
+      id: msg.id,
+      coachId: msg.coachId || msg.coach_id,
+      clientProfileId: msg.clientProfileId || msg.client_profile_id,
+      senderRole: (msg.senderRole || msg.sender_role) as 'coach' | 'client',
+      text: msg.text,
+      createdAt: msg.createdAt || msg.created_at,
+    };
+  } catch {
+    await enqueue({
+      type: 'sendMessage',
+      endpoint: '/api/messages',
+      method: 'POST',
+      data: { coachId, clientProfileId, senderRole: role, text },
+    });
+    return localMsg;
+  }
 }
 
 export async function register(email: string, password: string, name: string, role: 'coach' | 'client'): Promise<{ token: string; profile: UserProfile }> {
@@ -693,6 +857,9 @@ export async function getDashboard(): Promise<DashboardData> {
   cache.clientsFetchedAt = Date.now();
   cache.latestMessages = data.latestMessages || {};
   persistCache();
+  for (const prog of progs) {
+    persistProgram(prog.id, prog);
+  }
   return {
     profile,
     programs: progs,

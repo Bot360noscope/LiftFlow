@@ -10,7 +10,7 @@ import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { ProgramsSkeleton } from "@/components/SkeletonLoader";
-import { getPrograms, deleteProgram, getProfile, getCachedPrograms, getCachedProfile, type Program } from "@/lib/storage";
+import { getPrograms, deleteProgram, getProfile, getDashboard, getCachedPrograms, getCachedProfile, type Program } from "@/lib/storage";
 
 export default function ProgramsScreen() {
   const { colors } = useTheme();
@@ -22,12 +22,19 @@ export default function ProgramsScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [progs, profile] = await Promise.all([getPrograms(), getProfile()]);
-      setPrograms(progs);
-      setRole(profile.role);
+      const dashboard = await getDashboard();
+      setPrograms(dashboard.programs);
+      setRole(dashboard.profile.role);
       setError(false);
     } catch (e) {
-      setError(true);
+      try {
+        const [progs, profile] = await Promise.all([getPrograms(), getProfile()]);
+        setPrograms(progs);
+        setRole(profile.role);
+        setError(false);
+      } catch {
+        setError(true);
+      }
     } finally {
       setLoading(false);
     }
