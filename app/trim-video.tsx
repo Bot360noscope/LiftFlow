@@ -350,7 +350,7 @@ export default function TrimVideoScreen() {
                 <View
                   {...startPan.panHandlers}
                   hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-                  style={[styles.handle, { left: startX }]}
+                  style={[styles.handle, { left: startX - HANDLE_W }]}
                 >
                   <View style={styles.handleInner}>
                     <View style={styles.gripLine} />
