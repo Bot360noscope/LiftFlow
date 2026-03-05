@@ -498,7 +498,19 @@ export async function assignProgramToClient(programId: string, clientId: string)
 }
 
 export async function deleteProgram(id: string): Promise<void> {
-  await apiDelete(`/api/programs/${id}`);
+  cache.programs = cache.programs.filter(p => p.id !== id);
+  persistCache();
+
+  if (!getIsOnline()) {
+    await enqueue({ type: 'deleteProgram', endpoint: `/api/programs/${id}`, method: 'DELETE', data: {} });
+    return;
+  }
+
+  try {
+    await apiDelete(`/api/programs/${id}`);
+  } catch {
+    await enqueue({ type: 'deleteProgram', endpoint: `/api/programs/${id}`, method: 'DELETE', data: {} });
+  }
 }
 
 export async function getPRs(): Promise<LiftPR[]> {
@@ -659,45 +671,74 @@ export async function getNotifications(): Promise<AppNotification[]> {
 }
 
 export async function addNotification(notification: Omit<AppNotification, 'id' | 'createdAt' | 'read'> & { targetProfileId?: string }): Promise<void> {
-  const profileId = await requireProfileId();
-  await apiPost('/api/notifications', {
-    profileId: notification.targetProfileId || profileId,
-    type: notification.type,
-    title: notification.title,
-    message: notification.message,
-    programId: notification.programId,
-    programTitle: notification.programTitle,
-    exerciseName: notification.exerciseName,
-    fromRole: notification.fromRole,
-  });
+  if (!getIsOnline()) return;
+  try {
+    const profileId = await requireProfileId();
+    await apiPost('/api/notifications', {
+      profileId: notification.targetProfileId || profileId,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      programId: notification.programId,
+      programTitle: notification.programTitle,
+      exerciseName: notification.exerciseName,
+      fromRole: notification.fromRole,
+    });
+  } catch {}
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  await apiPut(`/api/notifications/${id}/read`);
+  cache.notifications = cache.notifications.map(n => n.id === id ? { ...n, read: true } : n);
+  persistCache();
+  if (!getIsOnline()) return;
+  try { await apiPut(`/api/notifications/${id}/read`); } catch {}
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  const profileId = await requireProfileId();
-  await apiPut(`/api/notifications/read-all?profileId=${profileId}`);
+  cache.notifications = cache.notifications.map(n => ({ ...n, read: true }));
+  persistCache();
+  if (!getIsOnline()) return;
+  try {
+    const profileId = await requireProfileId();
+    await apiPut(`/api/notifications/read-all?profileId=${profileId}`);
+  } catch {}
 }
 
 export async function clearAllNotifications(): Promise<void> {
-  const profileId = await requireProfileId();
-  await apiDelete(`/api/notifications?profileId=${profileId}`);
+  cache.notifications = [];
+  persistCache();
+  if (!getIsOnline()) return;
+  try {
+    const profileId = await requireProfileId();
+    await apiDelete(`/api/notifications?profileId=${profileId}`);
+  } catch {}
 }
 
 export async function deleteNotification(id: string): Promise<void> {
-  await apiDelete(`/api/notifications/${id}`);
+  cache.notifications = cache.notifications.filter(n => n.id !== id);
+  persistCache();
+  if (!getIsOnline()) return;
+  try { await apiDelete(`/api/notifications/${id}`); } catch {}
 }
 
 export async function deleteNotificationsByProgram(programId: string): Promise<void> {
-  const profileId = await requireProfileId();
-  await apiDelete(`/api/notifications/by-program/${programId}?profileId=${profileId}`);
+  cache.notifications = cache.notifications.filter(n => n.programId !== programId);
+  persistCache();
+  if (!getIsOnline()) return;
+  try {
+    const profileId = await requireProfileId();
+    await apiDelete(`/api/notifications/by-program/${programId}?profileId=${profileId}`);
+  } catch {}
 }
 
 export async function markNotificationsReadByProgram(programId: string): Promise<void> {
-  const profileId = await requireProfileId();
-  await apiPut(`/api/notifications/read-by-program/${programId}?profileId=${profileId}`);
+  cache.notifications = cache.notifications.map(n => n.programId === programId ? { ...n, read: true } : n);
+  persistCache();
+  if (!getIsOnline()) return;
+  try {
+    const profileId = await requireProfileId();
+    await apiPut(`/api/notifications/read-by-program/${programId}?profileId=${profileId}`);
+  } catch {}
 }
 
 export async function getUnreadNotificationCount(): Promise<number> {
@@ -725,16 +766,21 @@ function mapMessage(m: any): ChatMessage {
 }
 
 export async function getMessages(coachId: string, clientProfileId: string, before?: string): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
-  let url = `/api/messages?coachId=${coachId}&clientProfileId=${clientProfileId}&limit=50`;
-  if (before) url += `&before=${encodeURIComponent(before)}`;
-  const data = await apiGet<any>(url);
-  if (Array.isArray(data)) {
-    return { messages: data.map(mapMessage), hasMore: false };
+  if (!getIsOnline()) return { messages: [], hasMore: false };
+  try {
+    let url = `/api/messages?coachId=${coachId}&clientProfileId=${clientProfileId}&limit=50`;
+    if (before) url += `&before=${encodeURIComponent(before)}`;
+    const data = await apiGet<any>(url);
+    if (Array.isArray(data)) {
+      return { messages: data.map(mapMessage), hasMore: false };
+    }
+    return {
+      messages: (data.messages || []).map(mapMessage),
+      hasMore: !!data.hasMore,
+    };
+  } catch {
+    return { messages: [], hasMore: false };
   }
-  return {
-    messages: (data.messages || []).map(mapMessage),
-    hasMore: !!data.hasMore,
-  };
 }
 
 export async function sendMessage(coachId: string, clientProfileId: string, text: string): Promise<ChatMessage> {
@@ -840,8 +886,16 @@ export async function leaveCoach(): Promise<void> {
 }
 
 export async function getLatestMessages(): Promise<LatestMessages> {
-  const profileId = await requireProfileId();
-  return apiGet<LatestMessages>(`/api/messages/latest?coachId=${profileId}`);
+  if (!getIsOnline()) return cache.latestMessages;
+  try {
+    const profileId = await requireProfileId();
+    const result = await apiGet<LatestMessages>(`/api/messages/latest?coachId=${profileId}`);
+    cache.latestMessages = result;
+    persistCache();
+    return result;
+  } catch {
+    return cache.latestMessages;
+  }
 }
 
 export interface DashboardData {
