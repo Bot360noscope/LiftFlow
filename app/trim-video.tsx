@@ -14,7 +14,7 @@ import { trimResult } from "@/lib/trim-result";
 
 const MAX_DURATION = 60;
 const TRACK_H = 48;
-const HANDLE_W = 22;
+const HANDLE_W = 14;
 
 export default function TrimVideoScreen() {
   const insets = useSafeAreaInsets();
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   durationText: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: '#E8512F' },
   bottomOverlay: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 16, paddingTop: 16,
+    paddingHorizontal: 24, paddingTop: 16,
     backgroundColor: 'rgba(0,0,0,0.6)',
   },
   timeStepperRow: {
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
     }),
   },
   handleInner: { alignItems: 'center', justifyContent: 'center', gap: 3 },
-  gripLine: { width: 8, height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.8)' },
+  gripLine: { width: 4, height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.8)' },
   trackMiddle: {
     flex: 1, height: TRACK_H,
     backgroundColor: 'rgba(255,255,255,0.1)',
