@@ -250,6 +250,12 @@ function mapProfile(profile: any): UserProfile {
 
 export async function getProfile(): Promise<UserProfile> {
   if (cache.profile && isFresh(cache.profileFetchedAt)) return cache.profile;
+
+  if (!getIsOnline()) {
+    if (cache.profile) return cache.profile;
+    throw new Error('No cached profile available offline');
+  }
+
   if (profileInflight) return profileInflight;
   profileInflight = _fetchProfile();
   try {
@@ -269,8 +275,10 @@ async function _fetchProfile(): Promise<UserProfile> {
       persistCache();
       return result;
     } catch {
+      if (cache.profile) return cache.profile;
     }
   }
+  if (!getIsOnline() && cache.profile) return cache.profile;
   const profile = await apiPost<any>('/api/profiles', {
     name: '',
     role: 'client',
@@ -293,12 +301,30 @@ export async function saveProfile(profile: UserProfile): Promise<void> {
   cache.profileFetchedAt = Date.now();
   persistCache();
   await setProfileId(profile.id);
-  await apiPut(`/api/profiles/${profile.id}`, {
-    name: profile.name,
-    role: profile.role,
-    weightUnit: profile.weightUnit,
-    coachCode: profile.coachCode,
-  });
+  if (!getIsOnline()) {
+    await enqueue({
+      type: 'updateProfile',
+      endpoint: `/api/profiles/${profile.id}`,
+      method: 'PUT',
+      data: { name: profile.name, role: profile.role, weightUnit: profile.weightUnit, coachCode: profile.coachCode },
+    });
+    return;
+  }
+  try {
+    await apiPut(`/api/profiles/${profile.id}`, {
+      name: profile.name,
+      role: profile.role,
+      weightUnit: profile.weightUnit,
+      coachCode: profile.coachCode,
+    });
+  } catch {
+    await enqueue({
+      type: 'updateProfile',
+      endpoint: `/api/profiles/${profile.id}`,
+      method: 'PUT',
+      data: { name: profile.name, role: profile.role, weightUnit: profile.weightUnit, coachCode: profile.coachCode },
+    });
+  }
 }
 
 export async function resetCoachCode(): Promise<string> {
@@ -567,6 +593,9 @@ export function getBestPR(prs: LiftPR[], liftType: string): LiftPR | null {
 }
 
 export async function getClients(): Promise<ClientInfo[]> {
+  if (cache.clients.length > 0 && isFresh(cache.clientsFetchedAt)) return cache.clients;
+  if (!getIsOnline()) return cache.clients;
+
   const profileId = await requireProfileId();
   const data = await apiGet<any[]>(`/api/clients?coachId=${profileId}`);
   const result = data.map(c => ({
@@ -606,6 +635,9 @@ export async function removeClient(clientId: string): Promise<void> {
 }
 
 export async function getNotifications(): Promise<AppNotification[]> {
+  if (cache.notifications.length > 0 && isFresh(cache.notificationsFetchedAt)) return cache.notifications;
+  if (!getIsOnline()) return cache.notifications;
+
   const profileId = await requireProfileId();
   const data = await apiGet<any[]>(`/api/notifications?profileId=${profileId}`);
   const result = data.map(n => ({
@@ -787,11 +819,19 @@ export async function isAuthenticated(): Promise<boolean> {
   return !!token;
 }
 
+let cachedMyCoach: { coachId: string; coachName: string } | null = null;
+
 export async function getMyCoach(): Promise<{ coachId: string; coachName: string } | null> {
-  const profileId = await requireProfileId();
-  const data = await apiGet<any>(`/api/my-coach?clientProfileId=${profileId}`);
-  if (!data) return null;
-  return { coachId: data.coachId || data.coach_id, coachName: data.coachName || data.coach_name || 'Coach' };
+  if (!getIsOnline()) return cachedMyCoach;
+  try {
+    const profileId = await requireProfileId();
+    const data = await apiGet<any>(`/api/my-coach?clientProfileId=${profileId}`);
+    if (!data) { cachedMyCoach = null; return null; }
+    cachedMyCoach = { coachId: data.coachId || data.coach_id, coachName: data.coachName || data.coach_name || 'Coach' };
+    return cachedMyCoach;
+  } catch {
+    return cachedMyCoach;
+  }
 }
 
 export async function leaveCoach(): Promise<void> {
@@ -814,6 +854,20 @@ export interface DashboardData {
 }
 
 export async function getDashboard(): Promise<DashboardData> {
+  if (!getIsOnline()) {
+    if (cache.profile) {
+      return {
+        profile: cache.profile,
+        programs: cache.programs,
+        prs: cache.prs,
+        notifications: cache.notifications,
+        clients: cache.clients,
+        latestMessages: cache.latestMessages,
+      };
+    }
+    throw new Error('No cached data available offline');
+  }
+
   const profileId = await requireProfileId();
   const data = await apiGet<any>(`/api/dashboard?profileId=${profileId}`);
   const profile = mapProfile(data.profile);

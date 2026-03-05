@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { isAuthenticated, login as storageLogin, register as storageRegister, logout as storageLogout, getProfile, getPrograms, getPRs, getClients, getNotifications, type UserProfile } from './storage';
+import { isAuthenticated, login as storageLogin, register as storageRegister, logout as storageLogout, getProfile, getPrograms, getPRs, getClients, getNotifications, loadCacheFromDisk, getCachedProfile, type UserProfile } from './storage';
 
 interface AuthState {
   isLoggedIn: boolean;
@@ -40,8 +40,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const authed = await isAuthenticated();
         if (authed) {
-          const prof = await getProfile();
-          setProfile(prof);
+          await loadCacheFromDisk();
+          const cachedProf = getCachedProfile();
+          try {
+            const prof = await getProfile();
+            setProfile(prof);
+          } catch {
+            if (cachedProf) {
+              setProfile(cachedProf);
+            } else {
+              setIsLoggedIn(false);
+              setIsLoading(false);
+              return;
+            }
+          }
           setIsLoggedIn(true);
           prefetchData();
         }

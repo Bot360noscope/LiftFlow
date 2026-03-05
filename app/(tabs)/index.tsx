@@ -257,7 +257,7 @@ export default function HomeScreen() {
     });
     pollRef.current = setInterval(() => {
       if (focusedRef.current) refreshDashboard();
-    }, 10000);
+    }, 60000);
     return () => {
       focusedRef.current = false;
       removeListener();
