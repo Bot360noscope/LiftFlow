@@ -86,10 +86,14 @@ export default function RecordVideoScreen() {
     }, 1000);
 
     try {
-      const video = await cameraRef.current.recordAsync({
+      const recordOptions: any = {
         maxDuration: 120,
-        mute: true,
-      });
+      };
+      if (Platform.OS === 'ios') {
+        recordOptions.mute = true;
+      }
+
+      const video = await cameraRef.current.recordAsync(recordOptions);
 
       if (timerRef.current) clearInterval(timerRef.current);
       setRecording(false);
@@ -111,7 +115,8 @@ export default function RecordVideoScreen() {
     } catch (err: any) {
       if (timerRef.current) clearInterval(timerRef.current);
       setRecording(false);
-      showAlert("Error", "Failed to record video.");
+      console.error("[RecordVideo] Recording error:", err?.message || err);
+      showAlert("Error", "Failed to record video. Please check camera permissions and try again.");
     }
   };
 
