@@ -157,6 +157,45 @@ async function getPersistedProgram(id: string): Promise<Program | null> {
   return null;
 }
 
+function chatCacheKey(coachId: string, clientProfileId: string): string {
+  return `liftflow_chat_${coachId}_${clientProfileId}`;
+}
+
+function persistMessages(coachId: string, clientProfileId: string, messages: ChatMessage[]) {
+  const top50 = messages.slice(0, 50);
+  AsyncStorage.setItem(chatCacheKey(coachId, clientProfileId), JSON.stringify(top50)).catch(() => {});
+}
+
+async function getCachedMessages(coachId: string, clientProfileId: string): Promise<ChatMessage[]> {
+  try {
+    const raw = await AsyncStorage.getItem(chatCacheKey(coachId, clientProfileId));
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [];
+}
+
+function appendMessageToCache(coachId: string, clientProfileId: string, msg: ChatMessage) {
+  const key = chatCacheKey(coachId, clientProfileId);
+  AsyncStorage.getItem(key).then(raw => {
+    const existing: ChatMessage[] = raw ? JSON.parse(raw) : [];
+    if (existing.some(m => m.id === msg.id)) return;
+    const updated = [msg, ...existing].slice(0, 50);
+    AsyncStorage.setItem(key, JSON.stringify(updated)).catch(() => {});
+  }).catch(() => {});
+}
+
+function replaceMessageInCache(coachId: string, clientProfileId: string, tempId: string, serverMsg: ChatMessage) {
+  const key = chatCacheKey(coachId, clientProfileId);
+  AsyncStorage.getItem(key).then(raw => {
+    if (!raw) return;
+    const existing: ChatMessage[] = JSON.parse(raw);
+    const updated = existing.map(m => m.id === tempId ? serverMsg : m);
+    AsyncStorage.setItem(key, JSON.stringify(updated)).catch(() => {});
+  }).catch(() => {});
+}
+
+export { appendMessageToCache };
+
 registerSyncCallback(async () => {
   try { await getDashboard(); } catch {}
 });
@@ -766,19 +805,35 @@ function mapMessage(m: any): ChatMessage {
 }
 
 export async function getMessages(coachId: string, clientProfileId: string, before?: string): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
-  if (!getIsOnline()) return { messages: [], hasMore: false };
+  if (!getIsOnline()) {
+    if (!before) {
+      const cached = await getCachedMessages(coachId, clientProfileId);
+      return { messages: cached, hasMore: false };
+    }
+    return { messages: [], hasMore: false };
+  }
   try {
     let url = `/api/messages?coachId=${coachId}&clientProfileId=${clientProfileId}&limit=50`;
     if (before) url += `&before=${encodeURIComponent(before)}`;
     const data = await apiGet<any>(url);
+    let messages: ChatMessage[];
+    let hasMore: boolean;
     if (Array.isArray(data)) {
-      return { messages: data.map(mapMessage), hasMore: false };
+      messages = data.map(mapMessage);
+      hasMore = false;
+    } else {
+      messages = (data.messages || []).map(mapMessage);
+      hasMore = !!data.hasMore;
     }
-    return {
-      messages: (data.messages || []).map(mapMessage),
-      hasMore: !!data.hasMore,
-    };
+    if (!before) {
+      persistMessages(coachId, clientProfileId, messages);
+    }
+    return { messages, hasMore };
   } catch {
+    if (!before) {
+      const cached = await getCachedMessages(coachId, clientProfileId);
+      return { messages: cached, hasMore: false };
+    }
     return { messages: [], hasMore: false };
   }
 }
@@ -794,6 +849,8 @@ export async function sendMessage(coachId: string, clientProfileId: string, text
     text,
     createdAt: new Date().toISOString(),
   };
+
+  appendMessageToCache(coachId, clientProfileId, localMsg);
 
   if (!getIsOnline()) {
     await enqueue({
@@ -812,7 +869,7 @@ export async function sendMessage(coachId: string, clientProfileId: string, text
       senderRole: role,
       text,
     });
-    return {
+    const serverMsg: ChatMessage = {
       id: msg.id,
       coachId: msg.coachId || msg.coach_id,
       clientProfileId: msg.clientProfileId || msg.client_profile_id,
@@ -820,6 +877,8 @@ export async function sendMessage(coachId: string, clientProfileId: string, text
       text: msg.text,
       createdAt: msg.createdAt || msg.created_at,
     };
+    replaceMessageInCache(coachId, clientProfileId, tempId, serverMsg);
+    return serverMsg;
   } catch {
     await enqueue({
       type: 'sendMessage',

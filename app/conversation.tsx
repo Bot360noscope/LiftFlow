@@ -6,7 +6,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
-import { getProfile, getMessages, sendMessage, getMyCoach, getNotifications, markNotificationRead, getClients, type ChatMessage, type UserProfile } from "@/lib/storage";
+import { getProfile, getMessages, sendMessage, getMyCoach, getNotifications, markNotificationRead, getClients, appendMessageToCache, type ChatMessage, type UserProfile } from "@/lib/storage";
 import { addWSListener } from "@/lib/websocket";
 
 export default function ChatScreen() {
@@ -110,6 +110,7 @@ export default function ChatScreen() {
             if (prev.some(p => p.id === m.id)) return prev;
             return [...prev, m];
           });
+          appendMessageToCache(coachId, clientProfileId, m);
           setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
         }
       }
@@ -120,6 +121,7 @@ export default function ChatScreen() {
             if (prev.some(p => p.id === m.id)) return prev;
             return [...prev, m];
           });
+          appendMessageToCache(coachId, clientProfileId, m);
         }
       }
     });
