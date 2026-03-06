@@ -38,27 +38,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
+        await loadCacheFromDisk();
         const authed = await isAuthenticated();
         if (authed) {
-          await loadCacheFromDisk();
           const cachedProf = getCachedProfile();
+          if (cachedProf) {
+            setProfile(cachedProf);
+            setIsLoggedIn(true);
+          }
           try {
             const prof = await getProfile();
             setProfile(prof);
+            setIsLoggedIn(true);
           } catch {
-            if (cachedProf) {
-              setProfile(cachedProf);
-            } else {
+            if (!cachedProf) {
               setIsLoggedIn(false);
               setIsLoading(false);
               return;
             }
           }
-          setIsLoggedIn(true);
           prefetchData();
         }
       } catch {
-        setIsLoggedIn(false);
+        const cachedProf = getCachedProfile();
+        if (cachedProf) {
+          setProfile(cachedProf);
+          setIsLoggedIn(true);
+          prefetchData();
+        } else {
+          setIsLoggedIn(false);
+        }
       }
       setIsLoading(false);
     })();
