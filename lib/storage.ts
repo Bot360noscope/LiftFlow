@@ -908,6 +908,8 @@ export async function login(email: string, password: string): Promise<{ token: s
 
 export async function logout(): Promise<void> {
   clearCache();
+  cachedMyCoach = null;
+  persistMyCoach();
   await clearAuthToken();
   await AsyncStorage.removeItem(PROFILE_ID_KEY);
 }
@@ -915,6 +917,8 @@ export async function logout(): Promise<void> {
 export async function deleteAccount(confirmation: string): Promise<void> {
   await apiPost('/api/account/delete', { confirmation });
   clearCache();
+  cachedMyCoach = null;
+  persistMyCoach();
   await clearAuthToken();
   await AsyncStorage.removeItem(PROFILE_ID_KEY);
 }
@@ -925,14 +929,31 @@ export async function isAuthenticated(): Promise<boolean> {
 }
 
 let cachedMyCoach: { coachId: string; coachName: string } | null = null;
+const MY_COACH_KEY = 'liftflow_my_coach';
+
+function persistMyCoach() {
+  if (cachedMyCoach) {
+    AsyncStorage.setItem(MY_COACH_KEY, JSON.stringify(cachedMyCoach)).catch(() => {});
+  } else {
+    AsyncStorage.removeItem(MY_COACH_KEY).catch(() => {});
+  }
+}
+
+export async function loadCachedMyCoach(): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(MY_COACH_KEY);
+    if (raw) cachedMyCoach = JSON.parse(raw);
+  } catch {}
+}
 
 export async function getMyCoach(): Promise<{ coachId: string; coachName: string } | null> {
   if (!getIsOnline()) return cachedMyCoach;
   try {
     const profileId = await requireProfileId();
     const data = await apiGet<any>(`/api/my-coach?clientProfileId=${profileId}`);
-    if (!data) { cachedMyCoach = null; return null; }
+    if (!data) { cachedMyCoach = null; persistMyCoach(); return null; }
     cachedMyCoach = { coachId: data.coachId || data.coach_id, coachName: data.coachName || data.coach_name || 'Coach' };
+    persistMyCoach();
     return cachedMyCoach;
   } catch {
     return cachedMyCoach;
@@ -942,6 +963,8 @@ export async function getMyCoach(): Promise<{ coachId: string; coachName: string
 export async function leaveCoach(): Promise<void> {
   const profileId = await requireProfileId();
   await apiPost('/api/leave-coach', { clientProfileId: profileId });
+  cachedMyCoach = null;
+  persistMyCoach();
 }
 
 export async function getLatestMessages(): Promise<LatestMessages> {

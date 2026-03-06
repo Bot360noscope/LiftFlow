@@ -146,9 +146,13 @@ export default function ProfileScreen() {
       "Reset Coach Code",
       "This will generate a new coach code. Existing clients will still be connected, but new clients will need the updated code.",
       async () => {
-        const newCode = await resetCoachCode();
-        setProfile({ ...profile, coachCode: newCode });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        try {
+          const newCode = await resetCoachCode();
+          setProfile({ ...profile, coachCode: newCode });
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch {
+          showAlert("Error", "Unable to reset coach code. Please check your internet connection.");
+        }
       },
       "Reset Code"
     );

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { isAuthenticated, login as storageLogin, register as storageRegister, logout as storageLogout, getProfile, getPrograms, getPRs, getClients, getNotifications, loadCacheFromDisk, getCachedProfile, type UserProfile } from './storage';
+import { isAuthenticated, login as storageLogin, register as storageRegister, logout as storageLogout, getProfile, getPrograms, getPRs, getClients, getNotifications, loadCacheFromDisk, getCachedProfile, loadCachedMyCoach, type UserProfile } from './storage';
 
 interface AuthState {
   isLoggedIn: boolean;
@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         await loadCacheFromDisk();
+        await loadCachedMyCoach();
         const authed = await isAuthenticated();
         if (authed) {
           const cachedProf = getCachedProfile();
