@@ -34,7 +34,7 @@ function connect(profileId: string) {
     try {
       const data = JSON.parse(event.data);
       for (const listener of listeners) {
-        listener(data);
+        try { listener(data); } catch {}
       }
     } catch {}
   };

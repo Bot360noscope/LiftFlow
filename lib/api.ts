@@ -167,6 +167,11 @@ async function retryFetch(url: string, options: RequestInit, maxRetries = 2): Pr
 }
 
 export async function uploadVideo(uri: string, meta?: { programId: string; exerciseId: string; uploadedBy: string; coachId: string }, trim?: { startTime: number; endTime: number }): Promise<string> {
+  const { getIsOnline } = require('./sync-manager');
+  if (!getIsOnline()) {
+    throw new Error('Video upload requires an internet connection. Please try again when connected.');
+  }
+
   const authHeaders = await getAuthHeaders();
 
   if (Platform.OS === 'web') {

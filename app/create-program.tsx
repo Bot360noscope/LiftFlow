@@ -76,9 +76,9 @@ export default function CreateProgramScreen() {
       setProfileId(p.id);
       setRole(p.role as 'coach' | 'client');
       if (p.role === 'coach' && !clientId) {
-        getClients().then(c => setClientList(c));
+        getClients().then(c => setClientList(c)).catch(() => {});
       }
-    });
+    }).catch(() => {});
   }, []);
 
   const handleCreate = useCallback(async () => {

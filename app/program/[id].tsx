@@ -534,7 +534,7 @@ export default function ProgramDetailScreen() {
 
   useEffect(() => {
     if (id) {
-      Promise.all([getProgram(id), getProfile()]).then(async ([p, prof]) => {
+      Promise.all([getProgram(id), getProfile()]).catch(() => [null, null] as const).then(async ([p, prof]) => {
         if (p) {
           setProgram(p);
           if (highlightExercise) {

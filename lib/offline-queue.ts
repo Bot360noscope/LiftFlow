@@ -9,7 +9,10 @@ export interface QueueEntry {
   method: 'POST' | 'PUT' | 'DELETE';
   data: any;
   timestamp: number;
+  retries?: number;
 }
+
+const MAX_RETRIES = 5;
 
 let queue: QueueEntry[] = [];
 let loaded = false;
@@ -74,11 +77,17 @@ export async function flushQueue(
       if (ok) {
         succeeded++;
       } else {
-        remaining.push(entry);
+        const retries = (entry.retries || 0) + 1;
+        if (retries < MAX_RETRIES) {
+          remaining.push({ ...entry, retries });
+        }
         failed++;
       }
     } catch {
-      remaining.push(entry);
+      const retries = (entry.retries || 0) + 1;
+      if (retries < MAX_RETRIES) {
+        remaining.push({ ...entry, retries });
+      }
       failed++;
     }
   }

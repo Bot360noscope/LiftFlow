@@ -213,7 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const token = generateToken(userId, profileId);
       res.json({ token, profile });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.post("/api/auth/login", authRateLimit, async (req, res) => {
@@ -232,7 +232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const token = generateToken(user.id, user.profileId);
       res.json({ token, profile });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.get("/api/auth/me", async (req, res) => {
@@ -248,7 +248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!profile) return res.status(404).json({ error: "Profile not found" });
 
       res.json({ profile });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.get("/api/verify-account", async (req, res) => {
@@ -266,7 +266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         plan: profile?.plan || 'free',
         name: profile?.name || '',
       });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   // === PROFILES ===
@@ -281,7 +281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         coachCode: generateCode(),
       }).returning();
       res.json(profile);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.get("/api/profiles/:id", async (req, res) => {
@@ -290,7 +290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!profile) return res.status(404).json({ error: "Not found" });
 
       res.json(profile);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.put("/api/profiles/:id", async (req, res) => {
@@ -303,7 +303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (coachCode !== undefined) updates.coachCode = coachCode;
       const [updated] = await db.update(profiles).set(updates).where(eq(profiles.id, req.params.id)).returning();
       res.json(updated);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.post("/api/profiles/:id/reset-code", async (req, res) => {
@@ -311,7 +311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newCode = generateCode();
       const [updated] = await db.update(profiles).set({ coachCode: newCode }).where(eq(profiles.id, req.params.id)).returning();
       res.json({ coachCode: updated.coachCode });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.get("/api/coaches/by-code/:code", async (req, res) => {
@@ -321,7 +321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       if (!coach) return res.status(404).json({ error: "Coach not found" });
       res.json({ id: coach.id, name: coach.name, coachCode: coach.coachCode });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   // === PROGRAMS ===
@@ -349,7 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         result = await db.select().from(programs).where(or(...conditions)).orderBy(desc(programs.createdAt));
       }
       res.json(result);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.get("/api/programs/:id", async (req, res) => {
@@ -357,7 +357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [program] = await db.select().from(programs).where(eq(programs.id, req.params.id));
       if (!program) return res.status(404).json({ error: "Not found" });
       res.json(program);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.post("/api/programs", async (req, res) => {
@@ -381,7 +381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: status || 'active',
       }).returning();
       res.json(program);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.put("/api/programs/:id", async (req, res) => {
@@ -413,7 +413,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       updates.updatedBy = senderRole || 'coach';
       const [updated] = await db.update(programs).set(updates).where(eq(programs.id, req.params.id)).returning();
       res.json(updated);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.post("/api/programs/:id/assign", async (req, res) => {
@@ -442,11 +442,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const sourceWeeks = Array.isArray(original.weeks) ? (original.weeks as any[]) : [];
-      const cleanWeeks = sourceWeeks.map((week: any) => ({
+      const cleanWeeks = (sourceWeeks || []).map((week: any) => ({
         ...week,
-        days: week.days.map((day: any) => ({
+        days: (week.days || []).map((day: any) => ({
           ...day,
-          exercises: day.exercises.map((ex: any) => ({
+          exercises: (day.exercises || []).map((ex: any) => ({
             ...ex,
             id: randomUUID(),
             videoUrl: '',
@@ -469,14 +469,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'active',
       }).returning();
       res.json(copy);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.delete("/api/programs/:id", async (req, res) => {
     try {
       await db.delete(programs).where(eq(programs.id, req.params.id));
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   // === CLIENTS ===
@@ -496,7 +496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(clients.coachId, coachId))
         .orderBy(desc(clients.joinedAt));
       res.json(result.map(c => ({ ...c, avatarUrl: c.avatarUrl || '' })));
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.post("/api/clients", async (req, res) => {
@@ -513,7 +513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name,
       }).returning();
       res.json(client);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.get("/api/my-coach", async (req, res) => {
@@ -529,14 +529,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         coachName: coachProfile.length > 0 ? coachProfile[0].name : 'Coach',
         clientRecordId: coachRecord.id,
       });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.delete("/api/clients/:id", async (req, res) => {
     try {
       await db.delete(clients).where(eq(clients.id, req.params.id));
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.post("/api/join-coach", async (req, res) => {
@@ -574,7 +574,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: clientName || 'Client',
       }).returning();
       res.json({ coach: { id: coach.id, name: coach.name }, client });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.post("/api/leave-coach", async (req, res) => {
@@ -584,7 +584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await db.delete(clients).where(eq(clients.clientProfileId, clientProfileId));
       await db.delete(messages).where(eq(messages.clientProfileId, clientProfileId));
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.post("/api/remove-client", async (req, res) => {
@@ -607,7 +607,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await db.update(programs).set({ clientId: null }).where(eq(programs.id, prog.id));
       }
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   // === PRs ===
@@ -617,7 +617,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!profileId) return res.status(400).json({ error: "profileId required" });
       const result = await db.select().from(prs).where(eq(prs.profileId, profileId));
       res.json(result);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.post("/api/prs", async (req, res) => {
@@ -633,14 +633,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: notes || '',
       }).returning();
       res.json(pr);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.delete("/api/prs/:id", async (req, res) => {
     try {
       await db.delete(prs).where(eq(prs.id, req.params.id));
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   // === PUSH TOKENS ===
@@ -658,8 +658,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("[PushToken] Token saved successfully for profile:", profileId);
       res.json({ ok: true });
     } catch (e: any) {
-      console.log("[PushToken] Error:", e.message);
-      res.status(500).json({ error: e.message });
+      console.error("[PushToken] Error:", e.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -670,7 +670,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!profileId) return res.status(400).json({ error: "profileId required" });
       const result = await db.select().from(notifications).where(eq(notifications.profileId, profileId)).orderBy(desc(notifications.createdAt));
       res.json(result);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.post("/api/notifications", async (req, res) => {
@@ -711,14 +711,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       broadcastToProfile(profileId, { type: 'new_notification', notification: notif });
       sendPushNotification(profileId, title, message, { type, programId, programTitle, exerciseName });
       res.json(notif);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.put("/api/notifications/:id/read", async (req, res) => {
     try {
       await db.update(notifications).set({ read: true }).where(eq(notifications.id, req.params.id));
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.put("/api/notifications/read-all", async (req, res) => {
@@ -727,7 +727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!profileId) return res.status(400).json({ error: "profileId required" });
       await db.update(notifications).set({ read: true }).where(eq(notifications.profileId, profileId));
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.delete("/api/notifications", async (req, res) => {
@@ -736,7 +736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!profileId) return res.status(400).json({ error: "profileId required" });
       await db.delete(notifications).where(eq(notifications.profileId, profileId));
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   // === MESSAGES (Chat) ===
@@ -760,7 +760,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pageMessages = result.slice(0, pageLimit).reverse();
 
       res.json({ messages: pageMessages, hasMore });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.get("/api/messages/latest", async (req, res) => {
@@ -781,7 +781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       res.json(result);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.post("/api/messages", async (req, res) => {
@@ -842,7 +842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json(msg);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   // === CLIENT SEARCH ===
@@ -856,7 +856,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         result = result.filter(c => c.name.toLowerCase().includes(query));
       }
       res.json(result);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   // === VIDEO UPLOAD ===
@@ -866,7 +866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const key = `videos/${filename}`;
       const uploadUrl = await getPresignedUploadUrl(key, 'video/mp4', 600);
       res.json({ uploadUrl, filename, videoUrl: `/api/videos/${filename}` });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.post("/api/register-video", async (req, res) => {
@@ -884,7 +884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       res.json({ success: true, videoUrl: `/api/videos/${filename}` });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.post("/api/trim-video", async (req, res) => {
@@ -907,7 +907,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await uploadToR2(trimmedKey, trimmedBuffer, 'video/mp4');
       await deleteFromR2(key);
       res.json({ filename: trimmedFilename, videoUrl: `/api/videos/${trimmedFilename}` });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.post("/api/upload-video", upload.single("video"), async (req, res) => {
@@ -937,7 +937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       res.json({ videoUrl });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.get("/api/videos/:filename", async (req, res) => {
@@ -945,7 +945,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const key = `videos/${req.params.filename}`;
       const url = await getPresignedDownloadUrl(key, 3600);
       res.json({ url });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.post("/api/videos/:filename/viewed", async (req, res) => {
@@ -956,7 +956,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(and(eq(videoUploads.filename, filename), isNull(videoUploads.coachViewedAt)))
         .returning();
       res.json({ updated: records.length > 0 });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   // === AVATAR UPLOAD/DELETE ===
@@ -980,7 +980,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await db.update(profiles).set({ avatarUrl }).where(eq(profiles.id, profileId));
       }
       res.json({ avatarUrl });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.get("/api/avatars/:filename", async (req, res) => {
@@ -990,7 +990,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!result) return res.status(404).json({ error: "Not found" });
       res.setHeader('Content-Type', result.contentType || 'image/jpeg');
       result.body.pipe(res);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.delete("/api/avatar/:profileId", async (req, res) => {
@@ -1005,7 +1005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await db.update(profiles).set({ avatarUrl: '' }).where(eq(profiles.id, profileId));
       }
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   // === SEED DEMO DATA ===
@@ -1114,7 +1114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ]);
 
       res.json({ profileId: coachId, message: 'Demo data seeded' });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   // === ACCOUNT DELETION ===
@@ -1169,7 +1169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await db.delete(profiles).where(eq(profiles.id, profileId));
 
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   // === DELETE SINGLE NOTIFICATION ===
@@ -1177,7 +1177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       await db.delete(notifications).where(eq(notifications.id, req.params.id));
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   // === DELETE NOTIFICATIONS BY PROGRAM ===
@@ -1189,7 +1189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         and(eq(notifications.profileId, profileId), eq(notifications.programId, req.params.programId))
       );
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   app.put("/api/notifications/read-by-program/:programId", async (req, res) => {
@@ -1200,7 +1200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         and(eq(notifications.profileId, profileId), eq(notifications.programId, req.params.programId))
       );
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   const legalPageStyle = `
@@ -1365,17 +1365,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const toDelete = [...viewedExpired, ...unviewedExpired];
 
       for (const record of toDelete) {
-        await deleteFromR2(`videos/${record.filename}`);
-
         const allPrograms = await db.select().from(programs)
           .where(eq(programs.id, record.programId));
 
         for (const prog of allPrograms) {
-          const weeks = prog.weeks as any[];
+          const weeks = Array.isArray(prog.weeks) ? (prog.weeks as any[]) : [];
           let changed = false;
           for (const week of weeks) {
-            for (const day of week.days) {
-              for (const ex of day.exercises) {
+            for (const day of (week.days || [])) {
+              for (const ex of (day.exercises || [])) {
                 if (ex.id === record.exerciseId && ex.videoUrl && ex.videoUrl.includes(record.filename)) {
                   ex.videoUrl = '';
                   changed = true;
@@ -1389,6 +1387,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         await db.delete(videoUploads).where(eq(videoUploads.id, record.id));
+
+        try {
+          await deleteFromR2(`videos/${record.filename}`);
+        } catch (r2Err) {
+          console.error(`[Video Cleanup] R2 delete failed for ${record.filename}:`, r2Err);
+        }
       }
 
       if (toDelete.length > 0) {
@@ -1526,7 +1530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clients: coachClients,
         latestMessages,
       });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
   const httpServer = createServer(app);
