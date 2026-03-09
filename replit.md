@@ -73,6 +73,18 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **Video Recording**: 60-second max enforced at camera level via videoMaxDuration. Records at Medium quality. No native iOS editing screen (allowsEditing: false) — goes directly to custom trim screen. "Save Original to Photos" button saves to camera roll via expo-media-library. Video processing: on-device trim+compress via react-native-compressor (production builds) using startTime/endTime options, falls back to server-side ffmpeg trim (Expo Go/web). Delete video button available.
 - **Push Notifications**: expo-notifications for iOS/Android. Push tokens stored in profiles.pushToken. Registration in lib/push-notifications.ts on login. Server sends via Expo Push API (exp.host/--/api/v2/push/send) when notifications or chat messages are created. Deep linking: tapping chat notification opens conversation, tapping other notifications opens program detail.
 
+## Performance Optimizations
+- **Database Indexes**: Added indexes on clients(coach_id, client_profile_id), programs(coach_id, client_id), messages(coach_id+client_profile_id), notifications(profile_id), prs(profile_id), profiles(coach_code), video_uploads(uploaded_by, coach_id, uploaded_at)
+- **Plan Check Cache**: checkAndDowngradeExpiredPlan uses 5-minute in-memory TTL to avoid DB query on every API call
+- **Dashboard Optimization**: Programs fetched without JSONB weeks column; role-specific queries (coach vs client); latest messages fetched per-client with LIMIT 1 instead of all messages
+- **Cache-Control Headers**: 1-hour cache on /terms, /privacy, landing page; 24-hour immutable cache on avatar images
+- **WebSocket Heartbeat**: Server pings every 30s, terminates stale connections; client detects stale connections after 45s
+- **WebSocket Background Disconnect**: WebSocket disconnects when app is backgrounded, reconnects on foreground (saves battery)
+- **Focus Debouncing**: 10-second minimum interval between useFocusEffect refetches on all tab screens
+- **Smart Dashboard Polling**: Poll interval increased from 60s to 120s; skips poll if WebSocket delivered data within 30s
+- **Sync Manager Optimization**: NetInfo/AppState listeners only trigger sync when pending queue items exist; tracks actual background→foreground transitions
+- **Video Cleanup**: Combined two queries into one with OR condition; selects only needed columns
+
 ## User Preferences
 - Fonts: Rubik (400, 500, 600, 700)
 - Dark theme with orange primary color

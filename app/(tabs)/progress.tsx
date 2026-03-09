@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, ScrollView, Pressable, Platform, ActivityIndica
 import { confirmAction } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, useRef } from "react";
 import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -104,6 +104,7 @@ export default function ProgressScreen() {
 
   const [loading, setLoading] = useState(!getCachedProfile());
   const [error, setError] = useState(false);
+  const lastRefetchRef = useRef<number>(0);
 
   const loadData = useCallback(async () => {
     try {
@@ -121,7 +122,12 @@ export default function ProgressScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  useFocusEffect(useCallback(() => {
+    const now = Date.now();
+    if (now - lastRefetchRef.current < 10000) return;
+    lastRefetchRef.current = now;
+    loadData();
+  }, [loadData]));
 
   const bestSquat = getBestPR(prs, 'squat');
   const bestDeadlift = getBestPR(prs, 'deadlift');

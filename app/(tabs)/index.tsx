@@ -212,6 +212,7 @@ export default function HomeScreen() {
   const [error, setError] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const focusedRef = useRef(true);
+  const lastRefetchRef = useRef<number>(0);
 
   const dismissedIdsRef = useRef<Set<string>>(new Set());
 
@@ -246,9 +247,14 @@ export default function HomeScreen() {
     if (cachedNotifs.length > 0) setNotifications(cachedNotifs);
     const cachedMsgs = getCachedLatestMessages();
     if (Object.keys(cachedMsgs).length > 0) setLatestMsgs(cachedMsgs);
-    refreshDashboard();
+    const now = Date.now();
+    if (now - lastRefetchRef.current >= 10000) {
+      lastRefetchRef.current = now;
+      refreshDashboard();
+    }
     const removeListener = addWSListener((event: any) => {
       if ((event.type === 'new_message' || event.type === 'new_notification') && event.notification) {
+        lastRefetchRef.current = Date.now();
         setNotifications(prev => {
           if (prev.some(n => n.id === event.notification.id)) return prev;
           return [event.notification, ...prev];
@@ -256,8 +262,8 @@ export default function HomeScreen() {
       }
     });
     pollRef.current = setInterval(() => {
-      if (focusedRef.current) refreshDashboard();
-    }, 60000);
+      if (focusedRef.current && Date.now() - lastRefetchRef.current >= 30000) refreshDashboard();
+    }, 120000);
     return () => {
       focusedRef.current = false;
       removeListener();

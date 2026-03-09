@@ -16,6 +16,9 @@ import { broadcastToProfile } from "./websocket";
 
 const JWT_SECRET = process.env.SESSION_SECRET || 'liftflow-dev-secret';
 
+const planCheckCache = new Map<string, number>();
+const PLAN_CHECK_TTL = 5 * 60 * 1000;
+
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 function rateLimit(windowMs: number, maxAttempts: number) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -72,11 +75,17 @@ function verifyToken(token: string): { userId: string; profileId: string } | nul
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
 
 async function checkAndDowngradeExpiredPlan(profileId: string): Promise<void> {
+  const now = Date.now();
+  const lastCheck = planCheckCache.get(profileId);
+  if (lastCheck && now - lastCheck < PLAN_CHECK_TTL) return;
+  planCheckCache.set(profileId, now);
+
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, profileId));
   if (!profile) return;
   if (profile.planExpiresAt && new Date(profile.planExpiresAt) < new Date() && profile.plan !== 'free') {
     console.log(`[Plan Expiry] Downgrading ${profileId} from ${profile.plan} (limit: ${profile.planUserLimit}) to free — expired at ${profile.planExpiresAt}`);
     await db.update(profiles).set({ plan: 'free', planUserLimit: 1, planExpiresAt: null }).where(eq(profiles.id, profileId));
+    planCheckCache.delete(profileId);
   }
 }
 
@@ -1075,6 +1084,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await getFromR2(key);
       if (!result) return res.status(404).json({ error: "Not found" });
       res.setHeader('Content-Type', result.contentType || 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
       result.body.pipe(res);
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
@@ -1306,6 +1316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     </style>`;
 
   app.get("/privacy", (_req, res) => {
+    res.set('Cache-Control', 'public, max-age=3600');
     res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Privacy Policy - LiftFlow</title>${legalPageStyle}</head><body><div class="container">
       <a class="back" href="javascript:history.back()">Back</a>
       <h1>Privacy Policy</h1>
@@ -1373,6 +1384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/terms", (_req, res) => {
+    res.set('Cache-Control', 'public, max-age=3600');
     res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Terms of Service - LiftFlow</title>${legalPageStyle}</head><body><div class="container">
       <a class="back" href="javascript:history.back()">Back</a>
       <h1>Terms of Service</h1>
@@ -1442,13 +1454,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-      const viewedExpired = await db.select().from(videoUploads)
-        .where(and(isNotNull(videoUploads.coachViewedAt), lt(videoUploads.coachViewedAt, threeDaysAgo)));
-
-      const unviewedExpired = await db.select().from(videoUploads)
-        .where(and(isNull(videoUploads.coachViewedAt), lt(videoUploads.uploadedAt, sevenDaysAgo)));
-
-      const toDelete = [...viewedExpired, ...unviewedExpired];
+      const toDelete = await db.select({
+        id: videoUploads.id, filename: videoUploads.filename,
+        programId: videoUploads.programId, exerciseId: videoUploads.exerciseId,
+      }).from(videoUploads).where(
+        or(
+          and(isNotNull(videoUploads.coachViewedAt), lt(videoUploads.coachViewedAt, threeDaysAgo)),
+          and(isNull(videoUploads.coachViewedAt), lt(videoUploads.uploadedAt, sevenDaysAgo))
+        )
+      );
 
       for (const record of toDelete) {
         const allPrograms = await db.select().from(programs)
@@ -1569,65 +1583,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!profileId) return res.status(400).json({ error: "profileId required" });
 
       await checkAndDowngradeExpiredPlan(profileId);
-      const [[profile], allPrograms, allPRs, allNotifs] = await Promise.all([
-        db.select().from(profiles).where(eq(profiles.id, profileId)),
-        db.select().from(programs),
-        db.select().from(prs).where(eq(prs.profileId, profileId)),
-        db.select().from(notifications).where(eq(notifications.profileId, profileId)).orderBy(desc(notifications.createdAt)),
-      ]);
+      const [profileResult] = await db.select().from(profiles).where(eq(profiles.id, profileId));
+      if (!profileResult) return res.status(404).json({ error: "Profile not found" });
 
-      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      const programColumns = {
+        id: programs.id, title: programs.title, description: programs.description,
+        weeks: programs.weeks, daysPerWeek: programs.daysPerWeek, shareCode: programs.shareCode,
+        coachId: programs.coachId, clientId: programs.clientId, status: programs.status,
+        updatedAt: programs.updatedAt, updatedBy: programs.updatedBy, createdAt: programs.createdAt,
+      };
 
-      let userPrograms;
-      if (profile.role === 'coach') {
-        userPrograms = allPrograms.filter(p => p.coachId === profileId);
-      } else {
-        const clientRecords = await db.select().from(clients).where(eq(clients.clientProfileId, profileId));
-        const clientRecordIds = new Set(clientRecords.map(c => c.id));
-        userPrograms = allPrograms.filter(p =>
-          (p.coachId === profileId && !p.clientId) ||
-          (p.clientId && clientRecordIds.has(p.clientId))
-        );
-      }
+      if (profileResult.role === 'coach') {
+        const [userPrograms, allPRs, allNotifs, clientResults] = await Promise.all([
+          db.select(programColumns).from(programs).where(eq(programs.coachId, profileId)),
+          db.select().from(prs).where(eq(prs.profileId, profileId)),
+          db.select().from(notifications).where(eq(notifications.profileId, profileId)).orderBy(desc(notifications.createdAt)),
+          db.select({
+            id: clients.id, coachId: clients.coachId, clientProfileId: clients.clientProfileId,
+            name: clients.name, joinedAt: clients.joinedAt, avatarUrl: profiles.avatarUrl,
+          }).from(clients)
+            .leftJoin(profiles, eq(clients.clientProfileId, profiles.id))
+            .where(eq(clients.coachId, profileId))
+            .orderBy(desc(clients.joinedAt)),
+        ]);
+        const coachClients = clientResults.map(c => ({ ...c, avatarUrl: c.avatarUrl || '' }));
 
-      let coachClients: any[] = [];
-      let latestMessages: Record<string, any> = {};
-      if (profile.role === 'coach') {
-        const clientResults = await db.select({
-          id: clients.id,
-          coachId: clients.coachId,
-          clientProfileId: clients.clientProfileId,
-          name: clients.name,
-          joinedAt: clients.joinedAt,
-          avatarUrl: profiles.avatarUrl,
-        }).from(clients)
-          .leftJoin(profiles, eq(clients.clientProfileId, profiles.id))
-          .where(eq(clients.coachId, profileId))
-          .orderBy(desc(clients.joinedAt));
-        coachClients = clientResults.map(c => ({ ...c, avatarUrl: c.avatarUrl || '' }));
-
-        const allMsgs = await db.select().from(messages)
-          .where(eq(messages.coachId, profileId))
-          .orderBy(desc(messages.createdAt));
-        for (const m of allMsgs) {
-          if (!latestMessages[m.clientProfileId]) {
-            latestMessages[m.clientProfileId] = {
-              text: m.text,
-              senderRole: m.senderRole,
-              createdAt: m.createdAt.toISOString(),
-            };
+        const latestMessages: Record<string, any> = {};
+        if (coachClients.length > 0) {
+          const clientProfileIds = coachClients.map(c => c.clientProfileId);
+          for (const cpId of clientProfileIds) {
+            const [latestMsg] = await db.select({ text: messages.text, senderRole: messages.senderRole, createdAt: messages.createdAt })
+              .from(messages)
+              .where(and(eq(messages.coachId, profileId), eq(messages.clientProfileId, cpId)))
+              .orderBy(desc(messages.createdAt))
+              .limit(1);
+            if (latestMsg) {
+              latestMessages[cpId] = { text: latestMsg.text, senderRole: latestMsg.senderRole, createdAt: latestMsg.createdAt.toISOString() };
+            }
           }
         }
-      }
 
-      res.json({
-        profile,
-        programs: userPrograms,
-        prs: allPRs,
-        notifications: allNotifs,
-        clients: coachClients,
-        latestMessages,
-      });
+        res.json({ profile: profileResult, programs: userPrograms, prs: allPRs, notifications: allNotifs, clients: coachClients, latestMessages });
+      } else {
+        const [clientRecords, allPRs, allNotifs] = await Promise.all([
+          db.select().from(clients).where(eq(clients.clientProfileId, profileId)),
+          db.select().from(prs).where(eq(prs.profileId, profileId)),
+          db.select().from(notifications).where(eq(notifications.profileId, profileId)).orderBy(desc(notifications.createdAt)),
+        ]);
+        const clientRecordIds = new Set(clientRecords.map(c => c.id));
+        const userPrograms = await db.select(programColumns).from(programs).where(
+          or(
+            and(eq(programs.coachId, profileId), isNull(programs.clientId)),
+            ...(clientRecordIds.size > 0 ? [inArray(programs.clientId, Array.from(clientRecordIds))] : [])
+          )
+        );
+
+        res.json({ profile: profileResult, programs: userPrograms, prs: allPRs, notifications: allNotifs, clients: [], latestMessages: {} });
+      }
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 

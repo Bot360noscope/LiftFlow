@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { AppState } from 'react-native';
+import { AppState, AppStateStatus } from 'react-native';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { flushQueue, getPendingCount, type QueueEntry } from './offline-queue';
 import { apiPost, apiPut, apiDelete } from './api';
@@ -46,14 +46,19 @@ async function executeQueueEntry(entry: QueueEntry): Promise<boolean> {
 
 async function syncNow(): Promise<void> {
   if (_isSyncing || !_isOnline) return;
+
+  const count = await getPendingCount();
+  _pendingCount = count;
+  if (count === 0) {
+    notify();
+    return;
+  }
+
   _isSyncing = true;
   notify();
 
   try {
-    const count = await getPendingCount();
-    if (count > 0) {
-      await flushQueue(executeQueueEntry);
-    }
+    await flushQueue(executeQueueEntry);
 
     _pendingCount = await getPendingCount();
 
@@ -73,6 +78,7 @@ export function useNetworkStatus() {
   const [isSyncing, setIsSyncing] = useState(_isSyncing);
   const [pendingCount, setPendingCount] = useState(_pendingCount);
   const wasOffline = useRef(false);
+  const previousAppState = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
     const update = () => {
@@ -99,12 +105,14 @@ export function useNetworkStatus() {
     });
 
     const appStateSub = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active' && _isOnline) {
-        getPendingCount().then(count => {
-          _pendingCount = count;
-          if (count > 0) syncNow();
-          else update();
-        });
+      const prev = previousAppState.current;
+      previousAppState.current = nextState;
+
+      const isReturningToForeground =
+        nextState === 'active' && (prev === 'background' || prev === 'inactive');
+
+      if (isReturningToForeground && _isOnline) {
+        syncNow();
       }
     });
 

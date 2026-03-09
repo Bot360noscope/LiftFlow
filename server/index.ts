@@ -166,6 +166,7 @@ function serveLandingPage({
     .replace(/APP_NAME_PLACEHOLDER/g, appName);
 
   res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=3600");
   res.status(200).send(html);
 }
 

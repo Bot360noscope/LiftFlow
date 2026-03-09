@@ -42,6 +42,7 @@ export default function ChatTab() {
   const [sendError, setSendError] = useState('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const flatListRef = useRef<FlatList>(null);
+  const lastRefetchRef = useRef<number>(0);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -61,6 +62,9 @@ export default function ChatTab() {
 
   useFocusEffect(
     useCallback(() => {
+      const now = Date.now();
+      if (now - lastRefetchRef.current < 10000) return;
+      lastRefetchRef.current = now;
       let active = true;
       (async () => {
         try {

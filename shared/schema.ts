@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, integer, jsonb, timestamp, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -16,7 +16,9 @@ export const profiles = pgTable("profiles", {
   planExpiresAt: timestamp("plan_expires_at"),
   planCancelledAt: timestamp("plan_cancelled_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_profiles_coach_code").on(table.coachCode),
+]);
 
 export const programs = pgTable("programs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -31,7 +33,10 @@ export const programs = pgTable("programs", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   updatedBy: text("updated_by").notNull().default('coach'),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_programs_coach_id").on(table.coachId),
+  index("idx_programs_client_id").on(table.clientId),
+]);
 
 export const clients = pgTable("clients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -39,7 +44,10 @@ export const clients = pgTable("clients", {
   clientProfileId: varchar("client_profile_id").notNull(),
   name: text("name").notNull(),
   joinedAt: timestamp("joined_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_clients_coach_id").on(table.coachId),
+  index("idx_clients_client_profile_id").on(table.clientProfileId),
+]);
 
 export const prs = pgTable("prs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -49,7 +57,9 @@ export const prs = pgTable("prs", {
   unit: text("unit").notNull().default('kg'),
   date: text("date").notNull(),
   notes: text("notes").notNull().default(''),
-});
+}, (table) => [
+  index("idx_prs_profile_id").on(table.profileId),
+]);
 
 export const notifications = pgTable("notifications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -63,7 +73,9 @@ export const notifications = pgTable("notifications", {
   fromRole: text("from_role").notNull(),
   read: boolean("read").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_notifications_profile_id").on(table.profileId),
+]);
 
 export const messages = pgTable("messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -72,7 +84,9 @@ export const messages = pgTable("messages", {
   senderRole: text("sender_role").notNull(),
   text: text("text").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_messages_coach_client").on(table.coachId, table.clientProfileId),
+]);
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -95,7 +109,11 @@ export const videoUploads = pgTable("video_uploads", {
   coachId: varchar("coach_id").notNull(),
   coachViewedAt: timestamp("coach_viewed_at"),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_video_uploads_uploaded_by").on(table.uploadedBy),
+  index("idx_video_uploads_coach_id").on(table.coachId),
+  index("idx_video_uploads_uploaded_at").on(table.uploadedAt),
+]);
 
 export const paymentUsers = pgTable("payment_users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, ScrollView, Pressable, Platform, ActivityIndica
 import { showAlert } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -19,6 +19,7 @@ export default function ProgramsScreen() {
   const [role, setRole] = useState<string>(getCachedProfile()?.role || 'coach');
   const [loading, setLoading] = useState(getCachedPrograms().length === 0 && !getCachedProfile());
   const [error, setError] = useState(false);
+  const lastRefetchRef = useRef<number>(0);
 
   const loadData = useCallback(async () => {
     try {
@@ -45,7 +46,11 @@ export default function ProgramsScreen() {
     if (cachedProfile) setRole(cachedProfile.role);
     const cachedProgs = getCachedPrograms();
     if (cachedProgs.length > 0) setPrograms(cachedProgs);
-    loadData();
+    const now = Date.now();
+    if (now - lastRefetchRef.current >= 10000) {
+      lastRefetchRef.current = now;
+      loadData();
+    }
   }, [loadData]));
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
