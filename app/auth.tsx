@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useRef } from "react";
 import * as Haptics from "expo-haptics";
-import * as WebBrowser from "expo-web-browser";
+import { router } from "expo-router";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import { useAuth } from "@/lib/auth-context";
@@ -483,13 +483,11 @@ export default function AuthScreen() {
             <Text style={[styles.legalText, { color: colors.textMuted }]}>
               By continuing, you agree to our{' '}
               <Text style={[styles.legalLink, { color: colors.primary }]} accessibilityRole="link" accessibilityLabel="Terms of Service" onPress={() => {
-                const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
-                WebBrowser.openBrowserAsync(`${base}/terms`);
+                router.push({ pathname: "/legal", params: { type: "terms" } });
               }}>Terms of Service</Text>
               {' '}and{' '}
               <Text style={[styles.legalLink, { color: colors.primary }]} accessibilityRole="link" accessibilityLabel="Privacy Policy" onPress={() => {
-                const base = Platform.OS === 'web' ? window.location.origin.replace(':8081', ':5000') : (() => { const d = process.env.EXPO_PUBLIC_DOMAIN || ''; return d ? `https://${d.replace(/:\d+$/, '')}` : 'http://localhost:5000'; })();
-                WebBrowser.openBrowserAsync(`${base}/privacy`);
+                router.push({ pathname: "/legal", params: { type: "privacy" } });
               }}>Privacy Policy</Text>
             </Text>
           </View>
