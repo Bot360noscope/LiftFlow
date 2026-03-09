@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, Pressable, Platform, ActivityIndicator, PanResp
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import * as Haptics from "expo-haptics";
 import * as MediaLibrary from "expo-media-library";
@@ -38,12 +38,19 @@ export default function TrimVideoScreen() {
   const coachId = params.coachId || '';
   const exerciseName = params.exerciseName || 'Exercise';
   const needsTrim = totalDuration > MAX_DURATION;
+  const navigation = useNavigation();
+  const intentionalDismissRef = useRef(false);
+  const autoSavedRef = useRef(false);
 
   const startRef = useRef(0);
   const endRef = useRef(Math.min(totalDuration, MAX_DURATION));
   const [startTime, _setStartTime] = useState(0);
   const [endTime, _setEndTime] = useState(Math.min(totalDuration, MAX_DURATION));
-  const [uploading, setUploading] = useState(false);
+  const [uploading, _setUploading] = useState(false);
+  const setUploading = useCallback((v: boolean) => {
+    _setUploading(v);
+    navigation.setOptions({ gestureEnabled: !v });
+  }, [navigation]);
   const [currentTime, setCurrentTime] = useState(0);
   const [trackWidth, setTrackWidth] = useState(0);
   const trackWidthRef = useRef(0);
@@ -67,6 +74,20 @@ export default function TrimVideoScreen() {
   const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions();
 
   const [isPlaying, setIsPlaying] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove' as any, () => {
+      if (!intentionalDismissRef.current && !autoSavedRef.current && videoUri && Platform.OS !== 'web') {
+        autoSavedRef.current = true;
+        MediaLibrary.requestPermissionsAsync().then(({ granted }) => {
+          if (granted) {
+            MediaLibrary.saveToLibraryAsync(videoUri).catch(() => {});
+          }
+        });
+      }
+    });
+    return unsubscribe;
+  }, [navigation, videoUri]);
 
   const player = useVideoPlayer(videoUri || null, (p) => {
     p.loop = true;
@@ -239,6 +260,7 @@ export default function TrimVideoScreen() {
       trimResult.videoUrl = serverUrl;
       trimResult.exerciseId = exerciseId;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      intentionalDismissRef.current = true;
       router.back();
     } catch (err: any) {
       const msg = err?.message?.includes('internet') || err?.message?.includes('connect')
@@ -313,7 +335,7 @@ export default function TrimVideoScreen() {
       <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 8) }]}>
         <Pressable onPress={() => {
           if (uploading) return;
-          confirmAction('Discard Video?', 'Your recorded video will be lost if you haven\'t saved it to Photos.', () => router.back(), 'Discard');
+          confirmAction('Discard Video?', 'Your recorded video will be lost if you haven\'t saved it to Photos.', () => { intentionalDismissRef.current = true; router.back(); }, 'Discard');
         }} hitSlop={12}>
           <Ionicons name="close" size={28} color="#fff" />
         </Pressable>

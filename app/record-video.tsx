@@ -2,9 +2,10 @@ import { StyleSheet, Text, View, Pressable, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
+import { PanResponder } from "react-native";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
@@ -22,15 +23,20 @@ export default function RecordVideoScreen() {
     exerciseName: string;
   }>();
 
+  const navigation = useNavigation();
   const [permission, requestPermission] = useCameraPermissions();
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [facing, setFacing] = useState<'front' | 'back'>('back');
+  const [zoom, setZoom] = useState(0);
   const { isOnline } = useNetworkStatus();
   const cameraRef = useRef<CameraView>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef = useRef(0);
   const discardRef = useRef(false);
+  const zoomRef = useRef(0);
+  const baseZoomRef = useRef(0);
+  const lastPinchRef = useRef(1);
 
   useEffect(() => {
     if (!permission?.granted) {
@@ -44,6 +50,45 @@ export default function RecordVideoScreen() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    navigation.setOptions({ gestureEnabled: !recording });
+  }, [recording, navigation]);
+
+  const updateZoom = useCallback((v: number) => {
+    zoomRef.current = v;
+    setZoom(v);
+  }, []);
+
+  const zoomPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gs) => gs.numberActiveTouches === 2,
+      onPanResponderGrant: () => {
+        baseZoomRef.current = zoomRef.current;
+        lastPinchRef.current = 1;
+      },
+      onPanResponderMove: (evt) => {
+        if (evt.nativeEvent.touches.length < 2) return;
+        const [t1, t2] = evt.nativeEvent.touches;
+        const dist = Math.sqrt(
+          Math.pow(t1.pageX - t2.pageX, 2) + Math.pow(t1.pageY - t2.pageY, 2)
+        );
+        if (lastPinchRef.current === 1) {
+          lastPinchRef.current = dist;
+          return;
+        }
+        const scale = dist / lastPinchRef.current;
+        const newZoom = Math.max(0, Math.min(1, baseZoomRef.current + (scale - 1) * 0.5));
+        zoomRef.current = newZoom;
+        setZoom(newZoom);
+      },
+      onPanResponderRelease: () => {
+        baseZoomRef.current = zoomRef.current;
+        lastPinchRef.current = 1;
+      },
+    })
+  ).current;
 
   const configureAudioSession = async () => {
     try {
@@ -148,6 +193,9 @@ export default function RecordVideoScreen() {
 
   const flipCamera = () => {
     setFacing(prev => prev === 'back' ? 'front' : 'back');
+    zoomRef.current = 0;
+    baseZoomRef.current = 0;
+    setZoom(0);
     Haptics.selectionAsync();
   };
 
@@ -170,12 +218,15 @@ export default function RecordVideoScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: '#000' }]}>
-      <CameraView
-        ref={cameraRef}
-        style={styles.camera}
-        facing={facing}
-        mode="video"
-      />
+      <View style={styles.camera} {...zoomPanResponder.panHandlers}>
+        <CameraView
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          facing={facing}
+          mode="video"
+          zoom={zoom}
+        />
+      </View>
 
       {!isOnline && (
         <View style={[styles.offlineBar, { top: insets.top + 48 }]}>
@@ -198,6 +249,12 @@ export default function RecordVideoScreen() {
         <View style={styles.timerBadge}>
           <View style={styles.timerDot} />
           <Text style={styles.timerText}>{formatTime(elapsed)}</Text>
+        </View>
+      )}
+
+      {zoom > 0.01 && (
+        <View style={styles.zoomBadge}>
+          <Text style={styles.zoomText}>{(1 + zoom * 9).toFixed(1)}x</Text>
         </View>
       )}
 
@@ -301,5 +358,13 @@ const styles = StyleSheet.create({
   },
   offlineBarText: {
     fontFamily: 'Rubik_500Medium', fontSize: 12, color: '#fff', flex: 1,
+  },
+  zoomBadge: {
+    position: 'absolute', alignSelf: 'center', bottom: '30%',
+    backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 5,
+    borderRadius: 16,
+  },
+  zoomText: {
+    fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: '#fff',
   },
 });
