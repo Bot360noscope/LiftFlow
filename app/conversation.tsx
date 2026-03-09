@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, Keybo
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
@@ -91,6 +91,14 @@ export default function ChatScreen() {
     setLoadingMore(false);
   }, [coachId, clientProfileId, hasMore, loadingMore, messages]);
 
+  const markChatNotifsRead = useCallback(async (cId: string, cpId: string) => {
+    try {
+      const notifs = await getNotifications();
+      notifs.filter(n => n.type === 'chat' && !n.read && n.programTitle === cpId)
+        .forEach(n => markNotificationRead(n.id).catch(() => {}));
+    } catch {}
+  }, []);
+
   const loadMessages = useCallback(async () => {
     if (!coachId || !clientProfileId) return;
     try {
@@ -99,6 +107,15 @@ export default function ChatScreen() {
       setHasMore(result.hasMore);
     } catch (e) {}
   }, [coachId, clientProfileId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (coachId && clientProfileId) {
+        loadMessages();
+        markChatNotifsRead(coachId, clientProfileId);
+      }
+    }, [coachId, clientProfileId, loadMessages, markChatNotifsRead])
+  );
 
   useEffect(() => {
     if (!coachId || !clientProfileId) return;
@@ -111,6 +128,7 @@ export default function ChatScreen() {
             return [...prev, m];
           });
           appendMessageToCache(coachId, clientProfileId, m);
+          markChatNotifsRead(coachId, clientProfileId);
           setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
         }
       }

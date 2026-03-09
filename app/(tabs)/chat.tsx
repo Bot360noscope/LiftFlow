@@ -239,14 +239,20 @@ export default function ChatTab() {
                   key={client.id}
                   style={[styles.clientRow, { borderBottomColor: colors.border }]}
                   activeOpacity={0.6}
-                  onPress={() => {
+                  onPress={async () => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    const cpId = client.clientProfileId || '';
                     setUnreadClientIds(prev => {
                       const next = new Set(prev);
-                      next.delete(client.clientProfileId || '');
+                      next.delete(cpId);
                       return next;
                     });
-                    router.push({ pathname: '/conversation', params: { coachId: profile.id, clientProfileId: client.clientProfileId || '', clientName: client.name } });
+                    try {
+                      const notifs = await getNotifications();
+                      notifs.filter(n => n.type === 'chat' && !n.read && n.programTitle === cpId)
+                        .forEach(n => markNotificationRead(n.id).catch(() => {}));
+                    } catch {}
+                    router.push({ pathname: '/conversation', params: { coachId: profile.id, clientProfileId: cpId, clientName: client.name } });
                   }}
                   accessibilityLabel={`Chat with ${client.name}`}
                   accessibilityRole="button"

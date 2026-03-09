@@ -9,7 +9,8 @@ import * as MediaLibrary from "expo-media-library";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import { uploadVideo } from "@/lib/api";
-import { showAlert } from "@/lib/confirm";
+import { showAlert, confirmAction } from "@/lib/confirm";
+import { getIsOnline } from "@/lib/sync-manager";
 import { trimResult } from "@/lib/trim-result";
 
 const MAX_DURATION = 60;
@@ -221,6 +222,10 @@ export default function TrimVideoScreen() {
 
   const handleSubmit = async () => {
     if (!isValidClip) return;
+    if (!getIsOnline()) {
+      showAlert("No Internet", "You need an internet connection to upload videos. Save the video to Photos and try again later.");
+      return;
+    }
     setUploading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
@@ -236,7 +241,10 @@ export default function TrimVideoScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (err: any) {
-      showAlert("Upload Failed", "Failed to upload the video. Please try again.");
+      const msg = err?.message?.includes('internet') || err?.message?.includes('connect')
+        ? 'No internet connection. Save the video to Photos and try again when connected.'
+        : 'Failed to upload the video. Your video is still here — you can retry or save it to Photos.';
+      showAlert("Upload Failed", msg);
     } finally {
       setUploading(false);
     }
@@ -303,7 +311,10 @@ export default function TrimVideoScreen() {
       </Pressable>
 
       <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 8) }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable onPress={() => {
+          if (uploading) return;
+          confirmAction('Discard Video?', 'Your recorded video will be lost if you haven\'t saved it to Photos.', () => router.back(), 'Discard');
+        }} hitSlop={12}>
           <Ionicons name="close" size={28} color="#fff" />
         </Pressable>
         <Text style={styles.topTitle} numberOfLines={1}>{exerciseName}</Text>

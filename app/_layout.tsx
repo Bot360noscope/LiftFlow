@@ -47,7 +47,7 @@ function RootLayoutNav() {
       <Stack.Screen name="conversation" options={{ headerShown: false, presentation: "card" }} />
       <Stack.Screen name="record-video" options={{ headerShown: false, presentation: "fullScreenModal" }} />
       <Stack.Screen name="trim-video" options={{ headerShown: false, presentation: "modal" }} />
-      <Stack.Screen name="legal" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="legal" options={{ headerShown: false, presentation: "card" }} />
     </Stack>
   );
 }

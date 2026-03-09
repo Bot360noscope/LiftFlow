@@ -287,8 +287,8 @@ export default function HomeScreen() {
   const recentPrograms = programs.slice(0, 3);
   const unreadNotifs = notifications.filter(n => !n.read);
   const clientNotifs = isCoach
-    ? notifications.filter(n => n.fromRole === 'client' && n.type !== 'completion')
-    : notifications;
+    ? notifications.filter(n => n.fromRole === 'client' && n.type !== 'completion' && n.type !== 'chat')
+    : notifications.filter(n => n.type !== 'chat');
   const recentNotifs = clientNotifs.slice(0, 5);
   const sortedClients = isCoach ? [...clients].sort((a, b) => {
     const aMsg = latestMsgs[a.clientProfileId || ''];

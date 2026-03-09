@@ -8,7 +8,8 @@ import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
-import { showAlert } from "@/lib/confirm";
+import { showAlert, confirmAction } from "@/lib/confirm";
+import { useNetworkStatus } from "@/lib/sync-manager";
 
 export default function RecordVideoScreen() {
   const insets = useSafeAreaInsets();
@@ -25,9 +26,11 @@ export default function RecordVideoScreen() {
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [facing, setFacing] = useState<'front' | 'back'>('back');
+  const { isOnline } = useNetworkStatus();
   const cameraRef = useRef<CameraView>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef = useRef(0);
+  const discardRef = useRef(false);
 
   useEffect(() => {
     if (!permission?.granted) {
@@ -63,6 +66,7 @@ export default function RecordVideoScreen() {
 
   const startRecording = async () => {
     if (!cameraRef.current) return;
+    discardRef.current = false;
 
     try {
       await Audio.setAudioModeAsync({
@@ -98,6 +102,8 @@ export default function RecordVideoScreen() {
       if (timerRef.current) clearInterval(timerRef.current);
       setRecording(false);
 
+      if (discardRef.current) return;
+
       if (video?.uri) {
         router.replace({
           pathname: '/trim-video',
@@ -124,6 +130,19 @@ export default function RecordVideoScreen() {
     if (cameraRef.current && recording) {
       cameraRef.current.stopRecording();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const handleClose = () => {
+    if (recording) {
+      confirmAction(
+        'Stop Recording?',
+        'Your current recording will be discarded.',
+        () => { discardRef.current = true; stopRecording(); router.back(); },
+        'Discard'
+      );
+    } else {
+      router.back();
     }
   };
 
@@ -158,8 +177,15 @@ export default function RecordVideoScreen() {
         mode="video"
       />
 
+      {!isOnline && (
+        <View style={[styles.offlineBar, { top: insets.top + 48 }]}>
+          <Ionicons name="cloud-offline" size={14} color="#fff" />
+          <Text style={styles.offlineBarText}>You're offline — video can't be uploaded right now</Text>
+        </View>
+      )}
+
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => { if (recording) stopRecording(); router.back(); }} hitSlop={12}>
+        <Pressable onPress={handleClose} hitSlop={12}>
           <Ionicons name="close" size={30} color="#fff" />
         </Pressable>
         <Text style={styles.exerciseName} numberOfLines={1}>{params.exerciseName || 'Form Check'}</Text>
@@ -266,5 +292,14 @@ const styles = StyleSheet.create({
   },
   cancelBtnText: {
     fontFamily: 'Rubik_400Regular', fontSize: 15, color: 'rgba(255,255,255,0.6)',
+  },
+  offlineBar: {
+    position: 'absolute', left: 16, right: 16, zIndex: 20,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255, 59, 48, 0.85)', paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 10,
+  },
+  offlineBarText: {
+    fontFamily: 'Rubik_500Medium', fontSize: 12, color: '#fff', flex: 1,
   },
 });

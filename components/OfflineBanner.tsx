@@ -1,10 +1,12 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNetworkStatus } from '@/lib/sync-manager';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 
 export default function OfflineBanner() {
   const { isOnline, isSyncing, pendingCount } = useNetworkStatus();
+  const insets = useSafeAreaInsets();
 
   if (isOnline && !isSyncing && pendingCount === 0) return null;
 
@@ -30,7 +32,7 @@ export default function OfflineBanner() {
     <Animated.View
       entering={FadeInDown.duration(200)}
       exiting={FadeOutUp.duration(200)}
-      style={[styles.container, { backgroundColor: bgColor }]}
+      style={[styles.container, { backgroundColor: bgColor, paddingTop: (Platform.OS !== 'web' ? insets.top : 0) + 6 }]}
     >
       <Ionicons name={icon} size={14} color="#fff" />
       <Text style={styles.text}>{message}</Text>
@@ -44,7 +46,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 6,
+    paddingBottom: 6,
     paddingHorizontal: 16,
   },
   text: {
