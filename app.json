@@ -21,7 +21,8 @@
         "NSCameraUsageDescription": "LiftFlow needs access to your camera to record form check videos for your coach to review.",
         "NSMicrophoneUsageDescription": "LiftFlow needs microphone access to record audio with your form check videos.",
         "NSPhotoLibraryUsageDescription": "LiftFlow needs access to your photo library to upload a profile picture.",
-        "NSPhotoLibraryAddUsageDescription": "LiftFlow needs permission to save videos and photos to your library."
+        "NSPhotoLibraryAddUsageDescription": "LiftFlow needs permission to save videos and photos to your library.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -32,7 +33,10 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -64,6 +68,14 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "origin": "https://replit.com/"
+      },
+      "eas": {
+        "projectId": "e6d95b82-5700-4441-a590-28af34a5dca5"
+      }
     }
   }
 }
