@@ -14,6 +14,7 @@ export const profiles = pgTable("profiles", {
   plan: text("plan").notNull().default('free'),
   planUserLimit: integer("plan_user_limit").notNull().default(1),
   planExpiresAt: timestamp("plan_expires_at"),
+  planCancelledAt: timestamp("plan_cancelled_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -75,6 +75,7 @@ async function checkAndDowngradeExpiredPlan(profileId: string): Promise<void> {
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, profileId));
   if (!profile) return;
   if (profile.planExpiresAt && new Date(profile.planExpiresAt) < new Date() && profile.plan !== 'free') {
+    console.log(`[Plan Expiry] Downgrading ${profileId} from ${profile.plan} (limit: ${profile.planUserLimit}) to free — expired at ${profile.planExpiresAt}`);
     await db.update(profiles).set({ plan: 'free', planUserLimit: 1, planExpiresAt: null }).where(eq(profiles.id, profileId));
   }
 }
@@ -1525,11 +1526,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (status === 'cancelled' || resolvedTier === 'free') {
-        await db.update(profiles).set({
-          plan: 'free',
-          planUserLimit: 1,
-          planExpiresAt: null,
-        }).where(eq(profiles.id, userProfile[0].id));
+        const currentProfile = userProfile[0];
+        if (currentProfile.planExpiresAt && new Date(currentProfile.planExpiresAt) > new Date()) {
+          await db.update(profiles).set({
+            plan: currentProfile.plan || 'free',
+            planUserLimit: currentProfile.planUserLimit || 1,
+            planExpiresAt: currentProfile.planExpiresAt,
+            planCancelledAt: new Date(),
+          }).where(eq(profiles.id, currentProfile.id));
+          console.log(`[Payment Webhook] Cancellation for ${email}: keeping plan until ${currentProfile.planExpiresAt}`);
+        } else {
+          await db.update(profiles).set({
+            plan: 'free',
+            planUserLimit: 1,
+            planExpiresAt: null,
+            planCancelledAt: new Date(),
+          }).where(eq(profiles.id, currentProfile.id));
+        }
       } else {
         const expiresAt = durationDays
           ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)
