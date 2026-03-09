@@ -1,0 +1,27 @@
+{
+  "cli": {
+    "version": ">= 3.0.0"
+  },
+  "build": {
+    "production": {
+      "distribution": "store",
+      "ios": {
+        "buildConfiguration": "Release",
+        "cache": {
+          "disabled": false,
+          "key": "v2-no-ffmpeg"
+        }
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6759719919",
+        "ascApiKeyIssuerId": "362b0cb3-ef87-4656-93a7-83d8719ce9da",
+        "ascApiKeyId": "ZWB66Z7FNY",
+        "ascApiKeyPath": "./AuthKey_ZWB66Z7FNY.p8"
+      }
+    }
+  }
+}
