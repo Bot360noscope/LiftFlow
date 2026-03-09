@@ -235,6 +235,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
+  app.post("/api/auth/forgot-password", authRateLimit, async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ error: "Email is required" });
+
+      const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase().trim()));
+      if (!user) {
+        return res.json({ success: true, message: "If an account exists with that email, a reset code has been sent." });
+      }
+
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiry = new Date(Date.now() + 15 * 60 * 1000);
+      await db.update(users).set({ resetToken: code, resetTokenExpiry: expiry }).where(eq(users.id, user.id));
+
+      try {
+        const { Resend } = await import("resend");
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: "LiftFlow <onboarding@resend.dev>",
+          to: email.toLowerCase().trim(),
+          subject: "Your LiftFlow Password Reset Code",
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
+              <h2 style="color: #E8512F; margin-bottom: 8px;">LiftFlow</h2>
+              <p style="color: #333; font-size: 16px;">Your password reset code is:</p>
+              <div style="background: #f5f5f5; border-radius: 12px; padding: 20px; text-align: center; margin: 20px 0;">
+                <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #E8512F;">${code}</span>
+              </div>
+              <p style="color: #666; font-size: 14px;">This code expires in 15 minutes. If you didn't request this, you can safely ignore this email.</p>
+            </div>
+          `,
+        });
+      } catch (emailErr: any) {
+        console.error("Failed to send reset email:", emailErr);
+        return res.status(500).json({ error: "Failed to send reset email. Please try again." });
+      }
+
+      res.json({ success: true, message: "If an account exists with that email, a reset code has been sent." });
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  app.post("/api/auth/verify-reset-code", authRateLimit, async (req, res) => {
+    try {
+      const { email, code, newPassword } = req.body;
+      if (!email || !code || !newPassword) return res.status(400).json({ error: "Email, code, and new password are required" });
+      if (newPassword.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
+
+      const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase().trim()));
+      if (!user) return res.status(400).json({ error: "Invalid email or code" });
+
+      if (!user.resetToken || user.resetToken !== code) {
+        return res.status(400).json({ error: "Invalid reset code" });
+      }
+
+      if (!user.resetTokenExpiry || new Date() > user.resetTokenExpiry) {
+        return res.status(400).json({ error: "Reset code has expired. Please request a new one." });
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await db.update(users).set({ passwordHash, resetToken: null, resetTokenExpiry: null }).where(eq(users.id, user.id));
+
+      res.json({ success: true, message: "Password has been reset successfully" });
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
   app.post("/api/admin/reset-password", async (req, res) => {
     try {
       const adminKey = req.headers['x-admin-key'];

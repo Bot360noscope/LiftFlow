@@ -32,6 +32,9 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - **Conflict Resolution**: PUT /api/programs/:id checks updatedAt/updatedBy. Coach updates always win. Client updates rejected with 409 + server version if coach made newer changes
 
 ## API Endpoints (server/routes.ts)
+- POST /api/auth/register, POST /api/auth/login, GET /api/auth/me
+- POST /api/auth/forgot-password (sends 6-digit code via Resend email), POST /api/auth/verify-reset-code (verifies code + sets new password)
+- POST /api/admin/reset-password (admin-only, protected by ADMIN_SECRET_KEY header)
 - POST /api/profiles, GET /api/profiles/:id, PUT /api/profiles/:id
 - GET /api/programs?profileId=X, GET /api/programs/:id, POST /api/programs, PUT /api/programs/:id, DELETE /api/programs/:id
 - GET /api/clients?coachId=X, POST /api/clients, DELETE /api/clients/:id
