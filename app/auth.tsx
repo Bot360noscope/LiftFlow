@@ -12,7 +12,7 @@ export default function AuthScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { login, register } = useAuth();
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -67,9 +67,36 @@ export default function AuthScreen() {
           </View>
           <Text style={[styles.logoText, { color: colors.text }]}>LiftFlow</Text>
           <Text style={[styles.logoSub, { color: colors.textSecondary }]}>
-            {mode === 'login' ? 'Welcome back' : 'Create your account'}
+            {mode === 'forgot' ? 'Reset your password' : mode === 'login' ? 'Welcome back' : 'Create your account'}
           </Text>
         </View>
+
+        {mode === 'forgot' ? (
+          <View style={styles.form}>
+            <View style={[styles.forgotCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+              <Ionicons name="lock-closed-outline" size={32} color={colors.primary} style={{ alignSelf: 'center', marginBottom: 12 }} />
+              <Text style={[styles.forgotTitle, { color: colors.text }]}>Need to reset your password?</Text>
+              <Text style={[styles.forgotDesc, { color: colors.textSecondary }]}>
+                Contact our support team and we'll help you get back into your account.
+              </Text>
+              <View style={[styles.forgotEmailBox, { backgroundColor: colors.background }]}>
+                <Ionicons name="mail-outline" size={18} color={colors.primary} />
+                <Text style={[styles.forgotEmail, { color: colors.text }]} selectable>support@liftflow.app</Text>
+              </View>
+              <Text style={[styles.forgotHint, { color: colors.textMuted }]}>
+                Include the email address you signed up with so we can find your account.
+              </Text>
+            </View>
+            <Pressable
+              style={[styles.submitBtn, { backgroundColor: colors.primary, marginTop: 20 }]}
+              onPress={() => { setMode('login'); setError(''); }}
+              accessibilityLabel="Back to sign in"
+              accessibilityRole="button"
+            >
+              <Text style={styles.submitBtnText}>Back to Sign In</Text>
+            </Pressable>
+          </View>
+        ) : (
 
         <View style={styles.form}>
           {mode === 'signup' && (
@@ -166,6 +193,17 @@ export default function AuthScreen() {
             )}
           </Pressable>
 
+          {mode === 'login' && (
+            <Pressable
+              onPress={() => setMode('forgot' as any)}
+              style={styles.forgotRow}
+              accessibilityLabel="Forgot password"
+              accessibilityRole="button"
+            >
+              <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot Password?</Text>
+            </Pressable>
+          )}
+
           <View style={styles.switchRow}>
             <Text style={[styles.switchText, { color: colors.textSecondary }]}>
               {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}
@@ -190,6 +228,7 @@ export default function AuthScreen() {
             </Text>
           </View>
         </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -242,4 +281,17 @@ const styles = StyleSheet.create({
   legalRow: { marginTop: 24, alignItems: 'center', paddingHorizontal: 12 },
   legalText: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, textAlign: 'center' as const, lineHeight: 18 },
   legalLink: { color: Colors.colors.primary, fontFamily: 'Rubik_500Medium' },
+  forgotRow: { alignItems: 'center', marginTop: 12 },
+  forgotText: { fontFamily: 'Rubik_600SemiBold', fontSize: 14 },
+  forgotCard: {
+    borderRadius: 16, borderWidth: 1, padding: 24,
+  },
+  forgotTitle: { fontFamily: 'Rubik_600SemiBold', fontSize: 17, textAlign: 'center' as const, marginBottom: 8 },
+  forgotDesc: { fontFamily: 'Rubik_400Regular', fontSize: 14, textAlign: 'center' as const, lineHeight: 20, marginBottom: 16 },
+  forgotEmailBox: {
+    flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const,
+    gap: 8, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, marginBottom: 12,
+  },
+  forgotEmail: { fontFamily: 'Rubik_600SemiBold', fontSize: 15 },
+  forgotHint: { fontFamily: 'Rubik_400Regular', fontSize: 12, textAlign: 'center' as const, lineHeight: 16 },
 });

@@ -235,6 +235,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
+  app.post("/api/admin/reset-password", async (req, res) => {
+    try {
+      const adminKey = req.headers['x-admin-key'];
+      if (!adminKey || adminKey !== process.env.ADMIN_SECRET_KEY) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      const { email, newPassword } = req.body;
+      if (!email || !newPassword) return res.status(400).json({ error: "Email and newPassword required" });
+      if (newPassword.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
+
+      const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase().trim()));
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await db.update(users).set({ passwordHash }).where(eq(users.id, user.id));
+
+      res.json({ success: true, message: `Password reset for ${email}` });
+    } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
   app.get("/api/auth/me", async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
