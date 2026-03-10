@@ -10,7 +10,7 @@ import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { ProgressSkeleton } from "@/components/SkeletonLoader";
-import { getPRs, deletePR, getProfile, getBestPR, getPrograms, getClients, getDashboard, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, type LiftPR, type Program, type ClientInfo } from "@/lib/storage";
+import { getPRs, deletePR, getProfile, getBestPR, getPrograms, getClients, getDashboard, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, invalidateProgramsCache, type LiftPR, type Program, type ClientInfo } from "@/lib/storage";
 
 const LIFT_COLORS: Record<string, string> = {
   squat: Colors.colors.squat,
@@ -124,8 +124,9 @@ export default function ProgressScreen() {
 
   useFocusEffect(useCallback(() => {
     const now = Date.now();
-    if (now - lastRefetchRef.current < 10000) return;
+    if (now - lastRefetchRef.current < 2000) return;
     lastRefetchRef.current = now;
+    invalidateProgramsCache();
     loadData();
   }, [loadData]));
 

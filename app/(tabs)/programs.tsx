@@ -10,7 +10,7 @@ import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { ProgramsSkeleton } from "@/components/SkeletonLoader";
-import { getPrograms, deleteProgram, getProfile, getDashboard, getCachedPrograms, getCachedProfile, type Program } from "@/lib/storage";
+import { getPrograms, deleteProgram, getProfile, getDashboard, getCachedPrograms, getCachedProfile, invalidateProgramsCache, type Program } from "@/lib/storage";
 
 export default function ProgramsScreen() {
   const { colors } = useTheme();
@@ -47,8 +47,9 @@ export default function ProgramsScreen() {
     const cachedProgs = getCachedPrograms();
     if (cachedProgs.length > 0) setPrograms(cachedProgs);
     const now = Date.now();
-    if (now - lastRefetchRef.current >= 10000) {
+    if (now - lastRefetchRef.current >= 2000) {
       lastRefetchRef.current = now;
+      invalidateProgramsCache();
       loadData();
     }
   }, [loadData]));
