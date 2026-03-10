@@ -218,15 +218,14 @@ export default function RecordVideoScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: '#000' }]}>
-      <View style={styles.camera} {...zoomPanResponder.panHandlers}>
-        <CameraView
-          ref={cameraRef}
-          style={StyleSheet.absoluteFill}
-          facing={facing}
-          mode="video"
-          zoom={zoom}
-        />
-      </View>
+      <CameraView
+        ref={cameraRef}
+        style={StyleSheet.absoluteFill}
+        facing={facing}
+        mode="video"
+        zoom={zoom}
+      />
+      <View style={styles.zoomOverlay} {...zoomPanResponder.panHandlers} />
 
       {!isOnline && (
         <View style={[styles.offlineBar, { top: insets.top + 48 }]}>
@@ -366,5 +365,9 @@ const styles = StyleSheet.create({
   },
   zoomText: {
     fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: '#fff',
+  },
+  zoomOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 180,
+    zIndex: 1,
   },
 });
