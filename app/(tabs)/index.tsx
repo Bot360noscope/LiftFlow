@@ -302,9 +302,20 @@ export default function HomeScreen() {
   const sortedClients = isCoach ? [...clients].sort((a, b) => {
     const aMsg = latestMsgs[a.clientProfileId || ''];
     const bMsg = latestMsgs[b.clientProfileId || ''];
-    if (aMsg && bMsg) return new Date(bMsg.createdAt).getTime() - new Date(aMsg.createdAt).getTime();
-    if (aMsg) return -1;
-    if (bMsg) return 1;
+    const aMsgTime = aMsg ? new Date(aMsg.createdAt).getTime() : 0;
+    const bMsgTime = bMsg ? new Date(bMsg.createdAt).getTime() : 0;
+
+    const aNotifs = notifications.filter(n => n.fromRole === 'client' && n.programTitle === (a.clientProfileId || ''));
+    const bNotifs = notifications.filter(n => n.fromRole === 'client' && n.programTitle === (b.clientProfileId || ''));
+    const aNotifTime = aNotifs.length > 0 ? Math.max(...aNotifs.map(n => new Date(n.createdAt).getTime())) : 0;
+    const bNotifTime = bNotifs.length > 0 ? Math.max(...bNotifs.map(n => new Date(n.createdAt).getTime())) : 0;
+
+    const aLatest = Math.max(aMsgTime, aNotifTime);
+    const bLatest = Math.max(bMsgTime, bNotifTime);
+
+    if (aLatest && bLatest) return bLatest - aLatest;
+    if (aLatest) return -1;
+    if (bLatest) return 1;
     return 0;
   }) : clients;
   const filteredClients = clientSearch.trim()
