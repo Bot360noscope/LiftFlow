@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Image, Modal, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -9,10 +9,12 @@ import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import {
   getPrograms, getClients, removeClient, invalidateProgramsCache,
+  getNotifications,
   type Program, type ClientInfo,
 } from "@/lib/storage";
 import { getAvatarUrl } from "@/lib/api";
 import { showAlert } from "@/lib/confirm";
+import { addWSListener } from "@/lib/websocket";
 
 function ProgramCard({ program }: { program: Program }) {
   const { colors } = useTheme();
@@ -67,19 +69,45 @@ export default function ClientDetailScreen() {
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [removeInput, setRemoveInput] = useState('');
   const [removing, setRemoving] = useState(false);
+  const [hasUnreadChat, setHasUnreadChat] = useState(false);
+  const clientProfileIdRef = useRef('');
+
+  const checkUnread = useCallback(async (cpId: string) => {
+    try {
+      const notifs = await getNotifications();
+      const hasUnread = notifs.some(n => n.type === 'chat' && !n.read && n.fromRole === 'client' && n.programTitle === cpId);
+      setHasUnreadChat(hasUnread);
+    } catch {}
+  }, []);
 
   const loadData = useCallback(async () => {
     invalidateProgramsCache();
     const [allPrograms, allClients] = await Promise.all([getPrograms(), getClients()]);
     const found = allClients.find(c => c.id === id);
-    if (found) setClient(found);
+    if (found) {
+      setClient(found);
+      clientProfileIdRef.current = found.clientProfileId;
+      checkUnread(found.clientProfileId);
+    }
     const clientProgs = allPrograms
       .filter(p => p.clientId === id)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     setPrograms(clientProgs);
-  }, [id]);
+  }, [id, checkUnread]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+
+  useEffect(() => {
+    const removeListener = addWSListener((event: any) => {
+      if (event.type === 'new_message' && event.message) {
+        const m = event.message;
+        if (m.clientProfileId === clientProfileIdRef.current && m.senderRole === 'client') {
+          setHasUnreadChat(true);
+        }
+      }
+    });
+    return removeListener;
+  }, []);
 
   const handleRemoveClient = async () => {
     if (removeInput !== 'REMOVE') return;
@@ -111,10 +139,14 @@ export default function ClientDetailScreen() {
           hitSlop={8}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setHasUnreadChat(false);
             router.push({ pathname: '/conversation', params: { clientId: id, clientName: displayName, clientProfileId: client?.clientProfileId || '' } });
           }}
         >
-          <Ionicons name="chatbubbles-outline" size={22} color={colors.primary} />
+          <View>
+            <Ionicons name="chatbubbles-outline" size={22} color={colors.primary} />
+            {hasUnreadChat && <View style={styles.unreadDot} />}
+          </View>
         </Pressable>
       </View>
 
@@ -347,4 +379,10 @@ const styles = StyleSheet.create({
   },
   modalDeleteBtnDisabled: { opacity: 0.4 },
   modalDeleteText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: '#fff' },
+  unreadDot: {
+    position: 'absolute' as const, top: -3, right: -3,
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: Colors.colors.danger,
+    borderWidth: 1.5, borderColor: Colors.colors.background,
+  },
 });

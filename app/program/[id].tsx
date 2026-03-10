@@ -228,6 +228,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
 }) {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(initialExpanded || false);
+  const [seenContent, setSeenContent] = useState(initialExpanded || false);
   const [name, setName] = useState(exercise.name);
   const [repsSets, setRepsSets] = useState(exercise.repsSets);
   const [weight, setWeight] = useState(exercise.weight);
@@ -295,7 +296,10 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
     <View style={[styles.exerciseRow, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, isCompleted && [styles.exerciseRowCompleted, { borderColor: colors.success }]]}>
       <Pressable
         style={styles.exerciseHeader}
-        onPress={() => setExpanded(!expanded)}
+        onPress={() => {
+          if (!expanded) setSeenContent(true);
+          setExpanded(!expanded);
+        }}
         onLongPress={() => {
           if (!canEditAll) return;
           confirmAction("Delete Exercise", `Remove "${exercise.name || 'this exercise'}"?`, onDelete, "Delete");
@@ -338,10 +342,10 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
               <Ionicons name="trash-outline" size={14} color={colors.textMuted} />
             </Pressable>
           )}
-          {(exercise.coachComment || exercise.clientNotes) && (
+          {!seenContent && (exercise.coachComment || exercise.clientNotes) && (
             <Ionicons name="chatbubble" size={12} color={colors.accent} />
           )}
-          {!!exercise.videoUrl && (
+          {!seenContent && !!exercise.videoUrl && (
             <Ionicons name="videocam" size={12} color={colors.primary} />
           )}
           <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={colors.textMuted} />
