@@ -207,6 +207,7 @@ export default function HomeScreen() {
   const [clients, setClients] = useState<ClientInfo[]>(getCachedClients());
   const [notifications, setNotifications] = useState<AppNotification[]>(getCachedNotifications());
   const [clientSearch, setClientSearch] = useState('');
+  const [showAllClients, setShowAllClients] = useState(false);
   const [latestMsgs, setLatestMsgs] = useState<LatestMessages>(getCachedLatestMessages());
   const [loading, setLoading] = useState(!getCachedProfile());
   const [error, setError] = useState(false);
@@ -435,15 +436,29 @@ export default function HomeScreen() {
                 <Text style={[styles.emptyText, { color: colors.text }]}>No matching clients</Text>
               </View>
             ) : (
-              filteredClients.map((client) => (
-                <ClientCard
-                  key={client.id}
-                  client={client}
-                  programs={programs}
-                  hasUnread={notifications.some(n => !n.read && n.title.toLowerCase().includes(client.name.toLowerCase()))}
-                  colors={colors}
-                />
-              ))
+              <>
+                {(clientSearch.trim() || showAllClients ? filteredClients : filteredClients.slice(0, 6)).map((client) => (
+                  <ClientCard
+                    key={client.id}
+                    client={client}
+                    programs={programs}
+                    hasUnread={notifications.some(n => !n.read && n.title.toLowerCase().includes(client.name.toLowerCase()))}
+                    colors={colors}
+                  />
+                ))}
+                {!clientSearch.trim() && filteredClients.length > 6 && (
+                  <Pressable
+                    style={styles.seeAllBtn}
+                    onPress={() => setShowAllClients(!showAllClients)}
+                    hitSlop={4}
+                  >
+                    <Text style={[styles.seeAllText, { color: colors.primary }]}>
+                      {showAllClients ? 'Show less' : `View all ${filteredClients.length} clients`}
+                    </Text>
+                    <Ionicons name={showAllClients ? "chevron-up" : "chevron-down"} size={16} color={colors.primary} />
+                  </Pressable>
+                )}
+              </>
             )}
           </Animated.View>
 
