@@ -335,6 +335,10 @@ export function invalidateProfileCache() {
   cache.profileFetchedAt = 0;
 }
 
+export function invalidateProgramsCache() {
+  cache.programsFetchedAt = 0;
+}
+
 export async function saveProfile(profile: UserProfile): Promise<void> {
   cache.profile = profile;
   cache.profileFetchedAt = Date.now();

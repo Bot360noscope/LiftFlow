@@ -8,7 +8,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import {
-  getPrograms, getClients, removeClient,
+  getPrograms, getClients, removeClient, invalidateProgramsCache,
   type Program, type ClientInfo,
 } from "@/lib/storage";
 import { getAvatarUrl } from "@/lib/api";
@@ -69,6 +69,7 @@ export default function ClientDetailScreen() {
   const [removing, setRemoving] = useState(false);
 
   const loadData = useCallback(async () => {
+    invalidateProgramsCache();
     const [allPrograms, allClients] = await Promise.all([getPrograms(), getClients()]);
     const found = allClients.find(c => c.id === id);
     if (found) setClient(found);

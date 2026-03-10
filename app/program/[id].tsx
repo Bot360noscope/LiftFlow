@@ -283,10 +283,16 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
     const newVal = !isCompleted;
     setIsCompleted(newVal);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    if (!isShared) {
+      onUpdate({ name, repsSets, weight, rpe, notes, clientNotes, isCompleted: newVal });
+    } else {
+      onUpdate({ clientNotes, isCompleted: newVal });
+    }
   };
 
   return (
-    <View style={[styles.exerciseRow, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, exercise.isCompleted && [styles.exerciseRowCompleted, { borderColor: colors.success }]]}>
+    <View style={[styles.exerciseRow, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, isCompleted && [styles.exerciseRowCompleted, { borderColor: colors.success }]]}>
       <Pressable
         style={styles.exerciseHeader}
         onPress={() => setExpanded(!expanded)}
