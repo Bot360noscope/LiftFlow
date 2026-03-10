@@ -32,8 +32,9 @@ function rateLimit(windowMs: number, maxAttempts: number) {
     entry.count++;
     if (entry.count > maxAttempts) {
       const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+      const minutes = Math.ceil(retryAfter / 60);
       res.set('Retry-After', String(retryAfter));
-      return res.status(429).json({ error: 'Too many attempts. Please try again later.' });
+      return res.status(429).json({ error: `Too many attempts. Please wait ${minutes} minute${minutes > 1 ? 's' : ''} and try again.` });
     }
     return next();
   };
@@ -192,7 +193,7 @@ async function sendPushNotification(targetProfileId: string, title: string, body
 export async function registerRoutes(app: Express): Promise<Server> {
 
   // === AUTH ===
-  const authRateLimit = rateLimit(15 * 60 * 1000, 30);
+  const authRateLimit = rateLimit(15 * 60 * 1000, 10);
 
   app.post("/api/auth/register", authRateLimit, async (req, res) => {
     try {
