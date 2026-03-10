@@ -248,7 +248,7 @@ export default function HomeScreen() {
     const cachedMsgs = getCachedLatestMessages();
     if (Object.keys(cachedMsgs).length > 0) setLatestMsgs(cachedMsgs);
     const now = Date.now();
-    if (now - lastRefetchRef.current >= 10000) {
+    if (now - lastRefetchRef.current >= 3000) {
       lastRefetchRef.current = now;
       refreshDashboard();
     }
@@ -262,8 +262,8 @@ export default function HomeScreen() {
       }
     });
     pollRef.current = setInterval(() => {
-      if (focusedRef.current && Date.now() - lastRefetchRef.current >= 30000) refreshDashboard();
-    }, 120000);
+      if (focusedRef.current && Date.now() - lastRefetchRef.current >= 10000) refreshDashboard();
+    }, 15000);
     return () => {
       focusedRef.current = false;
       removeListener();
@@ -295,7 +295,9 @@ export default function HomeScreen() {
   const clientNotifs = isCoach
     ? notifications.filter(n => n.fromRole === 'client' && n.type !== 'completion' && n.type !== 'chat')
     : notifications.filter(n => n.type !== 'chat');
-  const recentNotifs = clientNotifs.slice(0, 5);
+  const [showAllNotifs, setShowAllNotifs] = useState(false);
+  const visibleNotifs = showAllNotifs ? clientNotifs : clientNotifs.slice(0, 5);
+  const hasMoreNotifs = clientNotifs.length > 5;
   const sortedClients = isCoach ? [...clients].sort((a, b) => {
     const aMsg = latestMsgs[a.clientProfileId || ''];
     const bMsg = latestMsgs[b.clientProfileId || ''];
@@ -445,10 +447,12 @@ export default function HomeScreen() {
             )}
           </Animated.View>
 
-          {recentNotifs.length > 0 && (
+          {visibleNotifs.length > 0 && (
             <Animated.View entering={FadeInDown.delay(250).duration(400)}>
               <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  Recent Activity{clientNotifs.length > 0 ? ` (${clientNotifs.length})` : ''}
+                </Text>
                 <Pressable
                   style={[styles.clearBtn, { backgroundColor: colors.surfaceLight }]}
                   onPress={handleClearAllNotifications}
@@ -459,9 +463,21 @@ export default function HomeScreen() {
                   <Ionicons name="close" size={16} color={colors.textMuted} />
                 </Pressable>
               </View>
-              {recentNotifs.map(n => (
+              {visibleNotifs.map(n => (
                 <NotificationItem key={n.id} notification={n} onDismiss={handleDismissNotification} colors={colors} />
               ))}
+              {hasMoreNotifs && (
+                <Pressable
+                  style={styles.seeAllBtn}
+                  onPress={() => setShowAllNotifs(!showAllNotifs)}
+                  hitSlop={4}
+                >
+                  <Text style={[styles.seeAllText, { color: colors.primary }]}>
+                    {showAllNotifs ? 'Show less' : `View all ${clientNotifs.length} notifications`}
+                  </Text>
+                  <Ionicons name={showAllNotifs ? "chevron-up" : "chevron-down"} size={16} color={colors.primary} />
+                </Pressable>
+              )}
             </Animated.View>
           )}
         </>
