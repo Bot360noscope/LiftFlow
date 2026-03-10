@@ -193,7 +193,7 @@ async function sendPushNotification(targetProfileId: string, title: string, body
 export async function registerRoutes(app: Express): Promise<Server> {
 
   // === AUTH ===
-  const authRateLimit = rateLimit(15 * 60 * 1000, 10);
+  const authRateLimit = rateLimit(5 * 60 * 1000, 10);
 
   app.post("/api/auth/register", authRateLimit, async (req, res) => {
     try {
