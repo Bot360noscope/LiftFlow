@@ -54,6 +54,9 @@ function connect(profileId: string) {
   ws.onopen = () => {
     ws?.send(JSON.stringify({ type: 'register', profileId }));
     startStaleCheck(profileId);
+    for (const listener of listeners) {
+      try { listener({ type: 'ws_connected' }); } catch {}
+    }
   };
 
   ws.onmessage = (event) => {
@@ -91,7 +94,7 @@ function scheduleReconnect(profileId: string) {
     if (registeredProfileId === profileId) {
       connect(profileId);
     }
-  }, 3000);
+  }, 1000);
 }
 
 function handleAppStateChange(nextAppState: AppStateStatus) {
@@ -141,4 +144,8 @@ export function disconnectWebSocket() {
 export function addWSListener(fn: WSListener) {
   listeners.add(fn);
   return () => { listeners.delete(fn); };
+}
+
+export function isWebSocketConnected(): boolean {
+  return ws !== null && ws.readyState === WebSocket.OPEN;
 }

@@ -27,6 +27,9 @@ export default function ChatScreen() {
   const [planLocked, setPlanLocked] = useState(false);
   const [planLockMessage, setPlanLockMessage] = useState('');
   const flatListRef = useRef<FlatList>(null);
+  const coachIdRef = useRef('');
+  const clientProfileIdRef = useRef('');
+  const sentIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
     (async () => {
@@ -52,6 +55,8 @@ export default function ChatScreen() {
 
         setCoachId(resolvedCoachId);
         setClientProfileId(resolvedClientProfileId);
+        coachIdRef.current = resolvedCoachId;
+        clientProfileIdRef.current = resolvedClientProfileId;
 
         if (resolvedCoachId && resolvedClientProfileId) {
           const result = await getMessages(resolvedCoachId, resolvedClientProfileId);
@@ -119,33 +124,51 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (!coachId || !clientProfileId) return;
+    const cId = coachId;
+    const cpId = clientProfileId;
+
     const removeListener = addWSListener((event: any) => {
+      if (event.type === 'ws_connected') {
+        getMessages(cId, cpId).then(result => {
+          setMessages(result.messages);
+          setHasMore(result.hasMore);
+        }).catch(() => {});
+        return;
+      }
       if (event.type === 'new_message' && event.message) {
         const m = event.message;
-        if (m.coachId === coachId && m.clientProfileId === clientProfileId) {
+        if (m.coachId === cId && m.clientProfileId === cpId) {
           setMessages(prev => {
             if (prev.some(p => p.id === m.id)) return prev;
             return [...prev, m];
           });
-          appendMessageToCache(coachId, clientProfileId, m);
-          markChatNotifsRead(coachId, clientProfileId);
+          appendMessageToCache(cId, cpId, m);
+          markChatNotifsRead(cId, cpId);
           setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
         }
       }
       if (event.type === 'message_sent' && event.message) {
         const m = event.message;
-        if (m.coachId === coachId && m.clientProfileId === clientProfileId) {
+        if (m.coachId === cId && m.clientProfileId === cpId) {
           setMessages(prev => {
+            if (sentIdsRef.current.has(m.id)) return prev;
             if (prev.some(p => p.id === m.id)) return prev;
             return [...prev, m];
           });
-          appendMessageToCache(coachId, clientProfileId, m);
+          appendMessageToCache(cId, cpId, m);
         }
       }
     });
-    const interval = setInterval(loadMessages, 15000);
+    const interval = setInterval(() => {
+      if (cId && cpId) {
+        getMessages(cId, cpId).then(result => {
+          setMessages(result.messages);
+          setHasMore(result.hasMore);
+        }).catch(() => {});
+      }
+    }, 4000);
     return () => { removeListener(); clearInterval(interval); };
-  }, [coachId, clientProfileId, loadMessages]);
+  }, [coachId, clientProfileId]);
 
   const handleSend = async () => {
     if (!input.trim() || !coachId || !clientProfileId || sending) return;
@@ -155,7 +178,11 @@ export default function ChatScreen() {
     setInput('');
     try {
       const msg = await sendMessage(coachId, clientProfileId, text);
-      setMessages(prev => [...prev, msg]);
+      sentIdsRef.current.add(msg.id);
+      setMessages(prev => {
+        if (prev.some(p => p.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (e: any) {

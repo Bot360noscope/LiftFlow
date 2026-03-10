@@ -63,7 +63,7 @@ export default function ChatTab() {
   useFocusEffect(
     useCallback(() => {
       const now = Date.now();
-      if (now - lastRefetchRef.current < 10000) return;
+      if (now - lastRefetchRef.current < 2000) return;
       lastRefetchRef.current = now;
       let active = true;
       (async () => {
@@ -118,23 +118,26 @@ export default function ChatTab() {
 
   useEffect(() => {
     if (!coachId || !clientProfileId) return;
+    const cId = coachId;
+    const cpId = clientProfileId;
     const removeListener = addWSListener((event: any) => {
       if ((event.type === 'new_message' || event.type === 'message_sent') && event.message) {
         const m = event.message;
-        if (m.coachId === coachId && m.clientProfileId === clientProfileId) {
+        if (m.coachId === cId && m.clientProfileId === cpId) {
           setMessages(prev => {
             if (prev.some(p => p.id === m.id)) return prev;
             return [...prev, m];
           });
+          setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
         }
       }
     });
     const interval = setInterval(async () => {
       try {
-        const result = await getMessages(coachId, clientProfileId);
+        const result = await getMessages(cId, cpId);
         setMessages(result.messages);
       } catch {}
-    }, 15000);
+    }, 4000);
     return () => { removeListener(); clearInterval(interval); };
   }, [coachId, clientProfileId]);
 
@@ -165,7 +168,7 @@ export default function ChatTab() {
         });
         setUnreadClientIds(unreadIds);
       } catch {}
-    }, 15000);
+    }, 5000);
     return () => { removeListener(); clearInterval(interval); };
   }, [profile?.role]);
 
