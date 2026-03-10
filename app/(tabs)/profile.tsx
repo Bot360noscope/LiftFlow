@@ -456,7 +456,6 @@ export default function ProfileScreen() {
           </Pressable>
         </Animated.View>
 
-        <Text style={[styles.version, { color: colors.textMuted }]}>LiftFlow v1.0.0</Text>
       </ScrollView>
 
       <Modal visible={showRemoveCoachModal} transparent animationType="fade">
