@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: '#fff',
   },
   zoomOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 180,
+    position: 'absolute', top: 100, left: 0, right: 0, bottom: 180,
     zIndex: 1,
   },
 });
