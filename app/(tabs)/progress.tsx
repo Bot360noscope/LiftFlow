@@ -123,6 +123,10 @@ export default function ProgressScreen() {
   }, []);
 
   useFocusEffect(useCallback(() => {
+    const cachedProgs = getCachedPrograms();
+    if (cachedProgs.length > 0) setPrograms(cachedProgs);
+    const cachedCls = getCachedClients();
+    if (cachedCls.length > 0) setClients(cachedCls);
     const now = Date.now();
     if (now - lastRefetchRef.current < 2000) return;
     lastRefetchRef.current = now;

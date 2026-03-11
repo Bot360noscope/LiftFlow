@@ -238,19 +238,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   const [coachComment, setCoachComment] = useState(exercise.coachComment);
   const [isCompleted, setIsCompleted] = useState(exercise.isCompleted);
 
-  const prevNotesRef = useRef(exercise.clientNotes);
-  const prevCommentRef = useRef(exercise.coachComment);
-  const prevVideoRef = useRef(exercise.videoUrl);
-
   useEffect(() => {
-    const hasNewContent = !expanded && (
-      exercise.clientNotes !== prevNotesRef.current ||
-      exercise.coachComment !== prevCommentRef.current ||
-      exercise.videoUrl !== prevVideoRef.current
-    );
-    prevNotesRef.current = exercise.clientNotes;
-    prevCommentRef.current = exercise.coachComment;
-    prevVideoRef.current = exercise.videoUrl;
     setName(exercise.name);
     setRepsSets(exercise.repsSets);
     setWeight(exercise.weight);
@@ -259,7 +247,6 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
     setClientNotes(exercise.clientNotes);
     setCoachComment(exercise.coachComment);
     setIsCompleted(exercise.isCompleted);
-    if (hasNewContent) setSeenContent(false);
   }, [exercise]);
 
   const canEditAll = (isCoach || !isShared) && !planLocked;

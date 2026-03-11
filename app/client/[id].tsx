@@ -8,7 +8,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import {
-  getPrograms, getClients, removeClient, invalidateProgramsCache,
+  getPrograms, getClients, removeClient, invalidateProgramsCache, getCachedPrograms,
   getNotifications,
   type Program, type ClientInfo,
 } from "@/lib/storage";
@@ -95,7 +95,11 @@ export default function ClientDetailScreen() {
     setPrograms(clientProgs);
   }, [id, checkUnread]);
 
-  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  useFocusEffect(useCallback(() => {
+    const cachedProgs = getCachedPrograms().filter(p => p.clientId === id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    if (cachedProgs.length > 0) setPrograms(cachedProgs);
+    loadData();
+  }, [loadData, id]));
 
   useEffect(() => {
     const removeListener = addWSListener((event: any) => {
