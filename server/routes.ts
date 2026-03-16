@@ -192,6 +192,11 @@ async function sendPushNotification(targetProfileId: string, title: string, body
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
+  // Google Search Console verification
+  app.get("/google4edce6fc3ed32d06.html", (_req, res) => {
+    res.type("text/html").send("google-site-verification: google4edce6fc3ed32d06.html");
+  });
+
   // === AUTH ===
   const authRateLimit = rateLimit(5 * 60 * 1000, 10);
 
