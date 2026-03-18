@@ -12,7 +12,7 @@ import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import * as Crypto from "expo-crypto";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getProgram, updateProgram, deleteProgram, getProfile, getClients, addNotification, markNotificationsReadByProgram, assignProgramToClient, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type UserProfile, type ClientInfo } from "@/lib/storage";
+import { getProgram, updateProgram, deleteProgram, getProfile, getCachedProfile, getClients, addNotification, markNotificationsReadByProgram, assignProgramToClient, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type UserProfile, type ClientInfo } from "@/lib/storage";
 import { uploadVideo, getVideoUrl, getDirectVideoUrl, markVideoViewed } from "@/lib/api";
 import { trimResult } from "@/lib/trim-result";
 
