@@ -285,7 +285,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
       }
     }, 800);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
-  }, [clientNotes, isCompleted, ...(!isShared ? [name, repsSets, weight, rpe, notes] : [])]);
+  }, [clientNotes, isCompleted, name, repsSets, weight, rpe, notes]);
 
   const handleToggleComplete = () => {
     const newVal = !isCompleted;
