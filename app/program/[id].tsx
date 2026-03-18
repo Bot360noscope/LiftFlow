@@ -561,9 +561,8 @@ export default function ProgramDetailScreen() {
 
   useEffect(() => {
     if (id) {
-      Promise.all([getProgram(id), getProfile()]).catch(() => [null, null] as const).then(async ([p, prof]) => {
+      Promise.all([getProgram(id), getProfile(), AsyncStorage.getItem(programPositionKey(id)).catch(() => null)]).catch(() => [null, null, null] as const).then(async ([p, prof, savedPos]) => {
         if (p) {
-          setProgram(p);
           if (highlightExercise) {
             let matched = false;
             for (const week of [...p.weeks].reverse()) {
@@ -581,22 +580,19 @@ export default function ProgramDetailScreen() {
                 }
               }
             }
-            hasRestoredPositionRef.current = true;
-          } else {
+          } else if (savedPos) {
             try {
-              const saved = await AsyncStorage.getItem(programPositionKey(id));
-              if (saved) {
-                const { week, day } = JSON.parse(saved);
-                const weekExists = p.weeks.some(w => w.weekNumber === week);
-                if (weekExists) {
-                  const dayExists = p.weeks.find(w => w.weekNumber === week)?.days.some(d => d.dayNumber === day);
-                  setActiveWeek(week);
-                  setActiveDay(dayExists ? day : 1);
-                }
+              const { week, day } = JSON.parse(savedPos);
+              const weekExists = p.weeks.some(w => w.weekNumber === week);
+              if (weekExists) {
+                const dayExists = p.weeks.find(w => w.weekNumber === week)?.days.some(d => d.dayNumber === day);
+                setActiveWeek(week);
+                setActiveDay(dayExists ? day : 1);
               }
             } catch {}
-            hasRestoredPositionRef.current = true;
           }
+          hasRestoredPositionRef.current = true;
+          setProgram(p);
         }
         const shared = !!p?.clientId;
         setIsShared(shared);
