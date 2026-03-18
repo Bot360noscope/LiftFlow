@@ -2,7 +2,7 @@
   "expo": {
     "name": "LiftFlow",
     "slug": "liftflow",
-    "version": "1.7.3",
+    "version": "1.7.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "liftflow",
