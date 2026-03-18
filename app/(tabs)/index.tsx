@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, ActivityIndicator, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { router, useFocusEffect } from "expo-router";
@@ -201,6 +202,7 @@ function HomeCoachCodeCard({ coachCode, colors }: { coachCode: string; colors: a
 export default function HomeScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const [profile, setProfile] = useState<UserProfile | null>(getCachedProfile());
   const [programs, setPrograms] = useState<Program[]>(getCachedPrograms());
   const [prs, setPRs] = useState<LiftPR[]>(getCachedPRs());
@@ -323,7 +325,6 @@ export default function HomeScreen() {
     : sortedClients;
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
-  const webBottomInset = Platform.OS === 'web' ? 84 : 0;
 
   if (loading) {
     return (
@@ -342,7 +343,7 @@ export default function HomeScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={[
         styles.scrollContent,
-        { paddingTop: insets.top + webTopInset + 16, paddingBottom: insets.bottom + webBottomInset + 20 },
+        { paddingTop: insets.top + webTopInset + 16, paddingBottom: tabBarHeight + 20 },
       ]}
       showsVerticalScrollIndicator={false}
     >

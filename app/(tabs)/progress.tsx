@@ -10,6 +10,7 @@ import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { ProgressSkeleton } from "@/components/SkeletonLoader";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { getPRs, deletePR, getProfile, getBestPR, getPrograms, getClients, getDashboard, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, invalidateProgramsCache, type LiftPR, type Program, type ClientInfo } from "@/lib/storage";
 
 const LIFT_COLORS: Record<string, string> = {
@@ -145,6 +146,7 @@ function ClientProgressCard({ client, programs, delay, colors }: { client: Clien
 export default function ProgressScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const [prs, setPRs] = useState<LiftPR[]>(getCachedPRs());
   const [unit, setUnit] = useState<'kg' | 'lbs'>((getCachedProfile()?.weightUnit as 'kg' | 'lbs') || 'kg');
   const [isCoach, setIsCoach] = useState(getCachedProfile()?.role === 'coach');
@@ -198,7 +200,6 @@ export default function ProgressScreen() {
   };
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
-  const webBottomInset = Platform.OS === 'web' ? 84 : 0;
 
   const activeThisWeek = useMemo(() => {
     return clients.filter(client => {
@@ -255,7 +256,7 @@ export default function ProgressScreen() {
     return (
       <ScrollView
         style={[styles.container, { backgroundColor: colors.background }]}
-        contentContainerStyle={{ paddingTop: insets.top + webTopInset + 16, paddingBottom: insets.bottom + webBottomInset + 20, paddingHorizontal: 20 }}
+        contentContainerStyle={{ paddingTop: insets.top + webTopInset + 16, paddingBottom: tabBarHeight + 20, paddingHorizontal: 20 }}
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.pageTitle, { color: colors.text }]}>Client Progress</Text>
@@ -304,7 +305,7 @@ export default function ProgressScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={[
         styles.scrollContent,
-        { paddingTop: insets.top + webTopInset + 16, paddingBottom: insets.bottom + webBottomInset + 20 },
+        { paddingTop: insets.top + webTopInset + 16, paddingBottom: tabBarHeight + 20 },
       ]}
       showsVerticalScrollIndicator={false}
     >
