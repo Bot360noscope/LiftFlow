@@ -11,9 +11,14 @@ import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import * as Crypto from "expo-crypto";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getProgram, updateProgram, deleteProgram, getProfile, getClients, addNotification, markNotificationsReadByProgram, assignProgramToClient, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type UserProfile, type ClientInfo } from "@/lib/storage";
 import { uploadVideo, getVideoUrl, getDirectVideoUrl, markVideoViewed } from "@/lib/api";
 import { trimResult } from "@/lib/trim-result";
+
+function programPositionKey(programId: string) {
+  return `liftflow_prog_pos_${programId}`;
+}
 
 function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
   const { colors } = useTheme();
@@ -547,6 +552,12 @@ export default function ProgramDetailScreen() {
   const [planLocked, setPlanLocked] = useState(false);
   const [planLockMessage, setPlanLockMessage] = useState('');
   const clientAutoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasRestoredPositionRef = useRef(false);
+
+  useEffect(() => {
+    if (!hasRestoredPositionRef.current || !id) return;
+    AsyncStorage.setItem(programPositionKey(id), JSON.stringify({ week: activeWeek, day: activeDay })).catch(() => {});
+  }, [activeWeek, activeDay]);
 
   useEffect(() => {
     if (id) {
@@ -570,6 +581,21 @@ export default function ProgramDetailScreen() {
                 }
               }
             }
+            hasRestoredPositionRef.current = true;
+          } else {
+            try {
+              const saved = await AsyncStorage.getItem(programPositionKey(id));
+              if (saved) {
+                const { week, day } = JSON.parse(saved);
+                const weekExists = p.weeks.some(w => w.weekNumber === week);
+                if (weekExists) {
+                  const dayExists = p.weeks.find(w => w.weekNumber === week)?.days.some(d => d.dayNumber === day);
+                  setActiveWeek(week);
+                  setActiveDay(dayExists ? day : 1);
+                }
+              }
+            } catch {}
+            hasRestoredPositionRef.current = true;
           }
         }
         const shared = !!p?.clientId;
