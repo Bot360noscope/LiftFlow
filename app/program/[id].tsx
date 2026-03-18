@@ -233,7 +233,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
 }) {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(initialExpanded || false);
-  const [seenContent, setSeenContent] = useState(initialExpanded || false);
+  const [seenContent, setSeenContent] = useState(false);
   const [name, setName] = useState(exercise.name);
   const [repsSets, setRepsSets] = useState(exercise.repsSets);
   const [weight, setWeight] = useState(exercise.weight);
@@ -253,6 +253,26 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
     setCoachComment(exercise.coachComment);
     setIsCompleted(exercise.isCompleted);
   }, [exercise]);
+
+  const contentKey = useMemo(() => {
+    if (!isShared) return '';
+    if (isCoach) return `${exercise.clientNotes || ''}::${exercise.videoUrl || ''}`;
+    return `${exercise.coachComment || ''}`;
+  }, [isShared, isCoach, exercise.clientNotes, exercise.videoUrl, exercise.coachComment]);
+
+  const seenStorageKey = `liftflow_ex_seen_${exercise.id}`;
+
+  useEffect(() => {
+    if (!contentKey) { setSeenContent(true); return; }
+    AsyncStorage.getItem(seenStorageKey).then(stored => {
+      setSeenContent(stored === contentKey);
+    });
+  }, [contentKey, seenStorageKey]);
+
+  const markSeen = () => {
+    setSeenContent(true);
+    if (contentKey) AsyncStorage.setItem(seenStorageKey, contentKey);
+  };
 
   const canEditAll = (isCoach || !isShared) && !planLocked;
 
@@ -304,7 +324,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
       <Pressable
         style={styles.exerciseHeader}
         onPress={() => {
-          if (!expanded) setSeenContent(true);
+          if (!expanded) markSeen();
           setExpanded(!expanded);
         }}
         onLongPress={() => {
@@ -349,11 +369,14 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
               <Ionicons name="trash-outline" size={14} color={colors.textMuted} />
             </Pressable>
           )}
-          {!seenContent && (exercise.coachComment || exercise.clientNotes) && (
+          {isShared && !seenContent && isCoach && !!(exercise.clientNotes) && (
             <Ionicons name="chatbubble" size={12} color={colors.accent} />
           )}
-          {!seenContent && !!exercise.videoUrl && (
+          {isShared && !seenContent && isCoach && !!exercise.videoUrl && (
             <Ionicons name="videocam" size={12} color={colors.primary} />
+          )}
+          {isShared && !seenContent && !isCoach && !!(exercise.coachComment) && (
+            <Ionicons name="chatbubble" size={12} color={colors.accent} />
           )}
           <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={colors.textMuted} />
         </View>
@@ -751,12 +774,12 @@ export default function ProgramDetailScreen() {
               id: Crypto.randomUUID(),
               name: ex.name,
               repsSets: ex.repsSets,
-              weight: ex.weight,
+              weight: '',
               rpe: ex.rpe,
               isCompleted: false,
               notes: ex.notes,
               clientNotes: '',
-              coachComment: ex.coachComment,
+              coachComment: '',
               videoUrl: '',
             }))
           : [],

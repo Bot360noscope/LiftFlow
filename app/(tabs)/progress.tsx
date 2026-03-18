@@ -26,18 +26,21 @@ const LIFT_LABELS: Record<string, string> = {
 };
 
 function getWeeklyAdherence(programs: Program[]): number {
-  let completed = 0;
-  let total = 0;
+  const weekAdherences: number[] = [];
   for (const prog of programs) {
-    const activeWeek = getActiveWeek(prog);
-    if (!activeWeek) continue;
-    for (const day of activeWeek.days) {
-      for (const ex of day.exercises) {
-        if (ex.name) { total++; if (ex.isCompleted) completed++; }
-      }
+    for (const week of (prog.weeks || [])) {
+      const exercises = week.days.flatMap(d => d.exercises.filter(e => e.name));
+      if (exercises.length === 0) continue;
+      const completed = exercises.filter(e => e.isCompleted).length;
+      weekAdherences.push((completed / exercises.length) * 100);
     }
   }
-  return total > 0 ? Math.round((completed / total) * 100) : 0;
+  if (weekAdherences.length === 0) return 0;
+  let score = weekAdherences[0];
+  for (let i = 1; i < weekAdherences.length; i++) {
+    score = score * 0.7 + weekAdherences[i] * 0.3;
+  }
+  return Math.max(0, Math.round(score));
 }
 
 function getActiveWeek(prog: Program) {
@@ -52,10 +55,11 @@ function getActiveWeek(prog: Program) {
 function getPendingReviews(programs: Program[]): number {
   let count = 0;
   for (const prog of programs) {
-    for (const week of prog.weeks) {
+    if (!prog.clientId) continue;
+    for (const week of (prog.weeks || [])) {
       for (const day of week.days) {
         for (const ex of day.exercises) {
-          if (ex.videoUrl && !ex.coachComment) count++;
+          if ((ex.videoUrl || ex.clientNotes) && !ex.coachComment) count++;
         }
       }
     }
@@ -123,7 +127,7 @@ function ClientProgressCard({ client, programs, delay, colors }: { client: Clien
         <View style={styles.metricsRow}>
           <View style={[styles.metricBox, { backgroundColor: colors.surface }]}>
             <Text style={[styles.metricValue, { color: adherence >= 70 ? colors.success : adherence >= 40 ? colors.warning : colors.danger }]}>{adherence}%</Text>
-            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>This Week</Text>
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Adherence</Text>
           </View>
           <View style={[styles.metricBox, { backgroundColor: colors.surface }]}>
             <Text style={[styles.metricValue, { color: pendingReviews > 0 ? colors.primary : colors.textMuted }]}>{pendingReviews}</Text>
