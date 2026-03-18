@@ -3,6 +3,7 @@ import { confirmAction } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState, useMemo, useRef } from "react";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -52,14 +53,17 @@ function getActiveWeek(prog: Program) {
   return prog.weeks[prog.weeks.length - 1];
 }
 
-function getPendingReviews(programs: Program[]): number {
+function getPendingReviews(programs: Program[], seenMap: Record<string, string>): number {
   let count = 0;
   for (const prog of programs) {
     if (!prog.clientId) continue;
     for (const week of (prog.weeks || [])) {
       for (const day of week.days) {
         for (const ex of day.exercises) {
-          if ((ex.videoUrl || ex.clientNotes) && !ex.coachComment) count++;
+          if ((ex.videoUrl || ex.clientNotes) && !ex.coachComment) {
+            const key = `${ex.clientNotes || ''}::${ex.videoUrl || ''}`;
+            if (seenMap[ex.id] !== key) count++;
+          }
         }
       }
     }
@@ -94,10 +98,10 @@ function getStatus(adherence: number, lastActive: Date | null): 'green' | 'yello
   return 'yellow';
 }
 
-function ClientProgressCard({ client, programs, delay, colors }: { client: ClientInfo; programs: Program[]; delay: number; colors: any }) {
+function ClientProgressCard({ client, programs, delay, colors, seenMap }: { client: ClientInfo; programs: Program[]; delay: number; colors: any; seenMap: Record<string, string> }) {
   const clientPrograms = programs.filter(p => p.clientId === client.id);
   const adherence = getWeeklyAdherence(clientPrograms);
-  const pendingReviews = getPendingReviews(clientPrograms);
+  const pendingReviews = getPendingReviews(clientPrograms, seenMap);
   const lastActive = getLastActive(clientPrograms);
   const status = getStatus(adherence, lastActive);
 
@@ -159,6 +163,7 @@ export default function ProgressScreen() {
 
   const [loading, setLoading] = useState(!getCachedProfile());
   const [error, setError] = useState(false);
+  const [seenMap, setSeenMap] = useState<Record<string, string>>({});
   const lastRefetchRef = useRef<number>(0);
 
   const loadData = useCallback(async () => {
@@ -182,6 +187,9 @@ export default function ProgressScreen() {
     if (cachedProgs.length > 0) setPrograms(cachedProgs);
     const cachedCls = getCachedClients();
     if (cachedCls.length > 0) setClients(cachedCls);
+    AsyncStorage.getItem('liftflow_seen_exercises').then(stored => {
+      if (stored) setSeenMap(JSON.parse(stored));
+    });
     const now = Date.now();
     if (now - lastRefetchRef.current < 2000) return;
     lastRefetchRef.current = now;
@@ -297,7 +305,7 @@ export default function ProgressScreen() {
           </View>
         ) : (
           sortedClients.map((client, idx) => (
-            <ClientProgressCard key={client.id} client={client} programs={programs} delay={idx * 60} colors={colors} />
+            <ClientProgressCard key={client.id} client={client} programs={programs} delay={idx * 60} colors={colors} seenMap={seenMap} />
           ))
         )}
       </ScrollView>
