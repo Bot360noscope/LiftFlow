@@ -11,7 +11,7 @@ import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import * as Crypto from "expo-crypto";
-import { getProgram, updateProgram, deleteProgram, getProfile, getClients, addNotification, markNotificationsReadByProgram, getPRs, addPR, assignProgramToClient, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type LiftPR, type UserProfile, type ClientInfo } from "@/lib/storage";
+import { getProgram, updateProgram, deleteProgram, getProfile, getClients, addNotification, markNotificationsReadByProgram, assignProgramToClient, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type UserProfile, type ClientInfo } from "@/lib/storage";
 import { uploadVideo, getVideoUrl, getDirectVideoUrl, markVideoViewed } from "@/lib/api";
 import { trimResult } from "@/lib/trim-result";
 
@@ -703,47 +703,8 @@ export default function ProgramDetailScreen() {
       }
     }
 
-    if (!isCoach) {
-      try {
-        const profile = await getProfile();
-        const existingPRs = await getPRs();
-        const liftKeywords: Record<string, 'squat' | 'bench' | 'deadlift'> = {
-          'squat': 'squat', 'back squat': 'squat', 'front squat': 'squat',
-          'bench': 'bench', 'bench press': 'bench', 'flat bench': 'bench',
-          'deadlift': 'deadlift', 'sumo deadlift': 'deadlift', 'conventional deadlift': 'deadlift',
-        };
-        for (const week of program.weeks) {
-          for (const day of week.days) {
-            for (const ex of day.exercises) {
-              if (!ex.name || !ex.weight || !ex.isCompleted) continue;
-              const exNameLower = ex.name.toLowerCase().trim();
-              let liftType: 'squat' | 'bench' | 'deadlift' | null = null;
-              for (const [keyword, type] of Object.entries(liftKeywords)) {
-                if (exNameLower.includes(keyword)) { liftType = type; break; }
-              }
-              if (!liftType) continue;
-              const weightNum = parseFloat(ex.weight);
-              if (isNaN(weightNum) || weightNum <= 0) continue;
-              const bestExisting = existingPRs.filter(p => p.liftType === liftType);
-              const currentBest = bestExisting.length > 0
-                ? Math.max(...bestExisting.map(p => p.weight))
-                : 0;
-              if (weightNum > currentBest) {
-                await addPR({
-                  liftType,
-                  weight: weightNum,
-                  unit: profile.weightUnit as 'kg' | 'lbs',
-                  date: new Date().toISOString().split('T')[0],
-                  notes: `Auto-logged from ${program.title} - ${ex.name}`,
-                });
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('Auto-PR logging failed:', e);
-      }
-    }
+    // Auto exercise PR logging disabled
+    // if (!isCoach) { ... }
   }, [program, isCoach]);
 
   const addWeek = useCallback(() => {
