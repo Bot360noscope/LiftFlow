@@ -179,26 +179,12 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   }
 
   let uploadUri = uri;
-  let locallyProcessed = false;
 
-  const needsTrim = trim && (trim.startTime > 0 || trim.endTime < Infinity);
-
-  if (needsTrim) {
-    const trimmed = await tryLocalTrimAndCompress(uri, trim.startTime, trim.endTime);
-    if (trimmed) {
-      uploadUri = trimmed;
-      locallyProcessed = true;
-    } else {
-      const compressed = await tryNativeCompress(uri);
-      if (compressed) uploadUri = compressed;
-    }
-  } else {
-    const compressed = await tryNativeCompress(uri);
-    if (compressed) {
-      uploadUri = compressed;
-      locallyProcessed = true;
-    }
-  }
+  // Compress locally for smaller upload, but never attempt local trim —
+  // react-native-compressor ignores startTime/endTime and returns the full video.
+  // Trimming is always handled server-side via ffmpeg after upload.
+  const compressed = await tryNativeCompress(uri);
+  if (compressed) uploadUri = compressed;
 
   const urlRes = await retryFetch(`${BASE}/api/video-upload-url`, {
     method: 'POST',
@@ -220,7 +206,8 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   let finalFilename = filename;
   let finalVideoUrl = videoUrl;
 
-  if (needsTrim && !locallyProcessed) {
+  // Always trim server-side when the user has set trim points.
+  if (trim) {
     const trimRes = await retryFetch(`${BASE}/api/trim-video`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
