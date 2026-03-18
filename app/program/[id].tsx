@@ -300,11 +300,13 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
 
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(false);
+  const skipNextAutoSave = useRef(false);
 
   useEffect(() => {
     if (!mountedRef.current) { mountedRef.current = true; return; }
     if (planLocked) return;
     if (isCoach && isShared) return;
+    if (skipNextAutoSave.current) { skipNextAutoSave.current = false; return; }
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       if (!isShared) {
@@ -321,6 +323,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
     setIsCompleted(newVal);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    skipNextAutoSave.current = true;
     if (!isShared) {
       onUpdate({ name, repsSets, weight, rpe, notes, clientNotes, isCompleted: newVal });
     } else {
