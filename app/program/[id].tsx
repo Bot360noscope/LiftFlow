@@ -265,8 +265,10 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   };
 
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(false);
 
   useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return; }
     if (planLocked) return;
     if (isCoach && isShared) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
@@ -276,7 +278,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
       } else {
         onUpdate({ clientNotes, isCompleted });
       }
-    }, 1000);
+    }, 800);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
   }, [clientNotes, isCompleted, ...(!isShared ? [name, repsSets, weight, rpe, notes] : [])]);
 
@@ -618,7 +620,7 @@ export default function ProgramDetailScreen() {
       if (clientAutoSaveRef.current) clearTimeout(clientAutoSaveRef.current);
       clientAutoSaveRef.current = setTimeout(() => {
         save();
-      }, 2000);
+      }, 500);
       return () => { if (clientAutoSaveRef.current) clearTimeout(clientAutoSaveRef.current); };
     }
   }, [hasChanges, isCoach, program]);
