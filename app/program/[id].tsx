@@ -536,6 +536,7 @@ export default function ProgramDetailScreen() {
   const [activeWeek, setActiveWeek] = useState(1);
   const [activeDay, setActiveDay] = useState(1);
   const [hasChanges, setHasChanges] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const [isCoach, setIsCoach] = useState(true);
   const [isShared, setIsShared] = useState(false);
   const [profileId, setProfileId] = useState('');
@@ -634,12 +635,13 @@ export default function ProgramDetailScreen() {
     const oldProgram = await getProgram(program.id);
 
     setHasChanges(false);
+    setSaveError(false);
 
     try {
       await updateProgram(program);
     } catch (e: any) {
-      setHasChanges(true);
-      showAlert('Save Error', 'Changes couldn\'t be saved. They\'ll retry automatically.');
+      setSaveError(true);
+      showAlert('Save Error', 'Couldn\'t save. Tap Save to retry.');
       return;
     }
 
@@ -1015,7 +1017,7 @@ export default function ProgramDetailScreen() {
             <Ionicons name="lock-closed" size={22} color={colors.danger} />
           ) : (
             <Pressable onPress={save} hitSlop={8}>
-              <Ionicons name="checkmark-circle" size={26} color={hasChanges ? colors.primary : colors.textMuted} />
+              <Ionicons name="checkmark-circle" size={26} color={saveError ? colors.danger : hasChanges ? colors.primary : colors.textMuted} />
             </Pressable>
           )}
         </View>
@@ -1113,7 +1115,7 @@ export default function ProgramDetailScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + (hasChanges ? 80 : 20), paddingHorizontal: 16, paddingTop: 8 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + ((hasChanges || saveError) ? 80 : 20), paddingHorizontal: 16, paddingTop: 8 }}
       >
         {exercises.length === 0 ? (
           <View style={styles.emptyDay}>
@@ -1149,10 +1151,10 @@ export default function ProgramDetailScreen() {
         )}
       </ScrollView>
 
-      {hasChanges && !planLocked && (
+      {(hasChanges || saveError) && !planLocked && (
         <Animated.View entering={FadeIn.duration(200)} style={[styles.saveBar, { paddingBottom: insets.bottom + 10, backgroundColor: colors.backgroundElevated, borderTopColor: colors.border }]}>
-          <View style={[styles.saveBarDot, { backgroundColor: colors.warning }]} />
-          <Text style={[styles.saveBarText, { color: colors.textSecondary }]}>Unsaved changes</Text>
+          <View style={[styles.saveBarDot, { backgroundColor: saveError ? colors.danger : colors.warning }]} />
+          <Text style={[styles.saveBarText, { color: colors.textSecondary }]}>{saveError ? 'Save failed' : 'Unsaved changes'}</Text>
           <Pressable style={[styles.saveBarButton, { backgroundColor: colors.primary }]} onPress={save}>
             <Text style={styles.saveBarButtonText}>Save</Text>
           </Pressable>
