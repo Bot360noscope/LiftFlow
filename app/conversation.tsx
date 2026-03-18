@@ -297,6 +297,9 @@ export default function ChatScreen() {
               maxLength={1000}
               onSubmitEditing={handleSend}
               blurOnSubmit={false}
+              autoCorrect={false}
+              spellCheck={false}
+              autoComplete="off"
             />
             <Pressable
               style={[styles.sendBtn, { backgroundColor: colors.primary }, (!input.trim() || sending) && [styles.sendBtnDisabled, { backgroundColor: colors.surfaceLight }]]}
