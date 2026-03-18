@@ -24,69 +24,118 @@ const LIFT_LABELS: Record<string, string> = {
   bench: 'Bench Press',
 };
 
-function ClientProgressCard({ client, programs, delay, colors }: { client: ClientInfo; programs: Program[]; delay: number; colors: any }) {
-  const clientPrograms = programs.filter(p => p.clientId === client.id);
-  let totalEx = 0, completedEx = 0, notesCount = 0, videosCount = 0;
-  for (const prog of clientPrograms) {
+function getWeeklyAdherence(programs: Program[]): number {
+  let completed = 0;
+  let total = 0;
+  for (const prog of programs) {
+    const activeWeek = getActiveWeek(prog);
+    if (!activeWeek) continue;
+    for (const day of activeWeek.days) {
+      for (const ex of day.exercises) {
+        if (ex.name) { total++; if (ex.isCompleted) completed++; }
+      }
+    }
+  }
+  return total > 0 ? Math.round((completed / total) * 100) : 0;
+}
+
+function getActiveWeek(prog: Program) {
+  if (!prog.weeks?.length) return null;
+  for (const week of prog.weeks) {
+    const hasIncomplete = week.days.some(d => d.exercises.some(e => e.name && !e.isCompleted));
+    if (hasIncomplete) return week;
+  }
+  return prog.weeks[prog.weeks.length - 1];
+}
+
+function getPendingReviews(programs: Program[]): number {
+  let count = 0;
+  for (const prog of programs) {
     for (const week of prog.weeks) {
       for (const day of week.days) {
         for (const ex of day.exercises) {
-          if (ex.name) totalEx++;
-          if (ex.isCompleted) completedEx++;
-          if (ex.clientNotes) notesCount++;
-          if (ex.videoUrl) videosCount++;
+          if (ex.videoUrl && !ex.coachComment) count++;
         }
       }
     }
   }
-  const progress = totalEx > 0 ? Math.round((completedEx / totalEx) * 100) : 0;
+  return count;
+}
+
+function getLastActive(programs: Program[]): Date | null {
+  let latest: Date | null = null;
+  for (const prog of programs) {
+    const d = prog.updatedAt ? new Date(prog.updatedAt) : new Date(prog.createdAt);
+    if (!latest || d > latest) latest = d;
+  }
+  return latest;
+}
+
+function formatLastActive(date: Date | null): string {
+  if (!date) return 'Never';
+  const diffMs = Date.now() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+  return `${Math.floor(diffDays / 30)}mo ago`;
+}
+
+function getStatus(adherence: number, lastActive: Date | null): 'green' | 'yellow' | 'red' {
+  const daysInactive = lastActive ? Math.floor((Date.now() - lastActive.getTime()) / (1000 * 60 * 60 * 24)) : 999;
+  if (adherence >= 70 && daysInactive <= 7) return 'green';
+  if (adherence < 40 || daysInactive > 14) return 'red';
+  return 'yellow';
+}
+
+function ClientProgressCard({ client, programs, delay, colors }: { client: ClientInfo; programs: Program[]; delay: number; colors: any }) {
+  const clientPrograms = programs.filter(p => p.clientId === client.id);
+  const adherence = getWeeklyAdherence(clientPrograms);
+  const pendingReviews = getPendingReviews(clientPrograms);
+  const lastActive = getLastActive(clientPrograms);
+  const status = getStatus(adherence, lastActive);
+
+  const statusColor = status === 'green' ? colors.success : status === 'yellow' ? colors.warning : colors.danger;
+  const statusLabel = status === 'green' ? 'On track' : status === 'yellow' ? 'Needs check-in' : 'At risk';
 
   return (
     <Animated.View entering={FadeInDown.delay(delay).duration(400)}>
       <Pressable
-        style={({ pressed }) => [styles.clientProgressCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.85 }]}
-        accessibilityLabel={`View ${client.name || 'client'} progress`}
-        accessibilityRole="button"
-        onPress={() => {
-          if (clientPrograms.length > 0) {
-            router.push(`/program/${clientPrograms[0].id}`);
-          }
-        }}
+        style={({ pressed }) => [styles.clientCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.85 }]}
+        onPress={() => router.push(`/client/${client.id}?name=${encodeURIComponent(client.name || '')}`)}
       >
-        <View style={styles.clientHeader}>
+        <View style={styles.clientTop}>
           <View style={styles.clientAvatar}>
             <Text style={[styles.clientAvatarText, { color: colors.primary }]}>{(client.name || '?')[0].toUpperCase()}</Text>
           </View>
-          <View style={styles.clientHeaderInfo}>
-            <Text style={[styles.clientNameText, { color: colors.text }]}>{client.name || 'Client'}</Text>
-            <Text style={[styles.clientJoined, { color: colors.textMuted }]}>Joined {new Date(client.joinedAt).toLocaleDateString()}</Text>
+          <View style={styles.clientInfo}>
+            <Text style={[styles.clientName, { color: colors.text }]}>{client.name || 'Client'}</Text>
+            <View style={styles.statusRow}>
+              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+              <Text style={[styles.statusLabel, { color: statusColor }]}>{statusLabel}</Text>
+            </View>
+          </View>
+          <Text style={[styles.lastActive, { color: colors.textMuted }]}>{formatLastActive(lastActive)}</Text>
+        </View>
+
+        <View style={styles.metricsRow}>
+          <View style={[styles.metricBox, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.metricValue, { color: adherence >= 70 ? colors.success : adherence >= 40 ? colors.warning : colors.danger }]}>{adherence}%</Text>
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>This Week</Text>
+          </View>
+          <View style={[styles.metricBox, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.metricValue, { color: pendingReviews > 0 ? colors.primary : colors.textMuted }]}>{pendingReviews}</Text>
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Pending Reviews</Text>
+          </View>
+          <View style={[styles.metricBox, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.metricValue, { color: colors.text }]}>{clientPrograms.length}</Text>
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Programs</Text>
           </View>
         </View>
 
-        <View style={styles.clientStatsRow}>
-          <View style={[styles.clientStatBox, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.clientStatNum, { color: colors.text }]}>{clientPrograms.length}</Text>
-            <Text style={[styles.clientStatLabel, { color: colors.textMuted }]} numberOfLines={1}>Programs</Text>
-          </View>
-          <View style={[styles.clientStatBox, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.clientStatNum, { color: colors.success }]}>{completedEx}</Text>
-            <Text style={[styles.clientStatLabel, { color: colors.textMuted }]} numberOfLines={1}>Done</Text>
-          </View>
-          <View style={[styles.clientStatBox, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.clientStatNum, { color: colors.accent }]}>{notesCount}</Text>
-            <Text style={[styles.clientStatLabel, { color: colors.textMuted }]} numberOfLines={1}>Notes</Text>
-          </View>
-          <View style={[styles.clientStatBox, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.clientStatNum, { color: colors.primary }]}>{videosCount}</Text>
-            <Text style={[styles.clientStatLabel, { color: colors.textMuted }]} numberOfLines={1}>Videos</Text>
-          </View>
-        </View>
-
-        <View style={styles.clientProgressRow}>
-          <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceLight }]}>
-            <View style={[styles.progressBarFill, { width: `${progress}%`, backgroundColor: colors.primary }]} />
-          </View>
-          <Text style={[styles.clientProgressText, { color: colors.textSecondary }]}>{progress}%</Text>
+        <View style={[styles.adherenceBar, { backgroundColor: colors.surfaceLight }]}>
+          <View style={[styles.adherenceFill, { width: `${adherence}%` as any, backgroundColor: statusColor }]} />
         </View>
       </Pressable>
     </Animated.View>
@@ -137,12 +186,8 @@ export default function ProgressScreen() {
   const bestSquat = getBestPR(prs, 'squat');
   const bestDeadlift = getBestPR(prs, 'deadlift');
   const bestBench = getBestPR(prs, 'bench');
-
   const total = (bestSquat?.weight || 0) + (bestDeadlift?.weight || 0) + (bestBench?.weight || 0);
-
-  const sortedPRs = useMemo(() =>
-    [...prs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-  [prs]);
+  const sortedPRs = useMemo(() => [...prs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [prs]);
 
   const handleDelete = (pr: LiftPR) => {
     confirmAction("Delete PR", `Remove ${LIFT_LABELS[pr.liftType]} ${pr.weight}${pr.unit}?`, async () => {
@@ -154,6 +199,45 @@ export default function ProgressScreen() {
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 84 : 0;
+
+  const activeThisWeek = useMemo(() => {
+    return clients.filter(client => {
+      const clientProgs = programs.filter(p => p.clientId === client.id);
+      const last = getLastActive(clientProgs);
+      if (!last) return false;
+      return Date.now() - last.getTime() < 7 * 24 * 60 * 60 * 1000;
+    }).length;
+  }, [clients, programs]);
+
+  const rosterAdherence = useMemo(() => {
+    if (clients.length === 0) return 0;
+    let sum = 0;
+    for (const client of clients) {
+      const clientProgs = programs.filter(p => p.clientId === client.id);
+      sum += getWeeklyAdherence(clientProgs);
+    }
+    return Math.round(sum / clients.length);
+  }, [clients, programs]);
+
+  const needsAttention = useMemo(() => {
+    return clients.filter(client => {
+      const clientProgs = programs.filter(p => p.clientId === client.id);
+      const last = getLastActive(clientProgs);
+      const adherence = getWeeklyAdherence(clientProgs);
+      return getStatus(adherence, last) === 'red';
+    }).length;
+  }, [clients, programs]);
+
+  const sortedClients = useMemo(() => {
+    return [...clients].sort((a, b) => {
+      const aProgs = programs.filter(p => p.clientId === a.id);
+      const bProgs = programs.filter(p => p.clientId === b.id);
+      const aStatus = getStatus(getWeeklyAdherence(aProgs), getLastActive(aProgs));
+      const bStatus = getStatus(getWeeklyAdherence(bProgs), getLastActive(bProgs));
+      const order = { red: 0, yellow: 1, green: 2 };
+      return order[aStatus] - order[bStatus];
+    });
+  }, [clients, programs]);
 
   if (loading) {
     return (
@@ -171,10 +255,7 @@ export default function ProgressScreen() {
     return (
       <ScrollView
         style={[styles.container, { backgroundColor: colors.background }]}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: insets.top + webTopInset + 16, paddingBottom: insets.bottom + webBottomInset + 20 },
-        ]}
+        contentContainerStyle={{ paddingTop: insets.top + webTopInset + 16, paddingBottom: insets.bottom + webBottomInset + 20, paddingHorizontal: 20 }}
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.pageTitle, { color: colors.text }]}>Client Progress</Text>
@@ -182,32 +263,35 @@ export default function ProgressScreen() {
         <Animated.View entering={FadeInDown.duration(400)}>
           <View style={styles.overviewRow}>
             <View style={[styles.overviewCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-              <Text style={[styles.overviewValue, { color: colors.text }]}>{clients.length}</Text>
-              <Text style={[styles.overviewLabel, { color: colors.textMuted }]}>Total Clients</Text>
+              <Text style={[styles.overviewValue, { color: colors.success }]}>{activeThisWeek}</Text>
+              <Text style={[styles.overviewLabel, { color: colors.textMuted }]}>Active This Week</Text>
             </View>
             <View style={[styles.overviewCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-              <Text style={[styles.overviewValue, { color: colors.text }]}>{programs.length}</Text>
-              <Text style={[styles.overviewLabel, { color: colors.textMuted }]}>Programs</Text>
+              <Text style={[styles.overviewValue, { color: rosterAdherence >= 70 ? colors.success : rosterAdherence >= 40 ? colors.warning : colors.danger }]}>{rosterAdherence}%</Text>
+              <Text style={[styles.overviewLabel, { color: colors.textMuted }]}>Roster Adherence</Text>
             </View>
             <View style={[styles.overviewCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-              <Text style={[styles.overviewValue, { color: colors.success }]}>
-                {programs.filter(p => p.status === 'active').length}
-              </Text>
-              <Text style={[styles.overviewLabel, { color: colors.textMuted }]}>Active</Text>
+              <Text style={[styles.overviewValue, { color: needsAttention > 0 ? colors.danger : colors.textMuted }]}>{needsAttention}</Text>
+              <Text style={[styles.overviewLabel, { color: colors.textMuted }]}>At Risk</Text>
             </View>
           </View>
         </Animated.View>
 
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Clients</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Clients
+          {needsAttention > 0 && (
+            <Text style={{ color: colors.danger }}> · {needsAttention} need attention</Text>
+          )}
+        </Text>
 
-        {clients.length === 0 ? (
+        {sortedClients.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="people-outline" size={40} color={colors.textMuted} />
             <Text style={[styles.emptyText, { color: colors.text }]}>No clients yet</Text>
             <Text style={[styles.emptyDesc, { color: colors.textMuted }]}>Share your coach code with clients to start tracking their progress</Text>
           </View>
         ) : (
-          clients.map((client, idx) => (
+          sortedClients.map((client, idx) => (
             <ClientProgressCard key={client.id} client={client} programs={programs} delay={idx * 60} colors={colors} />
           ))
         )}
@@ -228,8 +312,6 @@ export default function ProgressScreen() {
         <Text style={[styles.pageTitle, { color: colors.text }]}>Progress</Text>
         <Pressable
           style={[styles.addBtn, { backgroundColor: colors.primary }]}
-          accessibilityLabel="Log a new PR"
-          accessibilityRole="button"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.push('/add-pr');
@@ -246,24 +328,9 @@ export default function ProgressScreen() {
             <Text style={[styles.totalLabel, { color: colors.textMuted }]}>Estimated Total</Text>
             <Text style={[styles.totalValue, { color: colors.text }]}>{total}<Text style={[styles.totalUnit, { color: colors.textSecondary }]}> {unit}</Text></Text>
             <View style={styles.totalBreakdown}>
-              {bestSquat && (
-                <View style={styles.breakdownItem}>
-                  <View style={[styles.breakdownDot, { backgroundColor: colors.squat }]} />
-                  <Text style={[styles.breakdownText, { color: colors.textSecondary }]}>S: {bestSquat.weight}</Text>
-                </View>
-              )}
-              {bestBench && (
-                <View style={styles.breakdownItem}>
-                  <View style={[styles.breakdownDot, { backgroundColor: colors.bench }]} />
-                  <Text style={[styles.breakdownText, { color: colors.textSecondary }]}>B: {bestBench.weight}</Text>
-                </View>
-              )}
-              {bestDeadlift && (
-                <View style={styles.breakdownItem}>
-                  <View style={[styles.breakdownDot, { backgroundColor: colors.deadlift }]} />
-                  <Text style={[styles.breakdownText, { color: colors.textSecondary }]}>D: {bestDeadlift.weight}</Text>
-                </View>
-              )}
+              {bestSquat && <View style={styles.breakdownItem}><View style={[styles.breakdownDot, { backgroundColor: colors.squat }]} /><Text style={[styles.breakdownText, { color: colors.textSecondary }]}>S: {bestSquat.weight}</Text></View>}
+              {bestBench && <View style={styles.breakdownItem}><View style={[styles.breakdownDot, { backgroundColor: colors.bench }]} /><Text style={[styles.breakdownText, { color: colors.textSecondary }]}>B: {bestBench.weight}</Text></View>}
+              {bestDeadlift && <View style={styles.breakdownItem}><View style={[styles.breakdownDot, { backgroundColor: colors.deadlift }]} /><Text style={[styles.breakdownText, { color: colors.textSecondary }]}>D: {bestDeadlift.weight}</Text></View>}
             </View>
           </View>
         </Animated.View>
@@ -297,8 +364,6 @@ export default function ProgressScreen() {
           <Animated.View key={pr.id} entering={FadeInDown.delay(idx * 40).duration(300)}>
             <Pressable
               style={({ pressed }) => [styles.prRow, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.8 }]}
-              accessibilityLabel={`${LIFT_LABELS[pr.liftType]} ${pr.weight} ${pr.unit}`}
-              accessibilityRole="button"
               onLongPress={() => handleDelete(pr)}
             >
               <View style={[styles.prDot, { backgroundColor: LIFT_COLORS[pr.liftType] }]} />
@@ -317,78 +382,64 @@ export default function ProgressScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.colors.background },
+  container: { flex: 1 },
   scrollContent: { paddingHorizontal: 20 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  pageTitle: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.text, marginBottom: 20 },
-  addBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: Colors.colors.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
-  },
+  pageTitle: { fontFamily: 'Rubik_700Bold', fontSize: 28, marginBottom: 20 },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
   addBtnText: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: '#fff' },
-  overviewRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
-  overviewCard: {
-    flex: 1, alignItems: 'center', backgroundColor: Colors.colors.backgroundCard,
-    borderRadius: 12, padding: 16, borderWidth: 1, borderColor: Colors.colors.border,
-  },
-  overviewValue: { fontFamily: 'Rubik_700Bold', fontSize: 24, color: Colors.colors.text },
-  overviewLabel: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 4 },
-  clientProgressCard: {
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 16,
-    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 12,
-  },
-  clientHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  clientAvatar: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(232,81,47,0.15)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  clientAvatarText: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.primary },
-  clientHeaderInfo: { flex: 1 },
-  clientNameText: { fontFamily: 'Rubik_600SemiBold', fontSize: 16, color: Colors.colors.text },
-  clientJoined: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 2 },
-  clientStatsRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  clientStatBox: {
-    flex: 1, alignItems: 'center', backgroundColor: Colors.colors.surface, borderRadius: 8, paddingVertical: 8,
-  },
-  clientStatNum: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.text },
-  clientStatLabel: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 2 },
-  clientProgressRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  clientProgressText: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: Colors.colors.textSecondary, width: 32, textAlign: 'right' },
-  totalCard: {
-    alignItems: 'center', backgroundColor: Colors.colors.backgroundCard, borderRadius: 12,
-    padding: 24, borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 16,
-  },
-  totalLabel: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.textMuted },
-  totalValue: { fontFamily: 'Rubik_700Bold', fontSize: 40, color: Colors.colors.text, marginTop: 4 },
-  totalUnit: { fontFamily: 'Rubik_400Regular', fontSize: 16, color: Colors.colors.textSecondary },
+
+  overviewRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+  overviewCard: { flex: 1, alignItems: 'center', borderRadius: 12, padding: 14, borderWidth: 1 },
+  overviewValue: { fontFamily: 'Rubik_700Bold', fontSize: 22 },
+  overviewLabel: { fontFamily: 'Rubik_400Regular', fontSize: 11, marginTop: 4, textAlign: 'center' },
+
+  sectionTitle: { fontFamily: 'Rubik_700Bold', fontSize: 18, marginBottom: 12 },
+
+  clientCard: { borderRadius: 14, padding: 16, borderWidth: 1, marginBottom: 12 },
+  clientTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  clientAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(232,81,47,0.15)', alignItems: 'center', justifyContent: 'center' },
+  clientAvatarText: { fontFamily: 'Rubik_700Bold', fontSize: 17 },
+  clientInfo: { flex: 1 },
+  clientName: { fontFamily: 'Rubik_600SemiBold', fontSize: 15 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
+  statusDot: { width: 7, height: 7, borderRadius: 4 },
+  statusLabel: { fontFamily: 'Rubik_500Medium', fontSize: 12 },
+  lastActive: { fontFamily: 'Rubik_400Regular', fontSize: 12 },
+
+  metricsRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  metricBox: { flex: 1, alignItems: 'center', borderRadius: 10, paddingVertical: 10 },
+  metricValue: { fontFamily: 'Rubik_700Bold', fontSize: 18 },
+  metricLabel: { fontFamily: 'Rubik_400Regular', fontSize: 10, marginTop: 2, textAlign: 'center' },
+
+  adherenceBar: { height: 3, borderRadius: 2, overflow: 'hidden' },
+  adherenceFill: { height: '100%' as const, borderRadius: 2 },
+
+  totalCard: { alignItems: 'center', borderRadius: 12, padding: 24, borderWidth: 1, marginBottom: 16 },
+  totalLabel: { fontFamily: 'Rubik_500Medium', fontSize: 13 },
+  totalValue: { fontFamily: 'Rubik_700Bold', fontSize: 40, marginTop: 4 },
+  totalUnit: { fontFamily: 'Rubik_400Regular', fontSize: 16 },
   totalBreakdown: { flexDirection: 'row', gap: 16, marginTop: 12 },
   breakdownItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   breakdownDot: { width: 8, height: 8, borderRadius: 4 },
-  breakdownText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.textSecondary },
+  breakdownText: { fontFamily: 'Rubik_500Medium', fontSize: 13 },
+
   bestLiftsRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
-  bestLiftCard: {
-    flex: 1, alignItems: 'center', backgroundColor: Colors.colors.backgroundCard,
-    borderRadius: 12, paddingVertical: 14, borderLeftWidth: 3,
-  },
+  bestLiftCard: { flex: 1, alignItems: 'center', borderRadius: 12, paddingVertical: 14, borderLeftWidth: 3 },
   bestLiftLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 13 },
-  bestLiftValue: { fontFamily: 'Rubik_700Bold', fontSize: 24, color: Colors.colors.text, marginTop: 4 },
-  bestLiftUnit: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted },
-  sectionTitle: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.text, marginBottom: 12 },
+  bestLiftValue: { fontFamily: 'Rubik_700Bold', fontSize: 24, marginTop: 4 },
+  bestLiftUnit: { fontFamily: 'Rubik_400Regular', fontSize: 13 },
+
   emptyState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
-  emptyText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.text },
-  emptyDesc: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, textAlign: 'center', paddingHorizontal: 20 },
-  prRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 8,
-  },
+  emptyText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15 },
+  emptyDesc: { fontFamily: 'Rubik_400Regular', fontSize: 13, textAlign: 'center', paddingHorizontal: 20 },
+
+  prRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, padding: 14, borderWidth: 1, marginBottom: 8 },
   prDot: { width: 10, height: 10, borderRadius: 5 },
   prInfo: { flex: 1 },
-  prLiftName: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: Colors.colors.text },
-  prDate: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 1 },
-  prNotes: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textSecondary, marginTop: 2 },
-  prWeight: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.text },
-  prUnit: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted },
-  progressBarBg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.colors.surfaceLight, overflow: 'hidden' as const },
-  progressBarFill: { height: '100%' as const, borderRadius: 2, backgroundColor: Colors.colors.primary },
+  prLiftName: { fontFamily: 'Rubik_600SemiBold', fontSize: 14 },
+  prDate: { fontFamily: 'Rubik_400Regular', fontSize: 13, marginTop: 1 },
+  prNotes: { fontFamily: 'Rubik_400Regular', fontSize: 13, marginTop: 2 },
+  prWeight: { fontFamily: 'Rubik_700Bold', fontSize: 18 },
+  prUnit: { fontFamily: 'Rubik_400Regular', fontSize: 13 },
 });
