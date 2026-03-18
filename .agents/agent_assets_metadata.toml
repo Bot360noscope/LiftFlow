@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "qTT4BCNsfxu2QpDPjjnqJ"
+uri = "file://LiftFlow-1.7.3-build20.zip"
+type = "unspecified"
+title = "LiftFlow-1.7.3-build20.zip"
