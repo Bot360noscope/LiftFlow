@@ -158,13 +158,23 @@ export default function ProfileScreen() {
     );
   };
 
-  const toggleRole = async () => {
+  const toggleRole = () => {
     const newRole = profile.role === 'coach' ? 'client' : 'coach';
-    const updated = { ...profile, role: newRole };
-    await saveProfile(updated);
-    setProfile(updated);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    loadData();
+    const label = newRole === 'coach' ? 'Coach' : 'Athlete';
+    confirmAction(
+      `Switch to ${label} Mode?`,
+      newRole === 'coach'
+        ? 'You will see your client roster and coaching tools. Your own training programs will be hidden.'
+        : 'You will see your own training programs. Your client roster will be hidden.',
+      async () => {
+        const updated = { ...profile, role: newRole };
+        await saveProfile(updated);
+        setProfile(updated);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        loadData();
+      },
+      `Switch to ${label}`
+    );
   };
 
   const handleRemoveCoach = async () => {

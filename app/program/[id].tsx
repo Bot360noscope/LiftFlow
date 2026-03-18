@@ -537,7 +537,10 @@ export default function ProgramDetailScreen() {
   const [activeDay, setActiveDay] = useState(1);
   const [hasChanges, setHasChanges] = useState(false);
   const [saveError, setSaveError] = useState(false);
-  const [isCoach, setIsCoach] = useState(true);
+  const [isCoach, setIsCoach] = useState<boolean | null>(() => {
+    const cached = getCachedProfile();
+    return cached ? cached.role === 'coach' : null;
+  });
   const [isShared, setIsShared] = useState(false);
   const [profileId, setProfileId] = useState('');
   const [highlightedExerciseId, setHighlightedExerciseId] = useState<string | null>(null);
@@ -1128,7 +1131,7 @@ export default function ProgramDetailScreen() {
               <ExerciseRow
                 exercise={ex}
                 index={idx}
-                isCoach={isCoach}
+                isCoach={isCoach ?? false}
                 isShared={isShared}
                 onUpdate={(updates) => updateExercise(ex.id, updates)}
                 onDelete={() => deleteExercise(ex.id)}
