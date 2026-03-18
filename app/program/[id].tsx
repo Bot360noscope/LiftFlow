@@ -774,7 +774,7 @@ export default function ProgramDetailScreen() {
               id: Crypto.randomUUID(),
               name: ex.name,
               repsSets: ex.repsSets,
-              weight: '',
+              weight: ex.weight,
               rpe: ex.rpe,
               isCompleted: false,
               notes: ex.notes,
