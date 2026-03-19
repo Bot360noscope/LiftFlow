@@ -131,17 +131,40 @@ async function tryNativeCompress(uri: string): Promise<string | null> {
   }
 }
 
+function adaptiveBitrate(durationSeconds: number): number {
+  if (durationSeconds <= 10) return 1000000;
+  if (durationSeconds <= 20) return 1200000;
+  if (durationSeconds <= 35) return 1500000;
+  return 1800000;
+}
+
 async function tryLocalTrimAndCompress(uri: string, startTime: number, endTime: number): Promise<string | null> {
   if (isExpoGo || Platform.OS === 'web') return null;
   if (!Number.isFinite(endTime) || endTime <= startTime) return null;
   try {
     const { Video } = require('react-native-compressor');
+    const duration = endTime - startTime;
     const result = await Video.compress(uri, {
       compressionMethod: 'manual',
-      bitrate: 2000000,
+      bitrate: adaptiveBitrate(duration),
       maxSize: 720,
       startTime,
       endTime,
+    });
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+async function tryLocalCompress(uri: string, durationSeconds: number): Promise<string | null> {
+  if (isExpoGo || Platform.OS === 'web') return null;
+  try {
+    const { Video } = require('react-native-compressor');
+    const result = await Video.compress(uri, {
+      compressionMethod: 'manual',
+      bitrate: adaptiveBitrate(durationSeconds),
+      maxSize: 720,
     });
     return result;
   } catch {
@@ -179,14 +202,24 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   }
 
   let uploadUri = uri;
+  let serverTrim: typeof trim = undefined;
 
-  // Skip local compression when a significant trim will be applied.
-  // Compressing a full 60s video just to keep 5s wastes 30-60s of CPU time.
-  // The server-side ffmpeg trim (-c:v copy) is near-instant and the trimmed
-  // result is already tiny, so local compression adds no benefit here.
-  // Only compress when keeping more than 30 seconds of video (or no trim at all).
-  const keptDuration = trim ? (trim.endTime - trim.startTime) : Infinity;
-  if (keptDuration > 30) {
+  if (trim) {
+    // Try local trim+compress in one pass — no server ffmpeg needed.
+    const localResult = await tryLocalTrimAndCompress(uri, trim.startTime, trim.endTime);
+    if (localResult) {
+      uploadUri = localResult;
+    } else {
+      // Expo Go / fallback: upload raw and trim server-side.
+      serverTrim = trim;
+      const keptDuration = trim.endTime - trim.startTime;
+      if (keptDuration > 30) {
+        const compressed = await tryLocalCompress(uri, keptDuration);
+        if (compressed) uploadUri = compressed;
+      }
+    }
+  } else {
+    // No trim — just compress.
     const compressed = await tryNativeCompress(uri);
     if (compressed) uploadUri = compressed;
   }
@@ -211,12 +244,12 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   let finalFilename = filename;
   let finalVideoUrl = videoUrl;
 
-  // Always trim server-side when the user has set trim points.
-  if (trim) {
+  // Server-side trim only as a last-resort fallback (Expo Go, local trim failed).
+  if (serverTrim) {
     const trimRes = await retryFetch(`${BASE}/api/trim-video`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
-      body: JSON.stringify({ filename, startTime: trim.startTime, endTime: trim.endTime }),
+      body: JSON.stringify({ filename, startTime: serverTrim.startTime, endTime: serverTrim.endTime }),
     });
     if (trimRes.ok) {
       const trimData = await trimRes.json();

@@ -7,6 +7,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
 import { PanResponder } from "react-native";
 import * as Haptics from "expo-haptics";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import { showAlert, confirmAction } from "@/lib/confirm";
@@ -54,6 +55,15 @@ export default function RecordVideoScreen() {
   useEffect(() => {
     navigation.setOptions({ gestureEnabled: !recording });
   }, [recording, navigation]);
+
+  useEffect(() => {
+    if (recording) {
+      activateKeepAwakeAsync();
+    } else {
+      deactivateKeepAwake();
+    }
+    return () => { deactivateKeepAwake(); };
+  }, [recording]);
 
   const updateZoom = useCallback((v: number) => {
     zoomRef.current = v;
