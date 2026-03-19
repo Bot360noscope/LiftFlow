@@ -396,12 +396,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/profiles/:id", async (req, res) => {
     try {
-      const { name, role, weightUnit, coachCode } = req.body;
+      const { name, role, weightUnit, coachCode, bodyWeight } = req.body;
       const updates: any = {};
       if (name !== undefined) updates.name = name;
       if (role !== undefined) updates.role = role;
       if (weightUnit !== undefined) updates.weightUnit = weightUnit;
       if (coachCode !== undefined) updates.coachCode = coachCode;
+      if (bodyWeight !== undefined) updates.bodyWeight = bodyWeight === null ? null : Number(bodyWeight);
       const [updated] = await db.update(profiles).set(updates).where(eq(profiles.id, req.params.id)).returning();
       res.json(updated);
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }

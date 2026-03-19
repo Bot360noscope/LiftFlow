@@ -58,6 +58,7 @@ export interface UserProfile {
   weightUnit: 'kg' | 'lbs';
   coachCode: string;
   avatarUrl: string;
+  bodyWeight?: number;
   plan: string;
   planUserLimit: number;
 }
@@ -282,6 +283,7 @@ function mapProfile(profile: any): UserProfile {
     weightUnit: (profile.weightUnit || profile.weight_unit || 'kg') as 'kg' | 'lbs',
     coachCode: profile.coachCode || profile.coach_code,
     avatarUrl: profile.avatarUrl || profile.avatar_url || '',
+    bodyWeight: profile.bodyWeight ?? profile.body_weight ?? undefined,
     plan: profile.plan || 'free',
     planUserLimit: profile.plan_user_limit != null ? profile.plan_user_limit : (profile.planUserLimit != null ? profile.planUserLimit : 1),
   };
@@ -344,29 +346,15 @@ export async function saveProfile(profile: UserProfile): Promise<void> {
   cache.profileFetchedAt = Date.now();
   persistCache();
   await setProfileId(profile.id);
+  const profileData = { name: profile.name, role: profile.role, weightUnit: profile.weightUnit, coachCode: profile.coachCode, bodyWeight: profile.bodyWeight ?? null };
   if (!getIsOnline()) {
-    await enqueue({
-      type: 'updateProfile',
-      endpoint: `/api/profiles/${profile.id}`,
-      method: 'PUT',
-      data: { name: profile.name, role: profile.role, weightUnit: profile.weightUnit, coachCode: profile.coachCode },
-    });
+    await enqueue({ type: 'updateProfile', endpoint: `/api/profiles/${profile.id}`, method: 'PUT', data: profileData });
     return;
   }
   try {
-    await apiPut(`/api/profiles/${profile.id}`, {
-      name: profile.name,
-      role: profile.role,
-      weightUnit: profile.weightUnit,
-      coachCode: profile.coachCode,
-    });
+    await apiPut(`/api/profiles/${profile.id}`, profileData);
   } catch {
-    await enqueue({
-      type: 'updateProfile',
-      endpoint: `/api/profiles/${profile.id}`,
-      method: 'PUT',
-      data: { name: profile.name, role: profile.role, weightUnit: profile.weightUnit, coachCode: profile.coachCode },
-    });
+    await enqueue({ type: 'updateProfile', endpoint: `/api/profiles/${profile.id}`, method: 'PUT', data: profileData });
   }
 }
 

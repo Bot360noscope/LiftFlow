@@ -11,6 +11,7 @@ export const profiles = pgTable("profiles", {
   coachCode: text("coach_code").notNull(),
   avatarUrl: text("avatar_url").notNull().default(''),
   pushToken: text("push_token"),
+  bodyWeight: integer("body_weight"),
   plan: text("plan").notNull().default('free'),
   planUserLimit: integer("plan_user_limit").notNull().default(1),
   planExpiresAt: timestamp("plan_expires_at"),

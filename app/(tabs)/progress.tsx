@@ -13,6 +13,13 @@ import { ProgressSkeleton } from "@/components/SkeletonLoader";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { getBestPR, getDashboard, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, invalidateProgramsCache, type Program, type ClientInfo } from "@/lib/storage";
 
+function calcDots(totalKg: number, bwKg: number): number {
+  if (bwKg < 40 || bwKg > 210) return 0;
+  const d = -0.000001093 * Math.pow(bwKg, 4) + 0.0007391293 * Math.pow(bwKg, 3) - 0.1918759221 * Math.pow(bwKg, 2) + 24.0900756 * bwKg - 307.75076;
+  if (d <= 0) return 0;
+  return Math.round(totalKg * (500 / d));
+}
+
 const LIFT_COLORS: Record<string, string> = {
   squat: Colors.colors.squat,
   deadlift: Colors.colors.deadlift,
@@ -162,6 +169,7 @@ export default function ProgressScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const [prs, setPRs] = useState(getCachedPRs());
   const [unit, setUnit] = useState<'kg' | 'lbs'>((getCachedProfile()?.weightUnit as 'kg' | 'lbs') || 'kg');
+  const [bodyWeight, setBodyWeight] = useState<number | undefined>(getCachedProfile()?.bodyWeight);
   const [isCoach, setIsCoach] = useState(getCachedProfile()?.role === 'coach');
   const [programs, setPrograms] = useState<Program[]>(getCachedPrograms());
   const [clients, setClients] = useState<ClientInfo[]>(getCachedClients());
@@ -175,6 +183,7 @@ export default function ProgressScreen() {
       const dashboard = await getDashboard();
       setPRs(dashboard.prs);
       setUnit(dashboard.profile.weightUnit);
+      setBodyWeight(dashboard.profile.bodyWeight);
       setIsCoach(dashboard.profile.role === 'coach');
       setPrograms(dashboard.programs);
       setClients(dashboard.clients);
@@ -204,7 +213,6 @@ export default function ProgressScreen() {
   const bestSquat = getBestPR(prs, 'squat');
   const bestDeadlift = getBestPR(prs, 'deadlift');
   const bestBench = getBestPR(prs, 'bench');
-  const total = (bestSquat?.weight || 0) + (bestDeadlift?.weight || 0) + (bestBench?.weight || 0);
 
   const adherence = useMemo(() => getOverallAdherence(programs), [programs]);
 
@@ -286,11 +294,15 @@ export default function ProgressScreen() {
   }
 
   // ─── Client view ──────────────────────────────────────────────────────────────
-  const lifts = [
-    { key: 'squat' as const, best: bestSquat },
-    { key: 'bench' as const, best: bestBench },
-    { key: 'deadlift' as const, best: bestDeadlift },
-  ];
+  const totalKg = unit === 'lbs'
+    ? ((bestSquat?.weight || 0) + (bestBench?.weight || 0) + (bestDeadlift?.weight || 0)) / 2.205
+    : (bestSquat?.weight || 0) + (bestBench?.weight || 0) + (bestDeadlift?.weight || 0);
+  const total = (bestSquat?.weight || 0) + (bestBench?.weight || 0) + (bestDeadlift?.weight || 0);
+
+  const bwKg = bodyWeight
+    ? (unit === 'lbs' ? bodyWeight / 2.205 : bodyWeight)
+    : undefined;
+  const dots = bwKg && totalKg > 0 ? calcDots(totalKg, bwKg) : 0;
 
   return (
     <ScrollView
@@ -300,45 +312,30 @@ export default function ProgressScreen() {
     >
       <Text style={[styles.pageTitle, { color: colors.text }]}>My Progress</Text>
 
-      {/* ── The Big 3 ── */}
-      <Animated.View entering={FadeInDown.duration(350)}>
-        <View style={[styles.big3Card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-          <Text style={[styles.big3Header, { color: colors.textMuted }]}>THE BIG 3</Text>
-          <View style={styles.big3Row}>
-            {lifts.map(({ key, best }) => (
-              <Pressable
-                key={key}
-                style={({ pressed }) => [styles.liftCol, pressed && { opacity: 0.7 }]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push(`/add-pr?lift=${key}`);
-                }}
-              >
-                <Text style={[styles.liftColLabel, { color: LIFT_COLORS[key] }]}>{LIFT_LABELS[key].toUpperCase()}</Text>
-                <Text style={[styles.liftColWeight, { color: best ? colors.text : colors.textMuted }]}>
-                  {best ? best.weight : '—'}
+      {/* ── Strength total ── */}
+      {total > 0 && (
+        <Animated.View entering={FadeInDown.duration(350)}>
+          <View style={[styles.strengthCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <View style={styles.strengthRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.strengthLabel, { color: colors.textMuted }]}>SBD TOTAL</Text>
+                <Text style={[styles.strengthValue, { color: colors.text }]}>
+                  {total}<Text style={[styles.strengthUnit, { color: colors.textMuted }]}> {unit}</Text>
                 </Text>
-                {best ? (
-                  <Text style={[styles.liftColUnit, { color: colors.textMuted }]}>{best.unit}</Text>
-                ) : (
-                  <View style={[styles.tapToLog, { borderColor: LIFT_COLORS[key] }]}>
-                    <Text style={[styles.tapToLogText, { color: LIFT_COLORS[key] }]}>Log</Text>
-                  </View>
-                )}
-              </Pressable>
-            ))}
-          </View>
-
-          {total > 0 && (
-            <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
-              <Text style={[styles.totalLabel, { color: colors.textMuted }]}>Total</Text>
-              <Text style={[styles.totalValue, { color: colors.text }]}>
-                {total}<Text style={[styles.totalUnit, { color: colors.textMuted }]}> {unit}</Text>
-              </Text>
+              </View>
+              {dots > 0 && (
+                <View style={[styles.dotsDivider, { backgroundColor: colors.border }]} />
+              )}
+              {dots > 0 && (
+                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                  <Text style={[styles.strengthLabel, { color: colors.textMuted }]}>DOTS</Text>
+                  <Text style={[styles.strengthValue, { color: colors.primary }]}>{dots}</Text>
+                </View>
+              )}
             </View>
-          )}
-        </View>
-      </Animated.View>
+          </View>
+        </Animated.View>
+      )}
 
       {/* ── Log New PR ── */}
       <Animated.View entering={FadeInDown.delay(60).duration(350)}>
@@ -418,20 +415,13 @@ const styles = StyleSheet.create({
   adherenceBar: { height: 3, borderRadius: 2, overflow: 'hidden' },
   adherenceFill: { height: '100%' as const, borderRadius: 2 },
 
-  // Big 3
-  big3Card: { borderRadius: 16, borderWidth: 1, padding: 20, marginBottom: 12 },
-  big3Header: { fontFamily: 'Rubik_600SemiBold', fontSize: 11, letterSpacing: 1.5, marginBottom: 16, textAlign: 'center' },
-  big3Row: { flexDirection: 'row' },
-  liftCol: { flex: 1, alignItems: 'center', gap: 4 },
-  liftColLabel: { fontFamily: 'Rubik_700Bold', fontSize: 10, letterSpacing: 1 },
-  liftColWeight: { fontFamily: 'Rubik_700Bold', fontSize: 32, lineHeight: 38 },
-  liftColUnit: { fontFamily: 'Rubik_400Regular', fontSize: 12, marginTop: -2 },
-  tapToLog: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 3, marginTop: 6 },
-  tapToLogText: { fontFamily: 'Rubik_600SemiBold', fontSize: 11 },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, paddingTop: 14, borderTopWidth: 1 },
-  totalLabel: { fontFamily: 'Rubik_500Medium', fontSize: 13 },
-  totalValue: { fontFamily: 'Rubik_700Bold', fontSize: 22 },
-  totalUnit: { fontFamily: 'Rubik_400Regular', fontSize: 14 },
+  // Strength card
+  strengthCard: { borderRadius: 16, borderWidth: 1, padding: 20, marginBottom: 12 },
+  strengthRow: { flexDirection: 'row', alignItems: 'center' },
+  strengthLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 10, letterSpacing: 1.5, marginBottom: 4 },
+  strengthValue: { fontFamily: 'Rubik_700Bold', fontSize: 38, lineHeight: 42 },
+  strengthUnit: { fontFamily: 'Rubik_400Regular', fontSize: 18 },
+  dotsDivider: { width: 1, height: 50, marginHorizontal: 20 },
 
   // Log PR
   logPRBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, marginBottom: 4 },

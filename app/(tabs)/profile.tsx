@@ -61,6 +61,7 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<UserProfile>(cached || { id: '', name: '', role: 'coach', weightUnit: 'kg', coachCode: '', avatarUrl: '', plan: 'free', planUserLimit: 1 });
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(cached?.name || '');
+  const [bwInput, setBwInput] = useState(cached?.bodyWeight ? String(cached.bodyWeight) : '');
   const [stats, setStats] = useState({ prs: getCachedPRs().length, programs: getCachedPrograms().length, clients: getCachedClients().length });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
@@ -113,6 +114,7 @@ export default function ProfileScreen() {
       const [p, prs, progs, cl] = await Promise.all([getProfile(), getPRs(), getPrograms(), getClients()]);
       setProfile(p);
       setNameInput(p.name);
+      setBwInput(p.bodyWeight ? String(p.bodyWeight) : '');
       setStats({ prs: prs.length, programs: progs.length, clients: cl.length });
       if (p.role === 'client') {
         try {
@@ -343,6 +345,73 @@ export default function ProfileScreen() {
               </View>
             </>
           )}
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(150).duration(400)}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Training</Text>
+
+          {/* Unit toggle */}
+          <View style={[styles.settingItem, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: 'rgba(102,102,102,0.12)' }]}>
+                <Ionicons name="barbell-outline" size={18} color={colors.textMuted} />
+              </View>
+              <View style={styles.settingTextWrap}>
+                <Text style={[styles.settingLabel, { color: colors.text }]}>Weight Unit</Text>
+                <Text style={[styles.settingValue, { color: colors.textMuted }]}>Used for PRs and totals</Text>
+              </View>
+            </View>
+            <View style={[styles.unitToggle, { backgroundColor: colors.surfaceLight }]}>
+              {(['kg', 'lbs'] as const).map(u => (
+                <Pressable
+                  key={u}
+                  style={[styles.unitOption, profile.weightUnit === u && { backgroundColor: colors.primary }]}
+                  onPress={async () => {
+                    if (profile.weightUnit === u) return;
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    const updated = { ...profile, weightUnit: u };
+                    await saveProfile(updated);
+                    setProfile(updated);
+                  }}
+                >
+                  <Text style={[styles.unitOptionText, { color: profile.weightUnit === u ? '#fff' : colors.textMuted }]}>{u}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          {/* Body weight */}
+          <View style={[styles.settingItem, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: 'rgba(102,102,102,0.12)' }]}>
+                <Ionicons name="person-outline" size={18} color={colors.textMuted} />
+              </View>
+              <View style={styles.settingTextWrap}>
+                <Text style={[styles.settingLabel, { color: colors.text }]}>Body Weight</Text>
+                <Text style={[styles.settingValue, { color: colors.textMuted }]}>Used for Dots score</Text>
+              </View>
+            </View>
+            <View style={styles.bwRow}>
+              <TextInput
+                style={[styles.bwInput, { color: colors.text, backgroundColor: colors.surfaceLight }]}
+                value={bwInput}
+                onChangeText={setBwInput}
+                keyboardType="numeric"
+                placeholder="—"
+                placeholderTextColor={colors.textMuted}
+                returnKeyType="done"
+                onEndEditing={async () => {
+                  const val = parseFloat(bwInput);
+                  const bw = isNaN(val) ? undefined : Math.round(val);
+                  const updated = { ...profile, bodyWeight: bw };
+                  await saveProfile(updated);
+                  setProfile(updated);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              />
+              <Text style={[styles.bwUnit, { color: colors.textMuted }]}>{profile.weightUnit}</Text>
+            </View>
+          </View>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(200).duration(400)}>
@@ -674,4 +743,10 @@ const styles = StyleSheet.create({
   },
   modalDeleteBtnDisabled: { opacity: 0.4 },
   modalDeleteText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: '#fff' },
+  unitToggle: { flexDirection: 'row', borderRadius: 8, padding: 3, gap: 2 },
+  unitOption: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 6 },
+  unitOptionText: { fontFamily: 'Rubik_600SemiBold', fontSize: 13 },
+  bwRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  bwInput: { fontFamily: 'Rubik_600SemiBold', fontSize: 16, width: 64, textAlign: 'center', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
+  bwUnit: { fontFamily: 'Rubik_400Regular', fontSize: 14 },
 });
