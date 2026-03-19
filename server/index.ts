@@ -222,6 +222,16 @@ function configureExpoAndLanding(app: express.Application) {
     next();
   });
 
+  app.get("/robots.txt", (_req, res) => {
+    res.setHeader("Content-Type", "text/plain");
+    res.send("User-agent: *\nAllow: /\nSitemap: https://new-liftflow-for-render-hosting-backend.onrender.com/sitemap.xml\n");
+  });
+
+  app.get("/sitemap.xml", (_req, res) => {
+    res.setHeader("Content-Type", "application/xml");
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>https://new-liftflow-for-render-hosting-backend.onrender.com/</loc>\n    <changefreq>monthly</changefreq>\n    <priority>1.0</priority>\n  </url>\n</urlset>`);
+  });
+
   app.get("/liftflow-full.zip", (_req, res) => {
     const zipPath = path.resolve(process.cwd(), "liftflow-full.zip");
     if (require("fs").existsSync(zipPath)) {
