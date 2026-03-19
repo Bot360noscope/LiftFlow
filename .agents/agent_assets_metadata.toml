@@ -18,3 +18,9 @@ id = "oCk29GvhIVcnMA5l-LXl-"
 uri = "file://LiftFlow-1.7.5-build21.zip"
 type = "unspecified"
 title = "LiftFlow-1.7.5-build21.zip"
+
+[[outputs]]
+id = "4KEs2x7xI-zU8eLyI0qKC"
+uri = "file://LiftFlow.zip"
+type = "unspecified"
+title = "LiftFlow-1.7.5-build21.zip"
