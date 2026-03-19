@@ -30,3 +30,9 @@ id = "6GjRAC44mcfPMArZMbPIc"
 uri = "file://LiftFlow 1.7.6.zip"
 type = "unspecified"
 title = "LiftFlow 1.7.6 (build 22)"
+
+[[outputs]]
+id = "_R7Z4i_neBB9Z-3QcBeX_"
+uri = "file://LiftFlow 1.7.7.zip"
+type = "unspecified"
+title = "LiftFlow 1.7.7"
