@@ -312,30 +312,59 @@ export default function ProgressScreen() {
     >
       <Text style={[styles.pageTitle, { color: colors.text }]}>My Progress</Text>
 
-      {/* ── Strength total ── */}
-      {total > 0 && (
-        <Animated.View entering={FadeInDown.duration(350)}>
-          <View style={[styles.strengthCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-            <View style={styles.strengthRow}>
+      {/* ── The Big 3 + Total + Dots ── */}
+      <Animated.View entering={FadeInDown.duration(350)}>
+        <View style={[styles.strengthCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+          <View style={styles.big3Row}>
+            {([
+              { key: 'squat' as const, label: 'SQUAT', best: bestSquat, color: Colors.colors.squat },
+              { key: 'bench' as const, label: 'BENCH', best: bestBench, color: Colors.colors.bench },
+              { key: 'deadlift' as const, label: 'DEAD', best: bestDeadlift, color: Colors.colors.deadlift },
+            ] as const).map(({ key, label, best, color }) => (
+              <Pressable
+                key={key}
+                style={({ pressed }) => [styles.liftCol, pressed && { opacity: 0.7 }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(`/add-pr?lift=${key}`);
+                }}
+              >
+                <Text style={[styles.liftColLabel, { color }]}>{label}</Text>
+                <Text style={[styles.liftColWeight, { color: best ? colors.text : colors.textMuted }]}>
+                  {best ? best.weight : '—'}
+                </Text>
+                {best
+                  ? <Text style={[styles.liftColUnit, { color: colors.textMuted }]}>{best.unit}</Text>
+                  : <View style={[styles.tapToLog, { borderColor: color }]}><Text style={[styles.tapToLogText, { color }]}>Log</Text></View>
+                }
+              </Pressable>
+            ))}
+          </View>
+
+          {total > 0 && (
+            <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.strengthLabel, { color: colors.textMuted }]}>SBD TOTAL</Text>
-                <Text style={[styles.strengthValue, { color: colors.text }]}>
-                  {total}<Text style={[styles.strengthUnit, { color: colors.textMuted }]}> {unit}</Text>
+                <Text style={[styles.totalValue, { color: colors.text }]}>
+                  {total}<Text style={[styles.liftColUnit, { color: colors.textMuted }]}> {unit}</Text>
                 </Text>
               </View>
-              {dots > 0 && (
-                <View style={[styles.dotsDivider, { backgroundColor: colors.border }]} />
-              )}
+              {dots > 0 && <View style={[styles.dotsDivider, { backgroundColor: colors.border }]} />}
               {dots > 0 && (
                 <View style={{ flex: 1, alignItems: 'flex-end' }}>
                   <Text style={[styles.strengthLabel, { color: colors.textMuted }]}>DOTS</Text>
-                  <Text style={[styles.strengthValue, { color: colors.primary }]}>{dots}</Text>
+                  <Text style={[styles.totalValue, { color: colors.primary }]}>{dots}</Text>
                 </View>
               )}
+              {!bodyWeight && total > 0 && dots === 0 && (
+                <Pressable style={{ flex: 1, alignItems: 'flex-end', justifyContent: 'center' }} onPress={() => router.push('/(tabs)/profile')}>
+                  <Text style={[styles.liftColUnit, { color: colors.primary }]}>Add BW{'\n'}for Dots →</Text>
+                </Pressable>
+              )}
             </View>
-          </View>
-        </Animated.View>
-      )}
+          )}
+        </View>
+      </Animated.View>
 
       {/* ── Log New PR ── */}
       <Animated.View entering={FadeInDown.delay(60).duration(350)}>
@@ -415,13 +444,22 @@ const styles = StyleSheet.create({
   adherenceBar: { height: 3, borderRadius: 2, overflow: 'hidden' },
   adherenceFill: { height: '100%' as const, borderRadius: 2 },
 
-  // Strength card
-  strengthCard: { borderRadius: 16, borderWidth: 1, padding: 20, marginBottom: 12 },
+  // Strength card (Big 3 + Total + Dots)
+  strengthCard: { borderRadius: 16, borderWidth: 1, paddingTop: 20, paddingHorizontal: 20, paddingBottom: 16, marginBottom: 12 },
   strengthRow: { flexDirection: 'row', alignItems: 'center' },
   strengthLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 10, letterSpacing: 1.5, marginBottom: 4 },
   strengthValue: { fontFamily: 'Rubik_700Bold', fontSize: 38, lineHeight: 42 },
   strengthUnit: { fontFamily: 'Rubik_400Regular', fontSize: 18 },
-  dotsDivider: { width: 1, height: 50, marginHorizontal: 20 },
+  dotsDivider: { width: 1, height: 40, marginHorizontal: 16 },
+  big3Row: { flexDirection: 'row', marginBottom: 4 },
+  liftCol: { flex: 1, alignItems: 'center', gap: 4, paddingBottom: 16 },
+  liftColLabel: { fontFamily: 'Rubik_700Bold', fontSize: 10, letterSpacing: 1 },
+  liftColWeight: { fontFamily: 'Rubik_700Bold', fontSize: 30, lineHeight: 36 },
+  liftColUnit: { fontFamily: 'Rubik_400Regular', fontSize: 12, marginTop: -2 },
+  tapToLog: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 3, marginTop: 6 },
+  tapToLogText: { fontFamily: 'Rubik_600SemiBold', fontSize: 11 },
+  totalRow: { flexDirection: 'row', alignItems: 'center', paddingTop: 14, borderTopWidth: 1 },
+  totalValue: { fontFamily: 'Rubik_700Bold', fontSize: 22 },
 
   // Log PR
   logPRBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, marginBottom: 4 },
