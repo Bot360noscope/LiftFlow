@@ -369,7 +369,19 @@ export default function ProfileScreen() {
                   onPress={async () => {
                     if (profile.weightUnit === u) return;
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    const updated = { ...profile, weightUnit: u };
+                    // Convert existing BW value when switching units
+                    let newBw = profile.bodyWeight;
+                    let newBwInput = bwInput;
+                    if (profile.bodyWeight) {
+                      if (u === 'lbs') {
+                        newBw = Math.round(profile.bodyWeight * 2.20462);
+                      } else {
+                        newBw = Math.round(profile.bodyWeight / 2.20462);
+                      }
+                      newBwInput = String(newBw);
+                    }
+                    const updated = { ...profile, weightUnit: u, bodyWeight: newBw };
+                    setBwInput(newBwInput);
                     await saveProfile(updated);
                     setProfile(updated);
                   }}
@@ -400,9 +412,19 @@ export default function ProfileScreen() {
                 placeholder="—"
                 placeholderTextColor={colors.textMuted}
                 returnKeyType="done"
-                onEndEditing={async () => {
+                onSubmitEditing={async (e) => {
+                  const raw = e.nativeEvent.text ?? bwInput;
+                  const val = parseFloat(raw);
+                  const bw = isNaN(val) ? undefined : Math.round(val);
+                  const updated = { ...profile, bodyWeight: bw };
+                  await saveProfile(updated);
+                  setProfile(updated);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                onBlur={async () => {
                   const val = parseFloat(bwInput);
                   const bw = isNaN(val) ? undefined : Math.round(val);
+                  if (bw === profile.bodyWeight) return;
                   const updated = { ...profile, bodyWeight: bw };
                   await saveProfile(updated);
                   setProfile(updated);
