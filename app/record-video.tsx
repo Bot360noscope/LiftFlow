@@ -234,6 +234,7 @@ export default function RecordVideoScreen() {
         facing={facing}
         mode="video"
         zoom={zoom}
+        videoQuality="720p"
       />
       <View style={styles.zoomOverlay} {...zoomPanResponder.panHandlers} />
 

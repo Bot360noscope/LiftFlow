@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, Pressable, Platform, TextInput } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback, useEffect } from "react";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
@@ -19,7 +19,9 @@ const LIFT_OPTIONS: { type: LiftType; label: string; color: string; icon: string
 export default function AddPRScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const [selectedLift, setSelectedLift] = useState<LiftType>('squat');
+  const params = useLocalSearchParams<{ lift?: string }>();
+  const initialLift: LiftType = (['squat', 'deadlift', 'bench'].includes(params.lift || '') ? params.lift : 'squat') as LiftType;
+  const [selectedLift, setSelectedLift] = useState<LiftType>(initialLift);
   const [weight, setWeight] = useState('');
   const [notes, setNotes] = useState('');
   const [unit, setUnit] = useState<'kg' | 'lbs'>('kg');

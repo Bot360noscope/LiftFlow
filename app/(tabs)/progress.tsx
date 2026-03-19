@@ -12,7 +12,7 @@ import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { ProgressSkeleton } from "@/components/SkeletonLoader";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { getPRs, deletePR, getProfile, getBestPR, getPrograms, getClients, getDashboard, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, invalidateProgramsCache, type LiftPR, type Program, type ClientInfo } from "@/lib/storage";
+import { getPRs, deletePR, getBestPR, getDashboard, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, invalidateProgramsCache, type LiftPR, type Program, type ClientInfo, type Exercise } from "@/lib/storage";
 
 const LIFT_COLORS: Record<string, string> = {
   squat: Colors.colors.squat,
@@ -23,8 +23,10 @@ const LIFT_COLORS: Record<string, string> = {
 const LIFT_LABELS: Record<string, string> = {
   squat: 'Squat',
   deadlift: 'Deadlift',
-  bench: 'Bench Press',
+  bench: 'Bench',
 };
+
+// ─── Coach helpers ────────────────────────────────────────────────────────────
 
 function getWeeklyAdherence(programs: Program[]): number {
   const weekAdherences: number[] = [];
@@ -151,6 +153,64 @@ function ClientProgressCard({ client, programs, delay, colors, seenMap }: { clie
   );
 }
 
+// ─── Client helpers ───────────────────────────────────────────────────────────
+
+function getPRGain(prs: LiftPR[], liftType: string): number | null {
+  const sorted = prs.filter(p => p.liftType === liftType).sort((a, b) => b.weight - a.weight);
+  if (sorted.length < 2) return null;
+  return sorted[0].weight - sorted[1].weight;
+}
+
+function getDaysSinceLastPR(prs: LiftPR[]): number | null {
+  if (prs.length === 0) return null;
+  const latest = prs.reduce((a, b) => new Date(a.date) > new Date(b.date) ? a : b);
+  return Math.floor((Date.now() - new Date(latest.date).getTime()) / (1000 * 60 * 60 * 24));
+}
+
+interface ClientStats {
+  thisWeekDone: number;
+  thisWeekTotal: number;
+  videosSent: number;
+  awaitingReview: number;
+  feedbackReceived: number;
+  totalCompleted: number;
+}
+
+function getClientStats(programs: Program[]): ClientStats {
+  let thisWeekDone = 0, thisWeekTotal = 0;
+  let videosSent = 0, awaitingReview = 0, feedbackReceived = 0, totalCompleted = 0;
+
+  for (const prog of programs) {
+    const activeWeek = getActiveWeek(prog);
+    if (activeWeek) {
+      for (const day of activeWeek.days) {
+        for (const ex of day.exercises) {
+          if (!ex.name) continue;
+          thisWeekTotal++;
+          if (ex.isCompleted) thisWeekDone++;
+        }
+      }
+    }
+    for (const week of (prog.weeks || [])) {
+      for (const day of week.days) {
+        for (const ex of day.exercises) {
+          if (!ex.name) continue;
+          if (ex.isCompleted) totalCompleted++;
+          if (ex.videoUrl) {
+            videosSent++;
+            if (!ex.coachComment) awaitingReview++;
+            else feedbackReceived++;
+          }
+        }
+      }
+    }
+  }
+
+  return { thisWeekDone, thisWeekTotal, videosSent, awaitingReview, feedbackReceived, totalCompleted };
+}
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
+
 export default function ProgressScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -252,6 +312,9 @@ export default function ProgressScreen() {
     });
   }, [clients, programs]);
 
+  const clientStats = useMemo(() => getClientStats(programs), [programs]);
+  const daysSinceLastPR = useMemo(() => getDaysSinceLastPR(prs), [prs]);
+
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + webTopInset + 16 }}>
@@ -312,84 +375,188 @@ export default function ProgressScreen() {
     );
   }
 
+  // ─── Client view ─────────────────────────────────────────────────────────────
+  const lifts = [
+    { key: 'squat' as const, best: bestSquat },
+    { key: 'bench' as const, best: bestBench },
+    { key: 'deadlift' as const, best: bestDeadlift },
+  ];
+
+  const weekPct = clientStats.thisWeekTotal > 0
+    ? clientStats.thisWeekDone / clientStats.thisWeekTotal
+    : 0;
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={[
-        styles.scrollContent,
-        { paddingTop: insets.top + webTopInset + 16, paddingBottom: tabBarHeight + 20 },
-      ]}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + webTopInset + 16, paddingBottom: tabBarHeight + 24 }]}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.headerRow}>
-        <Text style={[styles.pageTitle, { color: colors.text }]}>Progress</Text>
+      <Text style={[styles.pageTitle, { color: colors.text }]}>My Progress</Text>
+
+      {/* ── The Big 3 ── */}
+      <Animated.View entering={FadeInDown.duration(350)}>
+        <View style={[styles.big3Card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+          <Text style={[styles.big3Header, { color: colors.textMuted }]}>THE BIG 3</Text>
+          <View style={styles.big3Row}>
+            {lifts.map(({ key, best }) => {
+              const gain = getPRGain(prs, key);
+              return (
+                <Pressable
+                  key={key}
+                  style={({ pressed }) => [styles.liftCol, pressed && { opacity: 0.7 }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push(`/add-pr?lift=${key}`);
+                  }}
+                >
+                  <Text style={[styles.liftColLabel, { color: LIFT_COLORS[key] }]}>{LIFT_LABELS[key].toUpperCase()}</Text>
+                  <Text style={[styles.liftColWeight, { color: best ? colors.text : colors.textMuted }]}>
+                    {best ? best.weight : '—'}
+                  </Text>
+                  {best && (
+                    <Text style={[styles.liftColUnit, { color: colors.textMuted }]}>{best.unit}</Text>
+                  )}
+                  {gain !== null && gain > 0 && (
+                    <View style={styles.gainBadge}>
+                      <Ionicons name="arrow-up" size={10} color={colors.success} />
+                      <Text style={[styles.gainText, { color: colors.success }]}>+{gain}</Text>
+                    </View>
+                  )}
+                  {!best && (
+                    <View style={[styles.tapToLog, { borderColor: LIFT_COLORS[key] }]}>
+                      <Text style={[styles.tapToLogText, { color: LIFT_COLORS[key] }]}>Log</Text>
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {total > 0 && (
+            <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
+              <Text style={[styles.totalLabel, { color: colors.textMuted }]}>Total</Text>
+              <Text style={[styles.totalValue, { color: colors.text }]}>
+                {total}<Text style={[styles.totalUnit, { color: colors.textMuted }]}> {unit}</Text>
+              </Text>
+            </View>
+          )}
+        </View>
+      </Animated.View>
+
+      {/* ── Log New PR ── */}
+      <Animated.View entering={FadeInDown.delay(60).duration(350)}>
         <Pressable
-          style={[styles.addBtn, { backgroundColor: colors.primary }]}
+          style={[styles.logPRBtn, { backgroundColor: colors.primary }]}
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             router.push('/add-pr');
           }}
         >
-          <Ionicons name="add" size={18} color="#fff" />
-          <Text style={styles.addBtnText}>Log PR</Text>
+          <Ionicons name="trophy" size={18} color="#fff" />
+          <Text style={styles.logPRBtnText}>Log New PR</Text>
         </Pressable>
-      </View>
+      </Animated.View>
 
-      {total > 0 && (
-        <Animated.View entering={FadeInDown.duration(400)}>
-          <View style={[styles.totalCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-            <Text style={[styles.totalLabel, { color: colors.textMuted }]}>Estimated Total</Text>
-            <Text style={[styles.totalValue, { color: colors.text }]}>{total}<Text style={[styles.totalUnit, { color: colors.textSecondary }]}> {unit}</Text></Text>
-            <View style={styles.totalBreakdown}>
-              {bestSquat && <View style={styles.breakdownItem}><View style={[styles.breakdownDot, { backgroundColor: colors.squat }]} /><Text style={[styles.breakdownText, { color: colors.textSecondary }]}>S: {bestSquat.weight}</Text></View>}
-              {bestBench && <View style={styles.breakdownItem}><View style={[styles.breakdownDot, { backgroundColor: colors.bench }]} /><Text style={[styles.breakdownText, { color: colors.textSecondary }]}>B: {bestBench.weight}</Text></View>}
-              {bestDeadlift && <View style={styles.breakdownItem}><View style={[styles.breakdownDot, { backgroundColor: colors.deadlift }]} /><Text style={[styles.breakdownText, { color: colors.textSecondary }]}>D: {bestDeadlift.weight}</Text></View>}
+      {/* ── This Week ── */}
+      {clientStats.thisWeekTotal > 0 && (
+        <Animated.View entering={FadeInDown.delay(120).duration(350)}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>This Week</Text>
+          <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <View style={styles.weekTopRow}>
+              <Text style={[styles.weekFraction, { color: colors.text }]}>
+                {clientStats.thisWeekDone}
+                <Text style={[styles.weekFractionOf, { color: colors.textMuted }]}>/{clientStats.thisWeekTotal}</Text>
+              </Text>
+              <Text style={[styles.weekLabel, { color: colors.textMuted }]}>exercises done</Text>
+            </View>
+            <View style={[styles.progressTrack, { backgroundColor: colors.surfaceLight }]}>
+              <View style={[
+                styles.progressFill,
+                {
+                  width: `${Math.round(weekPct * 100)}%` as any,
+                  backgroundColor: weekPct >= 0.8 ? colors.success : weekPct >= 0.5 ? colors.primary : colors.warning,
+                },
+              ]} />
+            </View>
+            <View style={styles.weekStatsRow}>
+              <View style={styles.weekStat}>
+                <Text style={[styles.weekStatValue, { color: colors.text }]}>{clientStats.videosSent}</Text>
+                <Text style={[styles.weekStatLabel, { color: colors.textMuted }]}>Videos Sent</Text>
+              </View>
+              <View style={[styles.weekStatDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.weekStat}>
+                <Text style={[styles.weekStatValue, { color: clientStats.awaitingReview > 0 ? colors.warning : colors.text }]}>{clientStats.awaitingReview}</Text>
+                <Text style={[styles.weekStatLabel, { color: colors.textMuted }]}>Awaiting Review</Text>
+              </View>
+              <View style={[styles.weekStatDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.weekStat}>
+                <Text style={[styles.weekStatValue, { color: clientStats.feedbackReceived > 0 ? colors.success : colors.text }]}>{clientStats.feedbackReceived}</Text>
+                <Text style={[styles.weekStatLabel, { color: colors.textMuted }]}>Feedback</Text>
+              </View>
             </View>
           </View>
         </Animated.View>
       )}
 
-      <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-        <View style={styles.bestLiftsRow}>
-          {(['squat', 'bench', 'deadlift'] as const).map(lift => {
-            const best = getBestPR(prs, lift);
-            return (
-              <View key={lift} style={[styles.bestLiftCard, { backgroundColor: colors.backgroundCard, borderLeftColor: LIFT_COLORS[lift] }]}>
-                <Text style={[styles.bestLiftLabel, { color: LIFT_COLORS[lift] }]}>{LIFT_LABELS[lift]}</Text>
-                <Text style={[styles.bestLiftValue, { color: colors.text }]}>{best ? best.weight : '-'}</Text>
-                <Text style={[styles.bestLiftUnit, { color: colors.textMuted }]}>{best ? best.unit : unit}</Text>
-              </View>
-            );
-          })}
+      {/* ── All Time ── */}
+      <Animated.View entering={FadeInDown.delay(180).duration(350)}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>All Time</Text>
+        <View style={styles.allTimeRow}>
+          <View style={[styles.allTimeCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <Ionicons name="trophy" size={20} color={Colors.colors.squat} />
+            <Text style={[styles.allTimeValue, { color: colors.text }]}>{prs.length}</Text>
+            <Text style={[styles.allTimeLabel, { color: colors.textMuted }]}>PRs Logged</Text>
+          </View>
+          <View style={[styles.allTimeCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <Ionicons name="videocam" size={20} color={Colors.colors.bench} />
+            <Text style={[styles.allTimeValue, { color: colors.text }]}>{clientStats.videosSent}</Text>
+            <Text style={[styles.allTimeLabel, { color: colors.textMuted }]}>Videos Sent</Text>
+          </View>
+          <View style={[styles.allTimeCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <Ionicons name="checkmark-circle" size={20} color={Colors.colors.deadlift} />
+            <Text style={[styles.allTimeValue, { color: colors.text }]}>{clientStats.totalCompleted}</Text>
+            <Text style={[styles.allTimeLabel, { color: colors.textMuted }]}>Exercises Done</Text>
+          </View>
         </View>
+        {daysSinceLastPR !== null && (
+          <View style={[styles.lastPRBanner, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <Ionicons name="time-outline" size={16} color={colors.textMuted} />
+            <Text style={[styles.lastPRText, { color: colors.textMuted }]}>
+              {daysSinceLastPR === 0 ? 'PR logged today' : daysSinceLastPR === 1 ? 'Last PR yesterday' : `Last PR ${daysSinceLastPR} days ago`}
+            </Text>
+          </View>
+        )}
       </Animated.View>
 
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>PR History</Text>
-
-      {sortedPRs.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Ionicons name="trophy-outline" size={40} color={colors.textMuted} />
-          <Text style={[styles.emptyText, { color: colors.text }]}>No PRs logged yet</Text>
-          <Text style={[styles.emptyDesc, { color: colors.textMuted }]}>Track your squat, bench, and deadlift personal records</Text>
-        </View>
-      ) : (
-        sortedPRs.map((pr, idx) => (
-          <Animated.View key={pr.id} entering={FadeInDown.delay(idx * 40).duration(300)}>
-            <Pressable
-              style={({ pressed }) => [styles.prRow, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.8 }]}
-              onLongPress={() => handleDelete(pr)}
-            >
-              <View style={[styles.prDot, { backgroundColor: LIFT_COLORS[pr.liftType] }]} />
-              <View style={styles.prInfo}>
-                <Text style={[styles.prLiftName, { color: colors.text }]}>{LIFT_LABELS[pr.liftType]}</Text>
-                <Text style={[styles.prDate, { color: colors.textMuted }]}>{new Date(pr.date).toLocaleDateString()}</Text>
-                {!!pr.notes && <Text style={[styles.prNotes, { color: colors.textSecondary }]} numberOfLines={1}>{pr.notes}</Text>}
-              </View>
-              <Text style={[styles.prWeight, { color: colors.text }]}>{pr.weight}<Text style={[styles.prUnit, { color: colors.textMuted }]}> {pr.unit}</Text></Text>
-            </Pressable>
-          </Animated.View>
-        ))
-      )}
+      {/* ── PR History ── */}
+      <Animated.View entering={FadeInDown.delay(240).duration(350)}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>PR History</Text>
+        {sortedPRs.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="trophy-outline" size={40} color={colors.textMuted} />
+            <Text style={[styles.emptyText, { color: colors.text }]}>No PRs yet</Text>
+            <Text style={[styles.emptyDesc, { color: colors.textMuted }]}>Tap a lift above or "Log New PR" to start tracking</Text>
+          </View>
+        ) : (
+          sortedPRs.map((pr, idx) => (
+            <Animated.View key={pr.id} entering={FadeInDown.delay(idx * 35).duration(280)}>
+              <Pressable
+                style={({ pressed }) => [styles.prRow, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.8 }]}
+                onLongPress={() => handleDelete(pr)}
+              >
+                <View style={[styles.prDot, { backgroundColor: LIFT_COLORS[pr.liftType] }]} />
+                <View style={styles.prInfo}>
+                  <Text style={[styles.prLiftName, { color: colors.text }]}>{LIFT_LABELS[pr.liftType]}</Text>
+                  <Text style={[styles.prDate, { color: colors.textMuted }]}>{new Date(pr.date).toLocaleDateString()}</Text>
+                  {!!pr.notes && <Text style={[styles.prNotes, { color: colors.textSecondary }]} numberOfLines={1}>{pr.notes}</Text>}
+                </View>
+                <Text style={[styles.prWeight, { color: colors.text }]}>{pr.weight}<Text style={[styles.prUnit, { color: colors.textMuted }]}> {pr.unit}</Text></Text>
+              </Pressable>
+            </Animated.View>
+          ))
+        )}
+      </Animated.View>
     </ScrollView>
   );
 }
@@ -397,17 +564,15 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 20 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   pageTitle: { fontFamily: 'Rubik_700Bold', fontSize: 28, marginBottom: 20 },
-  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
-  addBtnText: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: '#fff' },
 
+  // Coach
   overviewRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
   overviewCard: { flex: 1, alignItems: 'center', borderRadius: 12, padding: 14, borderWidth: 1 },
   overviewValue: { fontFamily: 'Rubik_700Bold', fontSize: 22 },
   overviewLabel: { fontFamily: 'Rubik_400Regular', fontSize: 11, marginTop: 4, textAlign: 'center' },
 
-  sectionTitle: { fontFamily: 'Rubik_700Bold', fontSize: 18, marginBottom: 12 },
+  sectionTitle: { fontFamily: 'Rubik_700Bold', fontSize: 18, marginBottom: 12, marginTop: 24 },
 
   clientCard: { borderRadius: 14, padding: 16, borderWidth: 1, marginBottom: 12 },
   clientTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
@@ -419,34 +584,60 @@ const styles = StyleSheet.create({
   statusDot: { width: 7, height: 7, borderRadius: 4 },
   statusLabel: { fontFamily: 'Rubik_500Medium', fontSize: 12 },
   lastActive: { fontFamily: 'Rubik_400Regular', fontSize: 12 },
-
   metricsRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   metricBox: { flex: 1, alignItems: 'center', borderRadius: 10, paddingVertical: 10 },
   metricValue: { fontFamily: 'Rubik_700Bold', fontSize: 18 },
   metricLabel: { fontFamily: 'Rubik_400Regular', fontSize: 10, marginTop: 2, textAlign: 'center' },
-
   adherenceBar: { height: 3, borderRadius: 2, overflow: 'hidden' },
   adherenceFill: { height: '100%' as const, borderRadius: 2 },
 
-  totalCard: { alignItems: 'center', borderRadius: 12, padding: 24, borderWidth: 1, marginBottom: 16 },
+  // Big 3
+  big3Card: { borderRadius: 16, borderWidth: 1, padding: 20, marginBottom: 12 },
+  big3Header: { fontFamily: 'Rubik_600SemiBold', fontSize: 11, letterSpacing: 1.5, marginBottom: 16, textAlign: 'center' },
+  big3Row: { flexDirection: 'row' },
+  liftCol: { flex: 1, alignItems: 'center', gap: 4 },
+  liftColLabel: { fontFamily: 'Rubik_700Bold', fontSize: 10, letterSpacing: 1 },
+  liftColWeight: { fontFamily: 'Rubik_700Bold', fontSize: 32, lineHeight: 38 },
+  liftColUnit: { fontFamily: 'Rubik_400Regular', fontSize: 12, marginTop: -2 },
+  gainBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4 },
+  gainText: { fontFamily: 'Rubik_600SemiBold', fontSize: 11 },
+  tapToLog: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 3, marginTop: 6 },
+  tapToLogText: { fontFamily: 'Rubik_600SemiBold', fontSize: 11 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, paddingTop: 14, borderTopWidth: 1 },
   totalLabel: { fontFamily: 'Rubik_500Medium', fontSize: 13 },
-  totalValue: { fontFamily: 'Rubik_700Bold', fontSize: 40, marginTop: 4 },
-  totalUnit: { fontFamily: 'Rubik_400Regular', fontSize: 16 },
-  totalBreakdown: { flexDirection: 'row', gap: 16, marginTop: 12 },
-  breakdownItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  breakdownDot: { width: 8, height: 8, borderRadius: 4 },
-  breakdownText: { fontFamily: 'Rubik_500Medium', fontSize: 13 },
+  totalValue: { fontFamily: 'Rubik_700Bold', fontSize: 22 },
+  totalUnit: { fontFamily: 'Rubik_400Regular', fontSize: 14 },
 
-  bestLiftsRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
-  bestLiftCard: { flex: 1, alignItems: 'center', borderRadius: 12, paddingVertical: 14, borderLeftWidth: 3 },
-  bestLiftLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 13 },
-  bestLiftValue: { fontFamily: 'Rubik_700Bold', fontSize: 24, marginTop: 4 },
-  bestLiftUnit: { fontFamily: 'Rubik_400Regular', fontSize: 13 },
+  // Log PR button
+  logPRBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, marginBottom: 4 },
+  logPRBtnText: { fontFamily: 'Rubik_700Bold', fontSize: 15, color: '#fff' },
 
+  // This Week
+  statCard: { borderRadius: 14, borderWidth: 1, padding: 16, marginBottom: 4 },
+  weekTopRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 10 },
+  weekFraction: { fontFamily: 'Rubik_700Bold', fontSize: 28 },
+  weekFractionOf: { fontFamily: 'Rubik_400Regular', fontSize: 18 },
+  weekLabel: { fontFamily: 'Rubik_400Regular', fontSize: 13 },
+  progressTrack: { height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 16 },
+  progressFill: { height: '100%' as const, borderRadius: 3 },
+  weekStatsRow: { flexDirection: 'row', alignItems: 'center' },
+  weekStat: { flex: 1, alignItems: 'center' },
+  weekStatValue: { fontFamily: 'Rubik_700Bold', fontSize: 20 },
+  weekStatLabel: { fontFamily: 'Rubik_400Regular', fontSize: 10, marginTop: 2, textAlign: 'center' },
+  weekStatDivider: { width: 1, height: 32 },
+
+  // All Time
+  allTimeRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  allTimeCard: { flex: 1, alignItems: 'center', borderRadius: 14, borderWidth: 1, paddingVertical: 16, gap: 6 },
+  allTimeValue: { fontFamily: 'Rubik_700Bold', fontSize: 22 },
+  allTimeLabel: { fontFamily: 'Rubik_400Regular', fontSize: 10, textAlign: 'center' },
+  lastPRBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
+  lastPRText: { fontFamily: 'Rubik_400Regular', fontSize: 13 },
+
+  // PR history
   emptyState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
   emptyText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15 },
   emptyDesc: { fontFamily: 'Rubik_400Regular', fontSize: 13, textAlign: 'center', paddingHorizontal: 20 },
-
   prRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, padding: 14, borderWidth: 1, marginBottom: 8 },
   prDot: { width: 10, height: 10, borderRadius: 5 },
   prInfo: { flex: 1 },

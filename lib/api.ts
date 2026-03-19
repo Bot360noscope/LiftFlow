@@ -204,6 +204,13 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   let uploadUri = uri;
   let serverTrim: typeof trim = undefined;
 
+  // Start fetching the signed upload URL immediately — it has no dependency
+  // on local compression, so run both in parallel to hide the round-trip latency.
+  const uploadUrlPromise = retryFetch(`${BASE}/api/video-upload-url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
+  });
+
   if (trim) {
     // Try local trim+compress in one pass — no server ffmpeg needed.
     const localResult = await tryLocalTrimAndCompress(uri, trim.startTime, trim.endTime);
@@ -224,10 +231,8 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
     if (compressed) uploadUri = compressed;
   }
 
-  const urlRes = await retryFetch(`${BASE}/api/video-upload-url`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders },
-  });
+  // By now compression is done — await the URL (likely already resolved).
+  const urlRes = await uploadUrlPromise;
   if (!urlRes.ok) throw new Error('Failed to get upload URL. Check your connection and try again.');
   const { uploadUrl, filename, videoUrl } = await urlRes.json();
 
