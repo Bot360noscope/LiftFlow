@@ -222,14 +222,20 @@ function configureExpoAndLanding(app: express.Application) {
     next();
   });
 
-  app.get("/robots.txt", (_req, res) => {
+  app.get("/robots.txt", (req, res) => {
+    const proto = req.header("x-forwarded-proto") || req.protocol || "https";
+    const host = req.header("x-forwarded-host") || req.get("host");
+    const base = `${proto}://${host}`;
     res.setHeader("Content-Type", "text/plain");
-    res.send("User-agent: *\nAllow: /\nSitemap: https://new-liftflow-for-render-hosting-backend.onrender.com/sitemap.xml\n");
+    res.send(`User-agent: *\nAllow: /\nSitemap: ${base}/sitemap.xml\n`);
   });
 
-  app.get("/sitemap.xml", (_req, res) => {
+  app.get("/sitemap.xml", (req, res) => {
+    const proto = req.header("x-forwarded-proto") || req.protocol || "https";
+    const host = req.header("x-forwarded-host") || req.get("host");
+    const base = `${proto}://${host}`;
     res.setHeader("Content-Type", "application/xml");
-    res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>https://new-liftflow-for-render-hosting-backend.onrender.com/</loc>\n    <changefreq>monthly</changefreq>\n    <priority>1.0</priority>\n  </url>\n</urlset>`);
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>${base}/</loc>\n    <changefreq>monthly</changefreq>\n    <priority>1.0</priority>\n  </url>\n</urlset>`);
   });
 
   app.get("/liftflow-full.zip", (_req, res) => {
