@@ -180,11 +180,16 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
 
   let uploadUri = uri;
 
-  // Compress locally for smaller upload, but never attempt local trim —
-  // react-native-compressor ignores startTime/endTime and returns the full video.
-  // Trimming is always handled server-side via ffmpeg after upload.
-  const compressed = await tryNativeCompress(uri);
-  if (compressed) uploadUri = compressed;
+  // Skip local compression when a significant trim will be applied.
+  // Compressing a full 60s video just to keep 5s wastes 30-60s of CPU time.
+  // The server-side ffmpeg trim (-c:v copy) is near-instant and the trimmed
+  // result is already tiny, so local compression adds no benefit here.
+  // Only compress when keeping more than 30 seconds of video (or no trim at all).
+  const keptDuration = trim ? (trim.endTime - trim.startTime) : Infinity;
+  if (keptDuration > 30) {
+    const compressed = await tryNativeCompress(uri);
+    if (compressed) uploadUri = compressed;
+  }
 
   const urlRes = await retryFetch(`${BASE}/api/video-upload-url`, {
     method: 'POST',

@@ -91,6 +91,9 @@ export default function TrimVideoScreen() {
 
   const player = useVideoPlayer(videoUri || null, (p) => {
     p.loop = true;
+    if (startRef.current > 0) {
+      p.currentTime = startRef.current;
+    }
     p.play();
   });
 
@@ -136,6 +139,10 @@ export default function TrimVideoScreen() {
     if (isPlaying) {
       playerRef.current.pause();
     } else {
+      const ct = playerRef.current.currentTime;
+      if (ct < startRef.current || ct >= endRef.current) {
+        playerRef.current.currentTime = startRef.current;
+      }
       playerRef.current.play();
     }
     setIsPlaying(!isPlaying);
