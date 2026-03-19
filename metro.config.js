@@ -1,7 +1,18 @@
 const { getDefaultConfig } = require("expo/metro-config");
 const { createProxyMiddleware } = require("http-proxy-middleware");
+const path = require("path");
 
 const config = getDefaultConfig(__dirname);
+
+config.watchFolders = [__dirname];
+
+config.resolver = {
+  ...config.resolver,
+  blockList: [
+    /\.local\/state\/.*/,
+    /\.local\/skills\/.*/,
+  ],
+};
 
 config.server = {
   ...config.server,
