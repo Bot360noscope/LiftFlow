@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, Pressable, Platform, ActivityIndicator, PanResponder, LayoutChangeEvent } from "react-native";
+import { StyleSheet, Text, View, Pressable, Platform, ActivityIndicator, Alert, PanResponder, LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
@@ -71,6 +71,7 @@ export default function TrimVideoScreen() {
   const clipDuration = endTime - startTime;
   const isValidClip = clipDuration > 0 && clipDuration <= MAX_DURATION;
   const [saving, setSaving] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false);
   const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions();
 
   const [isPlaying, setIsPlaying] = useState(true);
@@ -248,12 +249,7 @@ export default function TrimVideoScreen() {
     },
   }), [totalDuration]);
 
-  const handleSubmit = () => {
-    if (!isValidClip) return;
-    if (!getIsOnline()) {
-      showAlert("No Internet", "You need an internet connection to upload videos. Save the video to Photos and try again later.");
-      return;
-    }
+  const doUpload = useCallback(() => {
     const shouldTrim = startTime > 0 || endTime < totalDuration;
     addUpload({
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -265,6 +261,33 @@ export default function TrimVideoScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     intentionalDismissRef.current = true;
     router.back();
+  }, [startTime, endTime, totalDuration, videoUri, programId, exerciseId, uploadedBy, coachId, exerciseName, addUpload]);
+
+  const handleSubmit = () => {
+    if (!isValidClip) return;
+    if (!getIsOnline()) {
+      showAlert("No Internet", "You need an internet connection to upload videos. Save the video to Photos and try again later.");
+      return;
+    }
+    if (Platform.OS !== 'web' && !hasSaved) {
+      Alert.alert(
+        "Save a Copy?",
+        "Do you want to save the original video to your Photos before uploading?",
+        [
+          {
+            text: "Save & Upload",
+            onPress: async () => {
+              await handleSaveToPhotos();
+              doUpload();
+            },
+          },
+          { text: "Just Upload", onPress: doUpload },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+      return;
+    }
+    doUpload();
   };
 
   const handleSaveToPhotos = async () => {
@@ -284,6 +307,7 @@ export default function TrimVideoScreen() {
         }
       }
       await MediaLibrary.saveToLibraryAsync(videoUri);
+      setHasSaved(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showAlert("Saved", "Original video saved to your Photos.");
     } catch (err) {
@@ -417,12 +441,14 @@ export default function TrimVideoScreen() {
         <View style={styles.footerBtns}>
           {Platform.OS !== 'web' && (
             <Pressable
-              style={styles.savePhotosBtn}
+              style={[styles.savePhotosBtn, hasSaved && { opacity: 0.5 }]}
               onPress={handleSaveToPhotos}
-              disabled={saving}
+              disabled={saving || hasSaved}
             >
               {saving ? (
                 <ActivityIndicator size="small" color="#fff" />
+              ) : hasSaved ? (
+                <Ionicons name="checkmark" size={20} color="#4ade80" />
               ) : (
                 <Ionicons name="download-outline" size={20} color="#fff" />
               )}
