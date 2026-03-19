@@ -217,7 +217,7 @@ function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programI
   );
 }
 
-function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId, initialExpanded, planLocked }: {
+function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId, initialExpanded, planLocked, isExpanded: isExpandedProp, onToggle }: {
   exercise: Exercise;
   index: number;
   isCoach: boolean;
@@ -230,9 +230,12 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   profileId: string;
   initialExpanded?: boolean;
   planLocked?: boolean;
+  isExpanded?: boolean;
+  onToggle?: () => void;
 }) {
   const { colors } = useTheme();
-  const [expanded, setExpanded] = useState(initialExpanded || false);
+  const [localExpanded, setLocalExpanded] = useState(initialExpanded || false);
+  const expanded = isExpandedProp !== undefined ? isExpandedProp : localExpanded;
   const [seenContent, setSeenContent] = useState(false);
   const [name, setName] = useState(exercise.name);
   const [repsSets, setRepsSets] = useState(exercise.repsSets);
@@ -337,7 +340,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
         style={styles.exerciseHeader}
         onPress={() => {
           if (!expanded) markSeen();
-          setExpanded(!expanded);
+          if (onToggle) { onToggle(); } else { setLocalExpanded(!localExpanded); }
         }}
         onLongPress={() => {
           if (!canEditAll) return;
@@ -584,6 +587,7 @@ export default function ProgramDetailScreen() {
   const [isShared, setIsShared] = useState(false);
   const [profileId, setProfileId] = useState('');
   const [highlightedExerciseId, setHighlightedExerciseId] = useState<string | null>(null);
+  const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
   const [planLocked, setPlanLocked] = useState(false);
   const [planLockMessage, setPlanLockMessage] = useState('');
   const clientAutoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -610,6 +614,7 @@ export default function ProgramDetailScreen() {
                   setActiveWeek(week.weekNumber);
                   setActiveDay(day.dayNumber);
                   setHighlightedExerciseId(found.id);
+                  setExpandedExerciseId(found.id);
                   matched = true;
                   break;
                 }
@@ -667,6 +672,7 @@ export default function ProgramDetailScreen() {
       }));
       const updated = { ...program, weeks: updatedWeeks };
       setProgram(updated);
+      setExpandedExerciseId(exId);
       updateProgram(updated).then(() => {
         setHasChanges(false);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1196,8 +1202,10 @@ export default function ProgramDetailScreen() {
                 programId={program.id}
                 coachId={program.coachId}
                 profileId={profileId}
-                initialExpanded={ex.id === highlightedExerciseId}
+                initialExpanded={false}
                 planLocked={false}
+                isExpanded={expandedExerciseId === ex.id}
+                onToggle={() => setExpandedExerciseId(prev => prev === ex.id ? null : ex.id)}
               />
             </Animated.View>
           ))

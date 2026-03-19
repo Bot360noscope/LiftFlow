@@ -8,10 +8,9 @@ import * as Haptics from "expo-haptics";
 import * as MediaLibrary from "expo-media-library";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
-import { uploadVideo } from "@/lib/api";
 import { showAlert, confirmAction } from "@/lib/confirm";
 import { getIsOnline } from "@/lib/sync-manager";
-import { trimResult } from "@/lib/trim-result";
+import { useUploads } from "@/lib/upload-context";
 
 const MAX_DURATION = 60;
 const TRACK_H = 48;
@@ -46,6 +45,7 @@ export default function TrimVideoScreen() {
   const endRef = useRef(Math.min(totalDuration, MAX_DURATION));
   const [startTime, _setStartTime] = useState(0);
   const [endTime, _setEndTime] = useState(Math.min(totalDuration, MAX_DURATION));
+  const { addUpload } = useUploads();
   const [uploading, _setUploading] = useState(false);
   const setUploading = useCallback((v: boolean) => {
     _setUploading(v);
@@ -248,35 +248,23 @@ export default function TrimVideoScreen() {
     },
   }), [totalDuration]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!isValidClip) return;
     if (!getIsOnline()) {
       showAlert("No Internet", "You need an internet connection to upload videos. Save the video to Photos and try again later.");
       return;
     }
-    setUploading(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try {
-      const shouldTrim = startTime > 0 || endTime < totalDuration;
-      const serverUrl = await uploadVideo(videoUri, {
-        programId,
-        exerciseId,
-        uploadedBy,
-        coachId,
-      }, shouldTrim ? { startTime, endTime } : undefined);
-      trimResult.videoUrl = serverUrl;
-      trimResult.exerciseId = exerciseId;
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      intentionalDismissRef.current = true;
-      router.back();
-    } catch (err: any) {
-      const msg = err?.message?.includes('internet') || err?.message?.includes('connect')
-        ? 'No internet connection. Save the video to Photos and try again when connected.'
-        : 'Failed to upload the video. Your video is still here — you can retry or save it to Photos.';
-      showAlert("Upload Failed", msg);
-    } finally {
-      setUploading(false);
-    }
+    const shouldTrim = startTime > 0 || endTime < totalDuration;
+    addUpload({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      uri: videoUri,
+      meta: { programId, exerciseId, uploadedBy, coachId },
+      trim: shouldTrim ? { startTime, endTime } : undefined,
+      exerciseName,
+    });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    intentionalDismissRef.current = true;
+    router.back();
   };
 
   const handleSaveToPhotos = async () => {
@@ -341,7 +329,6 @@ export default function TrimVideoScreen() {
 
       <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 8) }]}>
         <Pressable onPress={() => {
-          if (uploading) return;
           confirmAction('Discard Video?', 'Your recorded video will be lost if you haven\'t saved it to Photos.', () => { intentionalDismissRef.current = true; router.back(); }, 'Discard');
         }} hitSlop={12}>
           <Ionicons name="close" size={28} color="#fff" />
@@ -432,7 +419,7 @@ export default function TrimVideoScreen() {
             <Pressable
               style={styles.savePhotosBtn}
               onPress={handleSaveToPhotos}
-              disabled={saving || uploading}
+              disabled={saving}
             >
               {saving ? (
                 <ActivityIndicator size="small" color="#fff" />
@@ -442,23 +429,14 @@ export default function TrimVideoScreen() {
             </Pressable>
           )}
           <Pressable
-            style={[styles.submitBtn, (!isValidClip || uploading) && styles.submitBtnDisabled]}
+            style={[styles.submitBtn, !isValidClip && styles.submitBtnDisabled]}
             onPress={handleSubmit}
-            disabled={!isValidClip || uploading}
+            disabled={!isValidClip}
           >
-            {uploading ? (
-              <>
-                <ActivityIndicator size="small" color="#fff" />
-                <Text style={styles.submitBtnText}>Uploading...</Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name="cloud-upload" size={20} color="#fff" />
-                <Text style={styles.submitBtnText}>
-                  Upload {formatTime(clipDuration)}
-                </Text>
-              </>
-            )}
+            <Ionicons name="cloud-upload" size={20} color="#fff" />
+            <Text style={styles.submitBtnText}>
+              Upload {formatTime(clipDuration)}
+            </Text>
           </Pressable>
         </View>
       </View>

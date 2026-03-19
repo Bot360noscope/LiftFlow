@@ -19,6 +19,8 @@ import AuthScreen from "./auth";
 import OnboardingScreen from "./onboarding";
 import Colors from "@/constants/colors";
 import OfflineBanner from "@/components/OfflineBanner";
+import UploadBanner from "@/components/UploadBanner";
+import { UploadProvider } from "@/lib/upload-context";
 import {
   useFonts,
   Rubik_400Regular,
@@ -123,6 +125,7 @@ function AppContent() {
     <View style={{ flex: 1 }}>
       <OfflineBanner />
       <RootLayoutNav />
+      <UploadBanner />
     </View>
   );
 }
@@ -144,8 +147,10 @@ export default function RootLayout() {
           <KeyboardProvider>
             <ThemeProvider>
               <AuthProvider>
-                <ThemedStatusBar />
-                <AppContent />
+                <UploadProvider>
+                  <ThemedStatusBar />
+                  <AppContent />
+                </UploadProvider>
               </AuthProvider>
             </ThemeProvider>
           </KeyboardProvider>
