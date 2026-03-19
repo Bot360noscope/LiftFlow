@@ -1,5 +1,4 @@
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform } from "react-native";
-import { confirmAction } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState, useMemo, useRef } from "react";
@@ -12,7 +11,7 @@ import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { ProgressSkeleton } from "@/components/SkeletonLoader";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { deletePR, getBestPR, getDashboard, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, invalidateProgramsCache, type LiftPR, type Program, type ClientInfo } from "@/lib/storage";
+import { getBestPR, getDashboard, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, invalidateProgramsCache, type Program, type ClientInfo } from "@/lib/storage";
 
 const LIFT_COLORS: Record<string, string> = {
   squat: Colors.colors.squat,
@@ -89,6 +88,20 @@ function getStatus(adherence: number, lastActive: Date | null): 'green' | 'yello
   return 'yellow';
 }
 
+function getOverallAdherence(programs: Program[]): { pct: number; done: number; total: number } {
+  let done = 0, total = 0;
+  for (const prog of programs) {
+    for (const week of (prog.weeks || [])) {
+      for (const day of week.days) {
+        const named = day.exercises.filter(e => e.name);
+        total += named.length;
+        done += named.filter(e => e.isCompleted).length;
+      }
+    }
+  }
+  return { pct: total === 0 ? 0 : Math.round((done / total) * 100), done, total };
+}
+
 function ClientProgressCard({ client, programs, delay, colors, seenMap }: {
   client: ClientInfo; programs: Program[]; delay: number; colors: any; seenMap: Record<string, string>;
 }) {
@@ -98,7 +111,7 @@ function ClientProgressCard({ client, programs, delay, colors, seenMap }: {
   const lastActive = getLastActive(clientPrograms);
   const status = getStatus(adherence, lastActive);
   const statusColor = status === 'green' ? colors.success : status === 'yellow' ? colors.warning : colors.danger;
-  const statusLabel = status === 'green' ? 'On track' : status === 'yellow' ? 'Needs check-in' : 'At risk';
+  const statusLabel = status === 'green' ? 'On track' : status === 'yellow' ? 'Needs check-in' : 'Gone quiet';
 
   return (
     <Animated.View entering={FadeInDown.delay(delay).duration(400)}>
@@ -147,7 +160,7 @@ export default function ProgressScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
-  const [prs, setPRs] = useState<LiftPR[]>(getCachedPRs());
+  const [prs, setPRs] = useState(getCachedPRs());
   const [unit, setUnit] = useState<'kg' | 'lbs'>((getCachedProfile()?.weightUnit as 'kg' | 'lbs') || 'kg');
   const [isCoach, setIsCoach] = useState(getCachedProfile()?.role === 'coach');
   const [programs, setPrograms] = useState<Program[]>(getCachedPrograms());
@@ -193,19 +206,7 @@ export default function ProgressScreen() {
   const bestBench = getBestPR(prs, 'bench');
   const total = (bestSquat?.weight || 0) + (bestDeadlift?.weight || 0) + (bestBench?.weight || 0);
 
-  // Most recent PR entry only
-  const mostRecentPR = useMemo(() =>
-    prs.length === 0 ? null : prs.reduce((a, b) => new Date(a.date) > new Date(b.date) ? a : b),
-    [prs]
-  );
-
-  const handleDelete = (pr: LiftPR) => {
-    confirmAction("Delete PR", `Remove ${LIFT_LABELS[pr.liftType]} ${pr.weight}${pr.unit}?`, async () => {
-      await deletePR(pr.id);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      loadData();
-    }, "Delete");
-  };
+  const adherence = useMemo(() => getOverallAdherence(programs), [programs]);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
@@ -261,13 +262,13 @@ export default function ProgressScreen() {
               <Text style={[styles.overviewLabel, { color: colors.textMuted }]}>Roster Adherence</Text>
             </View>
             <View style={[styles.overviewCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-              <Text style={[styles.overviewValue, { color: needsAttention > 0 ? colors.danger : colors.textMuted }]}>{needsAttention}</Text>
-              <Text style={[styles.overviewLabel, { color: colors.textMuted }]}>At Risk</Text>
+              <Text style={[styles.overviewValue, { color: needsAttention > 0 ? colors.warning : colors.textMuted }]}>{needsAttention}</Text>
+              <Text style={[styles.overviewLabel, { color: colors.textMuted }]}>Gone Quiet</Text>
             </View>
           </View>
         </Animated.View>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Clients{needsAttention > 0 && <Text style={{ color: colors.danger }}> · {needsAttention} need attention</Text>}
+          Clients{needsAttention > 0 && <Text style={{ color: colors.warning }}> · {needsAttention} gone quiet</Text>}
         </Text>
         {sortedClients.length === 0 ? (
           <View style={styles.emptyState}>
@@ -353,33 +354,38 @@ export default function ProgressScreen() {
         </Pressable>
       </Animated.View>
 
-      {/* ── Most Recent Log ── */}
-      {mostRecentPR ? (
-        <Animated.View entering={FadeInDown.delay(120).duration(350)}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Last Logged</Text>
-          <Pressable
-            style={({ pressed }) => [styles.recentRow, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.8 }]}
-            onLongPress={() => handleDelete(mostRecentPR)}
-          >
-            <View style={[styles.recentDot, { backgroundColor: LIFT_COLORS[mostRecentPR.liftType] }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.recentLift, { color: colors.text }]}>{LIFT_LABELS[mostRecentPR.liftType]}</Text>
-              <Text style={[styles.recentDate, { color: colors.textMuted }]}>{new Date(mostRecentPR.date).toLocaleDateString()}</Text>
+      {/* ── Consistency ── */}
+      <Animated.View entering={FadeInDown.delay(120).duration(350)}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Consistency</Text>
+        <View style={[styles.adherenceCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+          {adherence.total === 0 ? (
+            <View style={styles.adherenceEmpty}>
+              <Ionicons name="barbell-outline" size={28} color={colors.textMuted} />
+              <Text style={[styles.adherenceEmptyText, { color: colors.textMuted }]}>No program data yet</Text>
             </View>
-            <Text style={[styles.recentWeight, { color: colors.text }]}>
-              {mostRecentPR.weight}<Text style={[styles.recentUnit, { color: colors.textMuted }]}> {mostRecentPR.unit}</Text>
-            </Text>
-          </Pressable>
-        </Animated.View>
-      ) : (
-        <Animated.View entering={FadeInDown.delay(120).duration(350)}>
-          <View style={styles.emptyState}>
-            <Ionicons name="trophy-outline" size={40} color={colors.textMuted} />
-            <Text style={[styles.emptyText, { color: colors.text }]}>No PRs yet</Text>
-            <Text style={[styles.emptyDesc, { color: colors.textMuted }]}>Tap a lift above or "Log New PR" to start</Text>
-          </View>
-        </Animated.View>
-      )}
+          ) : (
+            <>
+              <View style={styles.adherenceTopRow}>
+                <Text style={[styles.adherencePct, {
+                  color: adherence.pct >= 70 ? colors.success : adherence.pct >= 40 ? colors.warning : colors.danger,
+                }]}>{adherence.pct}%</Text>
+                <View style={{ flex: 1, marginLeft: 16 }}>
+                  <Text style={[styles.adherenceLabel, { color: colors.text }]}>Overall adherence</Text>
+                  <Text style={[styles.adherenceSub, { color: colors.textMuted }]}>
+                    {adherence.done} of {adherence.total} exercises completed
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.adherenceTrack, { backgroundColor: colors.surfaceLight }]}>
+                <View style={[styles.adherenceFill, {
+                  width: `${adherence.pct}%` as any,
+                  backgroundColor: adherence.pct >= 70 ? colors.success : adherence.pct >= 40 ? colors.warning : colors.danger,
+                }]} />
+              </View>
+            </>
+          )}
+        </View>
+      </Animated.View>
     </ScrollView>
   );
 }
@@ -431,13 +437,16 @@ const styles = StyleSheet.create({
   logPRBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, marginBottom: 4 },
   logPRBtnText: { fontFamily: 'Rubik_700Bold', fontSize: 15, color: '#fff' },
 
-  // Most recent
-  recentRow: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 14, padding: 16, borderWidth: 1 },
-  recentDot: { width: 12, height: 12, borderRadius: 6 },
-  recentLift: { fontFamily: 'Rubik_600SemiBold', fontSize: 15 },
-  recentDate: { fontFamily: 'Rubik_400Regular', fontSize: 13, marginTop: 2 },
-  recentWeight: { fontFamily: 'Rubik_700Bold', fontSize: 22 },
-  recentUnit: { fontFamily: 'Rubik_400Regular', fontSize: 14 },
+  // Consistency card
+  adherenceCard: { borderRadius: 16, borderWidth: 1, padding: 20 },
+  adherenceTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  adherencePct: { fontFamily: 'Rubik_700Bold', fontSize: 44, lineHeight: 48 },
+  adherenceLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 15 },
+  adherenceSub: { fontFamily: 'Rubik_400Regular', fontSize: 13, marginTop: 3 },
+  adherenceTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  adherenceFill: { height: '100%' as const, borderRadius: 3 },
+  adherenceEmpty: { alignItems: 'center', gap: 8, paddingVertical: 12 },
+  adherenceEmptyText: { fontFamily: 'Rubik_400Regular', fontSize: 13 },
 
   // Empty
   emptyState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
