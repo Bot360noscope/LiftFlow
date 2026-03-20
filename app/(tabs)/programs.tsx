@@ -11,6 +11,7 @@ import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { ProgramsSkeleton } from "@/components/SkeletonLoader";
 import { getPrograms, deleteProgram, getProfile, getDashboard, getCachedPrograms, getCachedProfile, invalidateProgramsCache, type Program } from "@/lib/storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function ProgramsScreen() {
   const { colors } = useTheme();
@@ -19,6 +20,7 @@ export default function ProgramsScreen() {
   const [role, setRole] = useState<string>(getCachedProfile()?.role || 'coach');
   const [loading, setLoading] = useState(getCachedPrograms().length === 0 && !getCachedProfile());
   const [error, setError] = useState(false);
+  const [seenMap, setSeenMap] = useState<Record<string, string>>({});
   const lastRefetchRef = useRef<number>(0);
 
   const loadData = useCallback(async () => {
@@ -46,6 +48,10 @@ export default function ProgramsScreen() {
     if (cachedProfile) setRole(cachedProfile.role);
     const cachedProgs = getCachedPrograms();
     if (cachedProgs.length > 0) setPrograms(cachedProgs);
+    // Load seen exercises map every time screen focuses so icons clear after viewing
+    AsyncStorage.getItem('liftflow_seen_exercises').then(stored => {
+      setSeenMap(stored ? JSON.parse(stored) : {});
+    });
     const now = Date.now();
     if (now - lastRefetchRef.current >= 2000) {
       lastRefetchRef.current = now;
@@ -151,8 +157,20 @@ export default function ProgramsScreen() {
               for (const ex of day.exercises) {
                 totalExercises++;
                 if (ex.isCompleted) completedExercises++;
-                if (ex.coachComment || ex.clientNotes) hasComments = true;
-                if (ex.videoUrl) hasVideos = true;
+                if (role === 'coach') {
+                  // Coach sees indicator for client content they haven't reviewed
+                  const coachContentKey = `${ex.clientNotes || ''}::${ex.videoUrl || ''}`;
+                  const alreadySeen = seenMap[ex.id] === coachContentKey;
+                  if (!alreadySeen) {
+                    if (ex.clientNotes) hasComments = true;
+                    if (ex.videoUrl) hasVideos = true;
+                  }
+                } else {
+                  // Client sees indicator only for new coach feedback they haven't read
+                  const clientContentKey = `${ex.coachComment || ''}`;
+                  if (ex.coachComment && seenMap[ex.id] !== clientContentKey) hasComments = true;
+                  // Never show video icon for client — they uploaded it themselves
+                }
               }
             }
           }

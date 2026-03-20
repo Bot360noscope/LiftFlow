@@ -276,13 +276,12 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
     setSeenContent(true);
     if (contentKey) {
       AsyncStorage.setItem(seenStorageKey, contentKey);
-      if (isCoach && isShared) {
-        AsyncStorage.getItem('liftflow_seen_exercises').then(stored => {
-          const map: Record<string, string> = stored ? JSON.parse(stored) : {};
-          map[exercise.id] = contentKey;
-          AsyncStorage.setItem('liftflow_seen_exercises', JSON.stringify(map));
-        });
-      }
+      // Save to bulk map for BOTH coaches and clients so programs list can read it
+      AsyncStorage.getItem('liftflow_seen_exercises').then(stored => {
+        const map: Record<string, string> = stored ? JSON.parse(stored) : {};
+        map[exercise.id] = contentKey;
+        AsyncStorage.setItem('liftflow_seen_exercises', JSON.stringify(map));
+      });
     }
   };
 
