@@ -635,6 +635,14 @@ export function getBestPR(prs: LiftPR[], liftType: string): LiftPR | null {
   return filtered.reduce((best, curr) => curr.weight > best.weight ? curr : best);
 }
 
+export function getLatestPR(prs: LiftPR[], liftType: string): LiftPR | null {
+  const filtered = prs.filter(p => p.liftType === liftType);
+  if (filtered.length === 0) return null;
+  return filtered.reduce((latest, curr) =>
+    new Date(curr.date) > new Date(latest.date) ? curr : latest
+  );
+}
+
 export async function getClients(): Promise<ClientInfo[]> {
   if (cache.clients.length > 0 && isFresh(cache.clientsFetchedAt)) return cache.clients;
   if (!getIsOnline()) return cache.clients;

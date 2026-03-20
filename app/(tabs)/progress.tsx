@@ -11,7 +11,7 @@ import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { ProgressSkeleton } from "@/components/SkeletonLoader";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { getBestPR, getDashboard, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, invalidateProgramsCache, type Program, type ClientInfo } from "@/lib/storage";
+import { getBestPR, getLatestPR, getDashboard, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, invalidateProgramsCache, type Program, type ClientInfo } from "@/lib/storage";
 
 function calcDots(totalKg: number, bwKg: number): number {
   if (bwKg < 40 || bwKg > 210) return 0;
@@ -210,9 +210,9 @@ export default function ProgressScreen() {
     loadData();
   }, [loadData]));
 
-  const bestSquat = getBestPR(prs, 'squat');
-  const bestDeadlift = getBestPR(prs, 'deadlift');
-  const bestBench = getBestPR(prs, 'bench');
+  const bestSquat = getLatestPR(prs, 'squat');
+  const bestDeadlift = getLatestPR(prs, 'deadlift');
+  const bestBench = getLatestPR(prs, 'bench');
 
   const adherence = useMemo(() => getOverallAdherence(programs), [programs]);
 
@@ -319,7 +319,7 @@ export default function ProgressScreen() {
             {([
               { key: 'squat' as const, label: 'SQUAT', best: bestSquat, color: Colors.colors.squat },
               { key: 'bench' as const, label: 'BENCH', best: bestBench, color: Colors.colors.bench },
-              { key: 'deadlift' as const, label: 'DEAD', best: bestDeadlift, color: Colors.colors.deadlift },
+              { key: 'deadlift' as const, label: 'DEADLIFT', best: bestDeadlift, color: Colors.colors.deadlift },
             ] as const).map(({ key, label, best, color }) => (
               <Pressable
                 key={key}
