@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUploads } from '@/lib/upload-context';
@@ -12,11 +12,21 @@ export default function UploadBanner() {
   if (uploads.length === 0) return null;
 
   const active = uploads[0];
-  const isUploading = active.status === 'uploading' || active.status === 'pending';
+  const isPending = active.status === 'pending';
+  const isUploading = active.status === 'uploading';
   const isDone = active.status === 'done';
   const isError = active.status === 'error';
+  const isActive = isPending || isUploading;
 
   const bg = isDone ? '#1a7a3c' : isError ? '#c0392b' : colors.primary;
+
+  const label = isDone
+    ? `Uploaded — ${active.exerciseName}`
+    : isError
+    ? `Upload failed — ${active.exerciseName}`
+    : isUploading
+    ? `Uploading ${active.exerciseName}…`
+    : `Queued — ${active.exerciseName}`;
 
   return (
     <View style={[
@@ -24,20 +34,21 @@ export default function UploadBanner() {
       { backgroundColor: bg, bottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 12 }
     ]}>
       {isUploading && (
-        <View style={styles.spinner}>
-          <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
-        </View>
+        <ActivityIndicator size="small" color="#fff" />
+      )}
+      {isPending && (
+        <Ionicons name="time-outline" size={18} color="rgba(255,255,255,0.8)" />
       )}
       {isDone && <Ionicons name="checkmark-circle" size={18} color="#fff" />}
       {isError && <Ionicons name="alert-circle" size={18} color="#fff" />}
 
-      <Text style={styles.text} numberOfLines={1}>
-        {isDone
-          ? `Video uploaded — ${active.exerciseName}`
-          : isError
-          ? `Upload failed — ${active.exerciseName}`
-          : `Uploading ${active.exerciseName}…`}
-      </Text>
+      <Text style={styles.text} numberOfLines={1}>{label}</Text>
+
+      {uploads.length > 1 && isActive && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>+{uploads.length - 1}</Text>
+        </View>
+      )}
 
       {isError && (
         <Pressable onPress={() => retryUpload(active.id)} hitSlop={8}>
@@ -71,11 +82,21 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 8,
   },
-  spinner: { opacity: 0.9 },
   text: {
     flex: 1,
     fontFamily: 'Rubik_500Medium',
     fontSize: 13,
+    color: '#fff',
+  },
+  badge: {
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  badgeText: {
+    fontFamily: 'Rubik_600SemiBold',
+    fontSize: 11,
     color: '#fff',
   },
   action: {
