@@ -25,6 +25,9 @@ function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
   const { colors } = useTheme();
   const [directUrl, setDirectUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +40,32 @@ function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
   const player = useVideoPlayer(directUrl, player => {
     player.loop = false;
   });
+
+  useEffect(() => {
+    if (!player) return;
+    const sub = player.addListener('playingChange', ({ isPlaying: playing }: { isPlaying: boolean }) => {
+      setIsPlaying(playing);
+      if (playing) {
+        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = setTimeout(() => setShowControls(false), 2000);
+      } else {
+        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+        setShowControls(true);
+      }
+    });
+    return () => { sub.remove(); if (hideTimerRef.current) clearTimeout(hideTimerRef.current); };
+  }, [player]);
+
+  const handlePress = () => {
+    if (player.playing) {
+      player.pause();
+    } else {
+      player.play();
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = setTimeout(() => setShowControls(false), 2000);
+    }
+    setShowControls(true);
+  };
 
   if (error) {
     return (
@@ -56,12 +85,21 @@ function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
   }
 
   return (
-    <VideoView
-      style={styles.videoPlayer}
-      player={player}
-      nativeControls={true}
-      contentFit="contain"
-    />
+    <Pressable onPress={handlePress} style={{ position: 'relative' }}>
+      <VideoView
+        style={styles.videoPlayer}
+        player={player}
+        nativeControls={false}
+        contentFit="contain"
+      />
+      {showControls && (
+        <View style={styles.videoOverlay} pointerEvents="none">
+          <View style={styles.videoPlayBtn}>
+            <Ionicons name={isPlaying ? 'pause' : 'play'} size={26} color="#fff" />
+          </View>
+        </View>
+      )}
+    </Pressable>
   );
 }
 
@@ -1221,7 +1259,7 @@ export default function ProgramDetailScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + ((hasChanges || saveError) ? 80 : 20), paddingHorizontal: 16, paddingTop: 8 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + ((hasChanges || saveError) ? 80 : 20) + (uploads.length > 0 ? 72 : 0), paddingHorizontal: 16, paddingTop: 8 }}
       >
         {exercises.length === 0 ? (
           <View style={styles.emptyDay}>
@@ -1444,6 +1482,20 @@ const styles = StyleSheet.create({
   videoPlayer: Platform.OS === 'web'
     ? { width: '100%', height: 400, backgroundColor: '#000' }
     : { width: '100%', aspectRatio: 9 / 16, backgroundColor: '#000' },
+  videoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  videoPlayBtn: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: 3,
+  },
   addExerciseBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
     paddingVertical: 14, marginTop: 8, borderWidth: 1, borderColor: Colors.colors.border,
