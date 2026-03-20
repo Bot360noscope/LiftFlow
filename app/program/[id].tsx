@@ -632,6 +632,7 @@ export default function ProgramDetailScreen() {
   const hasRestoredPositionRef = useRef(false);
   const hasChangesRef = useRef(false);
   const latestProgramRef = useRef<Program | null>(null);
+  const lastSavedProgramRef = useRef<Program | null>(null);
   const isCoachRef = useRef<boolean | null>(null);
   const isSharedRef = useRef(false);
   const { uploads } = useUploads();
@@ -649,21 +650,36 @@ export default function ProgramDetailScreen() {
           const exId = trimResult.exerciseId;
           trimResult.videoUrl = null;
           trimResult.exerciseId = null;
-          setProgram(prev => {
-            if (!prev) return prev;
-            const updatedWeeks = prev.weeks.map(week => ({
+          const base = latestProgramRef.current;
+          if (base) {
+            let exName = '';
+            const updatedWeeks = base.weeks.map(week => ({
               ...week,
               days: week.days.map(day => ({
                 ...day,
-                exercises: day.exercises.map(ex =>
-                  ex.id === exId ? { ...ex, videoUrl: url } : ex
-                ),
+                exercises: day.exercises.map(ex => {
+                  if (ex.id === exId) { exName = ex.name || ''; return { ...ex, videoUrl: url }; }
+                  return ex;
+                }),
               })),
             }));
-            const updated = { ...prev, weeks: updatedWeeks };
+            const updated = { ...base, weeks: updatedWeeks };
+            setProgram(updated);
             updateProgram(updated).catch(() => {});
-            return updated;
-          });
+            lastSavedProgramRef.current = updated;
+            if (!isCoach && base.coachId) {
+              addNotification({
+                targetProfileId: base.coachId,
+                type: 'video',
+                title: 'Form Check Video',
+                message: `Video uploaded for ${exName}`,
+                programId: base.id,
+                programTitle: base.title,
+                exerciseName: exName,
+                fromRole: 'client',
+              });
+            }
+          }
           setExpandedExerciseId(exId);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
@@ -673,7 +689,7 @@ export default function ProgramDetailScreen() {
     const next: Record<string, string> = {};
     for (const u of uploads) next[u.id] = u.status;
     prevUploadStatusRef.current = next;
-  }, [uploads]);
+  }, [uploads, isCoach]);
 
   useEffect(() => {
     if (!hasRestoredPositionRef.current || !id) return;
@@ -714,6 +730,7 @@ export default function ProgramDetailScreen() {
             } catch {}
           }
           hasRestoredPositionRef.current = true;
+          lastSavedProgramRef.current = p;
           setProgram(p);
         }
         const shared = !!p?.clientId;
@@ -796,13 +813,14 @@ export default function ProgramDetailScreen() {
       showAlert('Plan Limit Exceeded', planLockMessage || 'Upgrade your plan to edit shared programs.');
       return;
     }
-    const oldProgram = await getProgram(program.id);
+    const oldProgram = lastSavedProgramRef.current;
 
     setHasChanges(false);
     setSaveError(false);
 
     try {
       await updateProgram(program);
+      lastSavedProgramRef.current = program;
     } catch (e: any) {
       setSaveError(true);
       showAlert('Save Error', 'Couldn\'t save. Tap Save to retry.');

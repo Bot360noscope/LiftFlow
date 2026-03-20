@@ -779,9 +779,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { profileId, type, title, message, programId, programTitle, exerciseName, fromRole } = req.body;
       if (fromRole === 'coach' && programId) {
-        const check = await isCoachOverLimit(programId);
-        if (check.overLimit) {
-          return res.status(403).json({ error: `Plan limit exceeded. Upgrade to continue.`, code: 'PLAN_LIMIT_EXCEEDED' });
+        const [prog] = await db.select({ coachId: programs.coachId }).from(programs).where(eq(programs.id, programId)).limit(1);
+        if (prog) {
+          const check = await isCoachOverLimit(prog.coachId);
+          if (check.overLimit) {
+            return res.status(403).json({ error: `Plan limit exceeded. Upgrade to continue.`, code: 'PLAN_LIMIT_EXCEEDED' });
+          }
         }
       }
       const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
