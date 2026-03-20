@@ -38,7 +38,8 @@ function ClientCard({ client, programs, hasUnread, colors }: { client: ClientInf
     for (const week of prog.weeks) {
       for (const day of week.days) {
         for (const ex of day.exercises) {
-          if (ex.name) totalEx++;
+          if (!ex.name) continue;
+          totalEx++;
           if (ex.isCompleted) completedEx++;
         }
       }
@@ -90,6 +91,7 @@ function ProgramCard({ program, colors }: { program: Program; colors: any }) {
   for (const week of program.weeks) {
     for (const day of week.days) {
       for (const ex of day.exercises) {
+        if (!ex.name) continue;
         totalExercises++;
         if (ex.isCompleted) completedExercises++;
       }

@@ -35,19 +35,27 @@ const LIFT_LABELS: Record<string, string> = {
 // ─── Coach helpers ────────────────────────────────────────────────────────────
 
 function getWeeklyAdherence(programs: Program[]): number {
-  const weekAdherences: number[] = [];
+  let totalNamed = 0;
+  let totalCompleted = 0;
   for (const prog of programs) {
+    // Find highest week number with any client activity, so future un-started
+    // weeks don't unfairly drag the score to zero.
+    let maxActiveWeek = 0;
     for (const week of (prog.weeks || [])) {
       const exercises = week.days.flatMap(d => d.exercises.filter(e => e.name));
-      if (exercises.length === 0) continue;
-      const completed = exercises.filter(e => e.isCompleted).length;
-      weekAdherences.push((completed / exercises.length) * 100);
+      const hasActivity = exercises.some(e => e.isCompleted || e.clientNotes || e.videoUrl);
+      if (hasActivity) maxActiveWeek = Math.max(maxActiveWeek, week.weekNumber);
+    }
+    // If nothing started yet, count from week 1 so a brand-new program shows 0%
+    if (maxActiveWeek === 0) maxActiveWeek = 1;
+    for (const week of (prog.weeks || [])) {
+      if (week.weekNumber > maxActiveWeek) continue;
+      const exercises = week.days.flatMap(d => d.exercises.filter(e => e.name));
+      totalNamed += exercises.length;
+      totalCompleted += exercises.filter(e => e.isCompleted).length;
     }
   }
-  if (weekAdherences.length === 0) return 0;
-  let score = weekAdherences[0];
-  for (let i = 1; i < weekAdherences.length; i++) score = score * 0.7 + weekAdherences[i] * 0.3;
-  return Math.max(0, Math.round(score));
+  return totalNamed > 0 ? Math.round((totalCompleted / totalNamed) * 100) : 0;
 }
 
 function getPendingReviews(programs: Program[], seenMap: Record<string, string>): number {

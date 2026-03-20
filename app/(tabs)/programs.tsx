@@ -155,6 +155,7 @@ export default function ProgramsScreen() {
           for (const week of prog.weeks) {
             for (const day of week.days) {
               for (const ex of day.exercises) {
+                if (!ex.name) continue;
                 totalExercises++;
                 if (ex.isCompleted) completedExercises++;
                 if (role === 'coach') {

@@ -23,7 +23,8 @@ function ProgramCard({ program }: { program: Program }) {
   for (const week of program.weeks) {
     for (const day of week.days) {
       for (const ex of day.exercises) {
-        if (ex.name) totalExercises++;
+        if (!ex.name) continue;
+        totalExercises++;
         if (ex.isCompleted) completedExercises++;
       }
     }
@@ -188,7 +189,7 @@ export default function ClientDetailScreen() {
               <Text style={[styles.statValue, { color: colors.text }]}>
                 {(() => {
                   let t = 0, c = 0;
-                  for (const p of programs) for (const w of p.weeks) for (const d of w.days) for (const e of d.exercises) { if (e.name) t++; if (e.isCompleted) c++; }
+                  for (const p of programs) for (const w of p.weeks) for (const d of w.days) for (const e of d.exercises) { if (!e.name) continue; t++; if (e.isCompleted) c++; }
                   return t > 0 ? Math.round((c / t) * 100) + '%' : '0%';
                 })()}
               </Text>

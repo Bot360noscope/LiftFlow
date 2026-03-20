@@ -630,6 +630,10 @@ export default function ProgramDetailScreen() {
   const [planLockMessage, setPlanLockMessage] = useState('');
   const clientAutoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasRestoredPositionRef = useRef(false);
+  const hasChangesRef = useRef(false);
+  const latestProgramRef = useRef<Program | null>(null);
+  const isCoachRef = useRef<boolean | null>(null);
+  const isSharedRef = useRef(false);
   const { uploads } = useUploads();
   const prevUploadStatusRef = useRef<Record<string, string>>({});
 
@@ -769,6 +773,22 @@ export default function ProgramDetailScreen() {
       return () => { if (clientAutoSaveRef.current) clearTimeout(clientAutoSaveRef.current); };
     }
   }, [hasChanges, isCoach, program]);
+
+  // Keep refs in sync so the unmount flush always has the latest values
+  useEffect(() => { hasChangesRef.current = hasChanges; }, [hasChanges]);
+  useEffect(() => { latestProgramRef.current = program; }, [program]);
+  useEffect(() => { isCoachRef.current = isCoach; }, [isCoach]);
+  useEffect(() => { isSharedRef.current = isShared; }, [isShared]);
+
+  // Flush any unsaved changes to cache+server when the screen unmounts,
+  // so the progress bars always reflect reality even after quick navigation.
+  useEffect(() => {
+    return () => {
+      if (hasChangesRef.current && latestProgramRef.current && (!isCoachRef.current || !isSharedRef.current)) {
+        updateProgram(latestProgramRef.current).catch(() => {});
+      }
+    };
+  }, []);
 
   const save = useCallback(async () => {
     if (!program) return;
