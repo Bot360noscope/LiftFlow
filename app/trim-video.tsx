@@ -6,6 +6,7 @@ import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import * as Haptics from "expo-haptics";
 import * as MediaLibrary from "expo-media-library";
+import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import { showAlert, confirmAction } from "@/lib/confirm";
@@ -75,6 +76,33 @@ export default function TrimVideoScreen() {
   const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions();
 
   const [isPlaying, setIsPlaying] = useState(true);
+
+  useEffect(() => {
+    // Set MixWithOthers so the video preview doesn't kill background music
+    if (Platform.OS !== 'web') {
+      Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+        interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+        shouldDuckAndroid: true,
+      }).catch(() => {});
+    }
+    return () => {
+      // Release audio session on unmount so background music can resume
+      if (Platform.OS !== 'web') {
+        Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: false,
+          staysActiveInBackground: false,
+          interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+          interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+          shouldDuckAndroid: false,
+        }).catch(() => {});
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove' as any, () => {

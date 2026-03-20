@@ -49,6 +49,17 @@ export default function RecordVideoScreen() {
     configureAudioSession();
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      // Release audio session on unmount so background music can resume
+      if (Platform.OS !== 'web') {
+        Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: false,
+          staysActiveInBackground: false,
+          interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+          interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+          shouldDuckAndroid: false,
+        }).catch(() => {});
+      }
     };
   }, []);
 
