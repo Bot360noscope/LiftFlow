@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, Pressable, Platform, ActivityIndicator, Alert, PanResponder, LayoutChangeEvent } from "react-native";
+import { StyleSheet, Text, View, Pressable, Platform, ActivityIndicator, PanResponder, LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
@@ -302,25 +302,7 @@ export default function TrimVideoScreen() {
   const handleSubmit = () => {
     if (!isValidClip) return;
     if (!getIsOnline()) {
-      showAlert("No Internet", "You need an internet connection to upload videos. Save the video to Photos and try again later.");
-      return;
-    }
-    if (Platform.OS !== 'web' && !hasSaved) {
-      Alert.alert(
-        "Save a Copy?",
-        "Do you want to save the original video to your Photos before uploading?",
-        [
-          {
-            text: "Save & Upload",
-            onPress: async () => {
-              await handleSaveToPhotos();
-              doUpload();
-            },
-          },
-          { text: "Just Upload", onPress: doUpload },
-          { text: "Cancel", style: "cancel" },
-        ]
-      );
+      showAlert("No Internet", "You need an internet connection to upload videos. Try again when connected.");
       return;
     }
     doUpload();
@@ -389,7 +371,7 @@ export default function TrimVideoScreen() {
 
       <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 8) }]}>
         <Pressable onPress={() => {
-          confirmAction('Discard Video?', 'Your recorded video will be lost if you haven\'t saved it to Photos.', () => { intentionalDismissRef.current = true; router.back(); }, 'Discard');
+          confirmAction('Go Back?', 'This video will not be uploaded.', () => { intentionalDismissRef.current = true; router.back(); }, 'Go Back');
         }} hitSlop={12}>
           <Ionicons name="close" size={28} color="#fff" />
         </Pressable>
