@@ -181,6 +181,7 @@ export default function RecordVideoScreen() {
             uploadedBy: params.uploadedBy,
             coachId: params.coachId,
             exerciseName: params.exerciseName,
+            fromRecording: 'true',
           },
         });
       }

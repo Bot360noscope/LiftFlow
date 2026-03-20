@@ -27,10 +27,13 @@ export default function TrimVideoScreen() {
     uploadedBy: string;
     coachId: string;
     exerciseName: string;
+    fromRecording: string;
   }>();
 
   const videoUri = params.videoUri || '';
   const totalDurationMs = Number(params.videoDuration || '0');
+  // Videos recorded in-app are always muted (no audio track)
+  const videoHasNoAudio = params.fromRecording === 'true';
   const totalDuration = Math.max(1, Math.round(totalDurationMs / 1000));
   const programId = params.programId || '';
   const exerciseId = params.exerciseId || '';
@@ -122,6 +125,11 @@ export default function TrimVideoScreen() {
     p.loop = true;
     if (startRef.current > 0) {
       p.currentTime = startRef.current;
+    }
+    // Mute preview for in-app recordings (no audio track) so the player
+    // never claims the audio session and background music keeps playing
+    if (videoHasNoAudio) {
+      p.volume = 0;
     }
     p.play();
   });
