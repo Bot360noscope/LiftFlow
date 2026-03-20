@@ -34,7 +34,9 @@ export default function TrimVideoScreen() {
   const totalDurationMs = Number(params.videoDuration || '0');
   // Videos recorded in-app are always muted (no audio track)
   const videoHasNoAudio = params.fromRecording === 'true';
-  const totalDuration = Math.max(1, Math.round(totalDurationMs / 1000));
+  // Initial duration from params — may be 0 on web (asset.duration is null)
+  const initialDuration = Math.max(1, Math.round(totalDurationMs / 1000));
+  const [totalDuration, setTotalDuration] = useState(initialDuration);
   const programId = params.programId || '';
   const exerciseId = params.exerciseId || '';
   const uploadedBy = params.uploadedBy || '';
@@ -44,11 +46,12 @@ export default function TrimVideoScreen() {
   const navigation = useNavigation();
   const intentionalDismissRef = useRef(false);
   const autoSavedRef = useRef(false);
+  const durationFixedRef = useRef(false);
 
   const startRef = useRef(0);
-  const endRef = useRef(Math.min(totalDuration, MAX_DURATION));
+  const endRef = useRef(Math.min(initialDuration, MAX_DURATION));
   const [startTime, _setStartTime] = useState(0);
-  const [endTime, _setEndTime] = useState(Math.min(totalDuration, MAX_DURATION));
+  const [endTime, _setEndTime] = useState(Math.min(initialDuration, MAX_DURATION));
   const { addUpload } = useUploads();
   const [uploading, _setUploading] = useState(false);
   const setUploading = useCallback((v: boolean) => {
@@ -150,6 +153,25 @@ export default function TrimVideoScreen() {
     });
     return () => sub.remove();
   }, [player]);
+
+  // Once the player reports its actual duration, fix the trim range if the
+  // param duration was missing or wrong (common on web where asset.duration is null)
+  useEffect(() => {
+    if (!player) return;
+    const sub = player.addListener('statusChange', ({ status }: { status: string }) => {
+      if (status === 'readyToPlay' && !durationFixedRef.current) {
+        const actual = Math.round(player.duration ?? 0);
+        if (actual > 1 && Math.abs(actual - totalDuration) > 1) {
+          durationFixedRef.current = true;
+          const newEnd = Math.min(actual, MAX_DURATION);
+          setTotalDuration(actual);
+          endRef.current = newEnd;
+          _setEndTime(newEnd);
+        }
+      }
+    });
+    return () => sub.remove();
+  }, [player, totalDuration]);
 
   const handleTrackLayout = useCallback((e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;

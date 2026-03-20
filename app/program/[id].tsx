@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getProgram, updateProgram, deleteProgram, getProfile, getCachedProfile, getClients, addNotification, markNotificationsReadByProgram, assignProgramToClient, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type UserProfile, type ClientInfo } from "@/lib/storage";
 import { uploadVideo, getVideoUrl, getDirectVideoUrl, markVideoViewed } from "@/lib/api";
 import { trimResult } from "@/lib/trim-result";
+import { useUploads } from "@/lib/upload-context";
 
 function programPositionKey(programId: string) {
   return `liftflow_prog_pos_${programId}`;
@@ -591,6 +592,46 @@ export default function ProgramDetailScreen() {
   const [planLockMessage, setPlanLockMessage] = useState('');
   const clientAutoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasRestoredPositionRef = useRef(false);
+  const { uploads } = useUploads();
+  const prevUploadStatusRef = useRef<Record<string, string>>({});
+
+  // Watch uploads — apply video URL to program as soon as upload completes
+  // (not just on focus, since the screen is already mounted during background uploads)
+  useEffect(() => {
+    const prev = prevUploadStatusRef.current;
+    for (const upload of uploads) {
+      if (upload.status === 'done' && prev[upload.id] !== 'done') {
+        // This upload just finished — apply trimResult if it's for this program
+        if (trimResult.videoUrl && trimResult.exerciseId) {
+          const url = trimResult.videoUrl;
+          const exId = trimResult.exerciseId;
+          trimResult.videoUrl = null;
+          trimResult.exerciseId = null;
+          setProgram(prev => {
+            if (!prev) return prev;
+            const updatedWeeks = prev.weeks.map(week => ({
+              ...week,
+              days: week.days.map(day => ({
+                ...day,
+                exercises: day.exercises.map(ex =>
+                  ex.id === exId ? { ...ex, videoUrl: url } : ex
+                ),
+              })),
+            }));
+            const updated = { ...prev, weeks: updatedWeeks };
+            updateProgram(updated).catch(() => {});
+            return updated;
+          });
+          setExpandedExerciseId(exId);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      }
+    }
+    // Snapshot current statuses for next comparison
+    const next: Record<string, string> = {};
+    for (const u of uploads) next[u.id] = u.status;
+    prevUploadStatusRef.current = next;
+  }, [uploads]);
 
   useEffect(() => {
     if (!hasRestoredPositionRef.current || !id) return;
