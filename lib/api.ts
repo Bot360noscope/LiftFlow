@@ -172,6 +172,32 @@ async function tryLocalCompress(uri: string, durationSeconds: number): Promise<s
   }
 }
 
+function uploadBlobWithProgress(url: string, blob: Blob, onProgress?: (progress: number) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url);
+    xhr.setRequestHeader('Content-Type', 'video/mp4');
+    if (onProgress && xhr.upload) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          // Map XHR progress (0→1) to the 0→90% band of the overall progress
+          onProgress((e.loaded / e.total) * 0.9);
+        }
+      };
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(new Error(`Video upload failed (${xhr.status}). Please check your connection and try again.`));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Video upload failed. Please check your connection and try again.'));
+    xhr.ontimeout = () => reject(new Error('Upload timed out. Please try again.'));
+    xhr.send(blob);
+  });
+}
+
 async function retryFetch(url: string, options: RequestInit, maxRetries = 2): Promise<Response> {
   let lastError: Error | null = null;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -189,7 +215,7 @@ async function retryFetch(url: string, options: RequestInit, maxRetries = 2): Pr
   throw lastError || new Error('Upload failed after retries');
 }
 
-export async function uploadVideo(uri: string, meta?: { programId: string; exerciseId: string; uploadedBy: string; coachId: string }, trim?: { startTime: number; endTime: number }): Promise<string> {
+export async function uploadVideo(uri: string, meta?: { programId: string; exerciseId: string; uploadedBy: string; coachId: string }, trim?: { startTime: number; endTime: number }, onProgress?: (progress: number) => void): Promise<string> {
   const { getIsOnline } = require('./sync-manager');
   if (!getIsOnline()) {
     throw new Error('Video upload requires an internet connection. Please try again when connected.');
@@ -239,12 +265,9 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   const response = await fetch(uploadUri);
   const videoBlob = await response.blob();
 
-  const putRes = await retryFetch(uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'video/mp4' },
-    body: videoBlob,
-  });
-  if (!putRes.ok) throw new Error('Video upload failed. Please check your connection and try again.');
+  await uploadBlobWithProgress(uploadUrl, videoBlob, onProgress);
+  // Signal upload to R2 is complete (registration still to go)
+  onProgress?.(0.92);
 
   let finalFilename = filename;
   let finalVideoUrl = videoUrl;

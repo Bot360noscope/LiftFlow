@@ -1,8 +1,52 @@
-import { View, Text, StyleSheet, Pressable, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Svg, Circle } from 'react-native-svg';
 import { useUploads } from '@/lib/upload-context';
 import { useTheme } from '@/lib/theme-context';
+
+const RING_SIZE = 32;
+const STROKE = 3;
+const RADIUS = (RING_SIZE - STROKE) / 2;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+function CircularProgress({ progress, color }: { progress: number; color: string }) {
+  const pct = Math.max(0, Math.min(1, progress));
+  const dash = CIRCUMFERENCE * pct;
+  const gap = CIRCUMFERENCE - dash;
+  const pctLabel = Math.round(pct * 100);
+
+  return (
+    <View style={{ width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={RING_SIZE} height={RING_SIZE} style={{ position: 'absolute' }}>
+        {/* Track */}
+        <Circle
+          cx={RING_SIZE / 2}
+          cy={RING_SIZE / 2}
+          r={RADIUS}
+          stroke="rgba(255,255,255,0.25)"
+          strokeWidth={STROKE}
+          fill="none"
+        />
+        {/* Progress arc — rotated so it starts from the top */}
+        <Circle
+          cx={RING_SIZE / 2}
+          cy={RING_SIZE / 2}
+          r={RADIUS}
+          stroke="#fff"
+          strokeWidth={STROKE}
+          fill="none"
+          strokeDasharray={`${dash} ${gap}`}
+          strokeLinecap="round"
+          rotation="-90"
+          originX={RING_SIZE / 2}
+          originY={RING_SIZE / 2}
+        />
+      </Svg>
+      <Text style={[styles.pct, { color: '#fff' }]}>{pctLabel}</Text>
+    </View>
+  );
+}
 
 export default function UploadBanner() {
   const { uploads, retryUpload, dismissUpload } = useUploads();
@@ -34,13 +78,13 @@ export default function UploadBanner() {
       { backgroundColor: bg, bottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 12 }
     ]}>
       {isUploading && (
-        <ActivityIndicator size="small" color="#fff" />
+        <CircularProgress progress={active.progress} color={colors.primary} />
       )}
       {isPending && (
-        <Ionicons name="time-outline" size={18} color="rgba(255,255,255,0.8)" />
+        <Ionicons name="time-outline" size={20} color="rgba(255,255,255,0.8)" />
       )}
-      {isDone && <Ionicons name="checkmark-circle" size={18} color="#fff" />}
-      {isError && <Ionicons name="alert-circle" size={18} color="#fff" />}
+      {isDone && <Ionicons name="checkmark-circle" size={22} color="#fff" />}
+      {isError && <Ionicons name="alert-circle" size={22} color="#fff" />}
 
       <Text style={styles.text} numberOfLines={1}>{label}</Text>
 
@@ -71,9 +115,9 @@ const styles = StyleSheet.create({
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     paddingHorizontal: 14,
-    paddingVertical: 11,
+    paddingVertical: 10,
     borderRadius: 12,
     zIndex: 9999,
     shadowColor: '#000',
@@ -81,6 +125,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 8,
+  },
+  pct: {
+    fontSize: 8,
+    fontFamily: 'Rubik_700Bold',
+    letterSpacing: -0.3,
   },
   text: {
     flex: 1,
