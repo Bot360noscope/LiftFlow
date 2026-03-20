@@ -56,4 +56,10 @@ ffmpeg-kit-ios-https/
 
 # Attached assets (uploaded files, too large for GitHub)
 attached_assets/
-attached_assets/*.zip
+
+# Replit internal files
+.config/
+.upm/
+.cache/
+.agents/
+zi*
