@@ -1441,7 +1441,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 8, backgroundColor: Colors.colors.backgroundCard,
   },
   videoPlayerTitle: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.text },
-  videoPlayer: { width: '100%', height: 220 },
+  videoPlayer: Platform.OS === 'web'
+    ? { width: '100%', height: 400, backgroundColor: '#000' }
+    : { width: '100%', aspectRatio: 9 / 16, backgroundColor: '#000' },
   addExerciseBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
     paddingVertical: 14, marginTop: 8, borderWidth: 1, borderColor: Colors.colors.border,
