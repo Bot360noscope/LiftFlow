@@ -20,14 +20,28 @@ import {
 import { getAvatarUrl } from "@/lib/api";
 import { connectWebSocket, addWSListener } from "@/lib/websocket";
 
-function StatCard({ icon, label, value, color, colors }: { icon: string; label: string; value: string; color: string; colors: any }) {
+function CoachRing({ percent, displayText, mainLabel, subLabel, color, size = 96, strokeWidth = 8, colors }: {
+  percent: number; displayText: string; mainLabel: string; subLabel?: string;
+  color: string; size?: number; strokeWidth?: number; colors: any;
+}) {
+  const cx = size / 2, cy = size / 2, r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (Math.min(percent, 100) / 100) * circ;
   return (
-    <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-      <View style={[styles.statIcon, { backgroundColor: `${color}15` }]}>
-        <Ionicons name={icon as any} size={18} color={color} />
+    <View style={[styles.coachRingCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+        <Svg width={size} height={size} style={StyleSheet.absoluteFill as any}>
+          <Circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(128,128,128,0.15)" strokeWidth={strokeWidth} />
+          <Circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={strokeWidth}
+            strokeDasharray={`${circ} ${circ}`} strokeDashoffset={offset}
+            strokeLinecap="round" transform={`rotate(-90, ${cx}, ${cy})`} />
+        </Svg>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: Math.floor(size * 0.19), color: colors.text, lineHeight: Math.floor(size * 0.23) }}>{displayText}</Text>
+        </View>
       </View>
-      <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: colors.textMuted }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>{label}</Text>
+      <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 11, color: colors.textMuted, marginTop: 10, textAlign: 'center' }}>{mainLabel}</Text>
+      {subLabel && <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 10, color: 'rgba(128,128,128,0.5)', textAlign: 'center', marginTop: 2 }}>{subLabel}</Text>}
     </View>
   );
 }
@@ -454,6 +468,29 @@ export default function HomeScreen() {
   const [showAllNotifs, setShowAllNotifs] = useState(false);
   const visibleNotifs = showAllNotifs ? clientNotifs : clientNotifs.slice(0, 5);
   const hasMoreNotifs = clientNotifs.length > 5;
+
+  // Coach adherence rings
+  let coachTotalEx = 0, coachCompletedEx = 0;
+  for (const p of programs) {
+    for (const w of p.weeks) {
+      for (const d of w.days) {
+        for (const e of d.exercises) {
+          if (!e.name) continue;
+          coachTotalEx++;
+          if (e.isCompleted) coachCompletedEx++;
+        }
+      }
+    }
+  }
+  const adherencePct = coachTotalEx > 0 ? Math.round((coachCompletedEx / coachTotalEx) * 100) : 0;
+  const onTrackCount = clients.filter(c => {
+    const cp = programs.filter(p => p.clientId === c.id);
+    let t = 0, done = 0;
+    for (const p of cp) { for (const w of p.weeks) { for (const d of w.days) { for (const e of d.exercises) { if (!e.name) continue; t++; if (e.isCompleted) done++; } } } }
+    return t > 0 && Math.round((done / t) * 100) >= 70;
+  }).length;
+  const pendingVideoReviews = clientNotifs.filter(n => n.type === 'video');
+
   const sortedClients = isCoach ? [...clients].sort((a, b) => {
     const aMsg = latestMsgs[a.clientProfileId || ''];
     const bMsg = latestMsgs[b.clientProfileId || ''];
@@ -539,10 +576,22 @@ export default function HomeScreen() {
 
       {isCoach && (
         <Animated.View entering={FadeInDown.delay(150).duration(400)}>
-          <View style={styles.statsRow}>
-            <StatCard icon="people" label="Clients" value={String(clients.length)} color={colors.textMuted} colors={colors} />
-            <StatCard icon="barbell" label="Active" value={String(activePrograms.length)} color={colors.textMuted} colors={colors} />
-            <StatCard icon="notifications" label="Review" value={String(unreadNotifs.length)} color={colors.textMuted} colors={colors} />
+          <View style={styles.coachRingsRow}>
+            <CoachRing
+              percent={adherencePct}
+              displayText={`${adherencePct}%`}
+              mainLabel="Weekly Adherence"
+              color={colors.primary}
+              colors={colors}
+            />
+            <CoachRing
+              percent={clients.length > 0 ? Math.round((onTrackCount / clients.length) * 100) : 0}
+              displayText={`${onTrackCount}/${clients.length}`}
+              mainLabel="On Track"
+              subLabel="≥70% adherence"
+              color={colors.success}
+              colors={colors}
+            />
           </View>
         </Animated.View>
       )}
@@ -622,12 +671,71 @@ export default function HomeScreen() {
             )}
           </Animated.View>
 
-          {visibleNotifs.length > 0 && (
+          {pendingVideoReviews.length > 0 && (
             <Animated.View entering={FadeInDown.delay(250).duration(400)}>
+              <Pressable
+                style={[styles.pendingReviewsCard, { backgroundColor: colors.backgroundCard, borderColor: `${colors.warning}33` }]}
+                onPress={() => router.push('/(tabs)/programs')}
+                accessibilityLabel="View pending reviews"
+                accessibilityRole="button"
+              >
+                <View style={styles.pendingReviewsHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                    <View style={[styles.pendingReviewsIcon, { backgroundColor: `${colors.warning}22` }]}>
+                      <Ionicons name="videocam" size={16} color={colors.warning} />
+                    </View>
+                    <View>
+                      <Text style={[styles.pendingReviewsTitle, { color: colors.text }]}>Pending Reviews</Text>
+                      <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.warning }}>{pendingVideoReviews.length} video{pendingVideoReviews.length !== 1 ? 's' : ''} awaiting feedback</Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="rgba(128,128,128,0.4)" />
+                </View>
+                {pendingVideoReviews.slice(0, 3).map((n, i) => (
+                  <Pressable
+                    key={n.id}
+                    style={[styles.pendingReviewRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      handleDismissNotification(n.id);
+                      if (n.programId) router.push({ pathname: `/program/${n.programId}`, params: { highlightExercise: n.exerciseName || '' } });
+                    }}
+                    accessibilityRole="button"
+                  >
+                    <View style={[styles.pendingReviewAvatar, { backgroundColor: `${colors.primary}22` }]}>
+                      <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 12, color: colors.primary }}>
+                        {(n.title?.split(' ')?.[0]?.[0] || '?').toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: colors.text }} numberOfLines={1}>{n.title}</Text>
+                      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }} numberOfLines={1}>{n.exerciseName || n.message}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: 'rgba(128,128,128,0.5)' }}>
+                        {n.createdAt ? (() => { const d = Date.now() - new Date(n.createdAt).getTime(); return d < 3600000 ? `${Math.floor(d/60000)}m ago` : d < 86400000 ? `${Math.floor(d/3600000)}h ago` : 'Yesterday'; })() : ''}
+                      </Text>
+                      <View style={[styles.playBtn, { backgroundColor: `${colors.warning}22` }]}>
+                        <Ionicons name="play" size={10} color={colors.warning} />
+                      </View>
+                    </View>
+                  </Pressable>
+                ))}
+                {pendingVideoReviews.length > 3 && (
+                  <View style={[styles.pendingViewAll, { borderTopColor: colors.border }]}>
+                    <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 12, color: colors.warning }}>
+                      View all {pendingVideoReviews.length} →
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            </Animated.View>
+          )}
+
+          {clientNotifs.filter(n => n.type !== 'video').length > 0 && (
+            <Animated.View entering={FadeInDown.delay(300).duration(400)}>
               <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  Recent Activity{clientNotifs.length > 0 ? ` (${clientNotifs.length})` : ''}
-                </Text>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
                 <Pressable
                   style={[styles.clearBtn, { backgroundColor: colors.surfaceLight }]}
                   onPress={handleClearAllNotifications}
@@ -638,21 +746,9 @@ export default function HomeScreen() {
                   <Ionicons name="close" size={16} color={colors.textMuted} />
                 </Pressable>
               </View>
-              {visibleNotifs.map(n => (
+              {clientNotifs.filter(n => n.type !== 'video').slice(0, showAllNotifs ? undefined : 5).map(n => (
                 <NotificationItem key={n.id} notification={n} onDismiss={handleDismissNotification} colors={colors} />
               ))}
-              {hasMoreNotifs && (
-                <Pressable
-                  style={styles.seeAllBtn}
-                  onPress={() => setShowAllNotifs(!showAllNotifs)}
-                  hitSlop={4}
-                >
-                  <Text style={[styles.seeAllText, { color: colors.primary }]}>
-                    {showAllNotifs ? 'Show less' : `View all ${clientNotifs.length} notifications`}
-                  </Text>
-                  <Ionicons name={showAllNotifs ? "chevron-up" : "chevron-down"} size={16} color={colors.primary} />
-                </Pressable>
-              )}
             </Animated.View>
           )}
         </>
@@ -708,42 +804,64 @@ export default function HomeScreen() {
           </Animated.View>
 
           {/* PRs section — clients don't have a Progress tab */}
-          {prs.length > 0 && (
-            <Animated.View entering={FadeInDown.delay(280).duration(400)}>
+          <Animated.View entering={FadeInDown.delay(280).duration(400)}>
+            <View style={[styles.sectionHeader, { marginTop: 8 }]}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Records</Text>
+              <Pressable
+                style={styles.addBtn}
+                accessibilityLabel="Log a PR"
+                accessibilityRole="button"
+                onPress={() => router.push('/add-pr')}
+              >
+                <Ionicons name="add" size={20} color={colors.primary} />
+              </Pressable>
+            </View>
+            <View style={styles.prRow}>
+              {(['squat', 'deadlift', 'bench'] as const).map((lift) => {
+                const best = getBestPR(prs, lift);
+                return (
+                  <Pressable
+                    key={lift}
+                    style={[styles.prCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
+                    accessibilityLabel={`View ${lift} PRs`}
+                    accessibilityRole="button"
+                    onPress={() => router.push(`/add-pr?lift=${lift}`)}
+                  >
+                    <Text style={[styles.prLift, { color: '#FFB800' }]}>{lift.charAt(0).toUpperCase() + lift.slice(1)}</Text>
+                    <Text style={[styles.prWeight, { color: best ? '#FFB800' : colors.textMuted }]}>
+                      {best ? best.weight : '—'}
+                    </Text>
+                    {best
+                      ? <Text style={[styles.prUnit, { color: colors.textMuted }]}>{best.unit}</Text>
+                      : <Text style={{ fontSize: 11, color: colors.primary, fontFamily: 'Rubik_500Medium' }}>Log</Text>
+                    }
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Animated.View>
+
+          {/* Previous Programs */}
+          {programs.filter(p => p.status !== 'active').length > 0 && (
+            <Animated.View entering={FadeInDown.delay(340).duration(400)}>
               <View style={[styles.sectionHeader, { marginTop: 8 }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Records</Text>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Previous Programs</Text>
+              </View>
+              {programs.filter(p => p.status !== 'active').slice(0, 4).map((prog, i) => (
                 <Pressable
-                  style={styles.addBtn}
-                  accessibilityLabel="Log a PR"
+                  key={prog.id}
+                  style={[styles.prevProgCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
+                  accessibilityLabel={`View program ${prog.title}`}
                   accessibilityRole="button"
-                  onPress={() => router.push('/add-pr')}
+                  onPress={() => router.push(`/program/${prog.id}`)}
                 >
-                  <Ionicons name="add" size={20} color={colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 14, color: colors.text }} numberOfLines={1}>{prog.title}</Text>
+                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, marginTop: 3 }}>{prog.weeks.length}W · {prog.daysPerWeek}D/wk</Text>
+                  </View>
+                  <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 11, color: 'rgba(128,128,128,0.5)' }}>Completed</Text>
                 </Pressable>
-              </View>
-              <View style={styles.prRow}>
-                {(['squat', 'deadlift', 'bench'] as const).map((lift) => {
-                  const best = getBestPR(prs, lift);
-                  return (
-                    <Pressable
-                      key={lift}
-                      style={[styles.prCard, { backgroundColor: colors.backgroundCard, borderLeftColor: '#FFB800' }]}
-                      accessibilityLabel={`View ${lift} PRs`}
-                      accessibilityRole="button"
-                      onPress={() => router.push(`/add-pr?lift=${lift}`)}
-                    >
-                      <Text style={[styles.prLift, { color: '#FFB800' }]}>{lift.toUpperCase()}</Text>
-                      <Text style={[styles.prWeight, { color: best ? colors.text : colors.textMuted }]}>
-                        {best ? best.weight : '—'}
-                      </Text>
-                      {best
-                        ? <Text style={[styles.prUnit, { color: colors.textMuted }]}>{best.unit}</Text>
-                        : <Text style={{ fontSize: 11, color: colors.primary, fontFamily: 'Rubik_500Medium' }}>Log</Text>
-                      }
-                    </Pressable>
-                  );
-                })}
-              </View>
+              ))}
             </Animated.View>
           )}
         </>
@@ -838,7 +956,8 @@ const styles = StyleSheet.create({
   prRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
   prCard: {
     flex: 1, alignItems: 'center', backgroundColor: Colors.colors.backgroundCard,
-    borderRadius: 12, paddingVertical: 12, borderLeftWidth: 3, paddingHorizontal: 8,
+    borderRadius: 12, paddingVertical: 14, paddingHorizontal: 8,
+    borderWidth: 1, borderColor: Colors.colors.border,
   },
   prLift: { fontFamily: 'Rubik_600SemiBold', fontSize: 13 },
   prWeight: { fontFamily: 'Rubik_700Bold', fontSize: 22, color: Colors.colors.text, marginTop: 4 },
@@ -886,6 +1005,29 @@ const styles = StyleSheet.create({
     borderRadius: 99, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5,
   },
   liftflowBadgeText: { fontFamily: 'Rubik_700Bold', fontSize: 13, letterSpacing: -0.3 },
+  coachRingsRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
+  coachRingCard: {
+    flex: 1, alignItems: 'center', paddingVertical: 18, paddingHorizontal: 12,
+    borderRadius: 14, borderWidth: 1,
+  },
+  pendingReviewsCard: {
+    borderRadius: 14, borderWidth: 1, overflow: 'hidden', marginBottom: 16,
+  },
+  pendingReviewsHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    padding: 14, paddingBottom: 12,
+  },
+  pendingReviewsIcon: { width: 34, height: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  pendingReviewsTitle: { fontFamily: 'Rubik_700Bold', fontSize: 15, marginBottom: 1 },
+  pendingReviewRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 },
+  pendingReviewAvatar: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  playBtn: { width: 24, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  pendingViewAll: { borderTopWidth: 1, paddingVertical: 10, alignItems: 'center' },
+  prevProgCard: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 10,
+  },
   clientProgCard: {
     borderRadius: 14, padding: 18, borderWidth: 1,
     marginBottom: 12,
