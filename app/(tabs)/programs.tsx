@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   secondaryBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.colors.primary },
   secondaryBtnText: { color: Colors.colors.primary },
   programCard: {
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 16,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 16,
     borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 12,
   },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

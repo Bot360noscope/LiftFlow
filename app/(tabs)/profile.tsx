@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.text },
   scrollContent: { paddingHorizontal: 20 },
   profileCard: {
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 24,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 24,
     alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: Colors.colors.border,
   },
   avatarContainer: { marginBottom: 14, position: 'relative' as const },
@@ -670,7 +670,7 @@ const styles = StyleSheet.create({
   },
   roleText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.primary },
   coachCodeCard: {
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 18,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 18,
     borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 16,
   },
   coachCodeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
@@ -682,14 +682,14 @@ const styles = StyleSheet.create({
   },
   resetCodeText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.primary },
   coachCodeDisplay: {
-    alignItems: 'center', backgroundColor: Colors.colors.surface, borderRadius: 12,
+    alignItems: 'center', backgroundColor: Colors.colors.surface, borderRadius: 14,
     paddingVertical: 16, marginTop: 14, borderWidth: 1, borderColor: Colors.colors.border,
   },
   coachCodeValue: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.primary, letterSpacing: 4 },
   coachCodeHidden: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   coachCodeHiddenText: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: Colors.colors.textMuted },
   planCard: {
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 18,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 18,
     borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 16,
   },
   planHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -704,7 +704,7 @@ const styles = StyleSheet.create({
   planDetailText: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textSecondary },
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
   statCard: {
-    flex: 1, backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 18,
+    flex: 1, backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 18,
     alignItems: 'center', gap: 6, borderWidth: 1, borderColor: Colors.colors.border,
   },
   statValue: { fontFamily: 'Rubik_700Bold', fontSize: 24, color: Colors.colors.text },
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
   },
   settingItem: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 16,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 16,
     marginBottom: 8, borderWidth: 1, borderColor: Colors.colors.border,
   },
   dangerItem: { borderWidth: 2, borderColor: 'rgba(255, 59, 48, 0.4)' },
@@ -726,14 +726,14 @@ const styles = StyleSheet.create({
   settingValue: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 1 },
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 16,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 16,
     marginTop: 24, borderWidth: 2, borderColor: 'rgba(255, 59, 48, 0.4)',
   },
   logoutText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.danger },
   legalSection: { marginTop: 20, gap: 6 },
   legalLink: {
     flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 16,
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, borderWidth: 1, borderColor: Colors.colors.border,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, borderWidth: 1, borderColor: Colors.colors.border,
   },
   legalLinkText: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.textSecondary, flex: 1 },
   version: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, textAlign: 'center', marginTop: 30 },

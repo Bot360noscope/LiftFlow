@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
   adherenceFill: { height: '100%' as const, borderRadius: 2 },
 
   // Strength card (Big 3 + Total + Dots)
-  strengthCard: { borderRadius: 16, borderWidth: 1, paddingTop: 20, paddingHorizontal: 20, paddingBottom: 16, marginBottom: 12 },
+  strengthCard: { borderRadius: 14, borderWidth: 1, paddingTop: 20, paddingHorizontal: 20, paddingBottom: 16, marginBottom: 12 },
   strengthRow: { flexDirection: 'row', alignItems: 'center' },
   strengthLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 10, letterSpacing: 1.5, marginBottom: 4 },
   strengthValue: { fontFamily: 'Rubik_700Bold', fontSize: 38, lineHeight: 42 },
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
   logPRBtnText: { fontFamily: 'Rubik_700Bold', fontSize: 15, color: '#fff' },
 
   // Consistency card
-  adherenceCard: { borderRadius: 16, borderWidth: 1, padding: 20 },
+  adherenceCard: { borderRadius: 14, borderWidth: 1, padding: 20 },
   adherenceTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   adherencePct: { fontFamily: 'Rubik_700Bold', fontSize: 44, lineHeight: 48 },
   adherenceLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 15 },

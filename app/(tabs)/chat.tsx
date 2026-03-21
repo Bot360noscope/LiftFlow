@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, Keyboard, ActivityIndicator, Image, ScrollView, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, Keyboard, ActivityIndicator, Image, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -222,7 +222,7 @@ export default function ChatTab() {
 
     return (
       <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + webTopInset }]}>
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <View style={styles.header}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Chat</Text>
         </View>
         {sortedClients.length === 0 ? (
@@ -242,10 +242,9 @@ export default function ChatTab() {
               const latest = latestMsgs[client.clientProfileId || ''];
               const hasUnread = unreadClientIds.has(client.clientProfileId || '');
               return (
-                <TouchableOpacity
+                <Pressable
                   key={client.id}
-                  style={[styles.clientRow, { borderBottomColor: colors.border }]}
-                  activeOpacity={0.6}
+                  style={({ pressed }) => [styles.clientRow, { borderBottomColor: colors.border }, pressed && { opacity: 0.7 }]}
                   onPress={async () => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     const cpId = client.clientProfileId || '';
@@ -288,7 +287,7 @@ export default function ChatTab() {
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={hasUnread ? colors.primary : colors.textMuted} />
-                </TouchableOpacity>
+                </Pressable>
               );
             })}
           </ScrollView>
@@ -300,7 +299,7 @@ export default function ChatTab() {
   if (!hasCoach) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + webTopInset }]}>
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <View style={styles.header}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Chat</Text>
         </View>
         <View style={styles.emptyContainer}>
@@ -388,10 +387,10 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.colors.border,
+    paddingHorizontal: 20, paddingVertical: 14,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerTitle: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text },
+  headerTitle: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.text },
   messagesList: { padding: 16, flexGrow: 1, paddingBottom: 4 },
   bubble: { maxWidth: '80%', padding: 12, borderRadius: 16, marginBottom: 8 },
   myBubble: {
