@@ -114,7 +114,7 @@ export default function TabLayout() {
         name="progress"
         options={{
           title: "Progress",
-          tabBarButton: isCoach ? undefined : () => null,
+          href: isCoach ? undefined : null,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? "pulse" : "pulse-outline"} size={size} color={color} />
           ),
