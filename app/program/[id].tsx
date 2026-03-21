@@ -468,6 +468,18 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
 
   const seenStorageKey = `liftflow_ex_seen_${exercise.id}`;
 
+  const markSeen = useCallback(() => {
+    setSeenContent(true);
+    if (contentKey) {
+      AsyncStorage.setItem(seenStorageKey, contentKey);
+      AsyncStorage.getItem('liftflow_seen_exercises').then(stored => {
+        const map: Record<string, string> = stored ? JSON.parse(stored) : {};
+        map[exercise.id] = contentKey;
+        AsyncStorage.setItem('liftflow_seen_exercises', JSON.stringify(map));
+      });
+    }
+  }, [contentKey, seenStorageKey, exercise.id]);
+
   useEffect(() => {
     if (!contentKey) { setSeenContent(true); return; }
     AsyncStorage.getItem(seenStorageKey).then(stored => {
@@ -475,23 +487,15 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
         setSeenContent(true);
       } else {
         setSeenContent(false);
-        if (expanded && isCoach && isShared) markSeen();
       }
     });
   }, [contentKey, seenStorageKey]);
 
-  const markSeen = () => {
-    setSeenContent(true);
-    if (contentKey) {
-      AsyncStorage.setItem(seenStorageKey, contentKey);
-      // Save to bulk map for BOTH coaches and clients so programs list can read it
-      AsyncStorage.getItem('liftflow_seen_exercises').then(stored => {
-        const map: Record<string, string> = stored ? JSON.parse(stored) : {};
-        map[exercise.id] = contentKey;
-        AsyncStorage.setItem('liftflow_seen_exercises', JSON.stringify(map));
-      });
+  useEffect(() => {
+    if (expanded && isCoach && isShared && contentKey && !seenContent) {
+      markSeen();
     }
-  };
+  }, [expanded, isCoach, isShared, contentKey, seenContent, markSeen]);
 
   const canEditAll = (isCoach || !isShared) && !planLocked;
 
