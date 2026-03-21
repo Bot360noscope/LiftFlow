@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, ActivityIndicator, Image } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, ActivityIndicator, Image } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -13,7 +13,7 @@ import NetworkError from "@/components/NetworkError";
 import { HomeSkeleton } from "@/components/SkeletonLoader";
 import {
   getDashboard, getBestPR,
-  clearAllNotifications, deleteNotification, removeCachedNotification,
+  deleteNotification, removeCachedNotification,
   getCachedProfile, getCachedPrograms, getCachedPRs, getCachedClients, getCachedNotifications, getCachedLatestMessages,
   type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification, type LatestMessages,
 } from "@/lib/storage";
@@ -288,84 +288,6 @@ function ClientProgramCard({ program, colors }: { program: Program; colors: any 
   );
 }
 
-function NotificationItem({ notification, onDismiss, colors }: { notification: AppNotification; onDismiss: (id: string) => void; colors: any }) {
-  const icon = notification.type === 'video' ? 'videocam' :
-    notification.type === 'notes' ? 'chatbubble' :
-    notification.type === 'comment' ? 'school' :
-    notification.type === 'chat' ? 'chatbubbles' : 'checkmark-circle';
-  const color = notification.type === 'video' ? colors.primary :
-    notification.type === 'notes' ? colors.accent :
-    notification.type === 'comment' ? colors.accent :
-    notification.type === 'chat' ? colors.primary : colors.success;
-
-  return (
-    <Pressable
-      style={[styles.notifItem, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, !notification.read && styles.notifItemUnread]}
-      onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onDismiss(notification.id);
-        if (notification.type === 'chat') {
-          router.push({
-            pathname: '/conversation',
-            params: {
-              coachId: notification.programId,
-              clientProfileId: notification.programTitle,
-              clientName: notification.exerciseName,
-            },
-          });
-        } else if (notification.programId) {
-          router.push({
-            pathname: `/program/${notification.programId}`,
-            params: {
-              highlightExercise: notification.exerciseName || '',
-            },
-          });
-        }
-      }}
-    >
-      <View style={[styles.notifIcon, { backgroundColor: `${color}15` }]}>
-        <Ionicons name={icon as any} size={16} color={color} />
-      </View>
-      <View style={styles.notifContent}>
-        <Text style={[styles.notifTitle, { color: colors.text }]} numberOfLines={1}>{notification.title}</Text>
-        <Text style={[styles.notifMsg, { color: colors.textMuted }]} numberOfLines={2}>{notification.message}</Text>
-      </View>
-      {!notification.read && <View style={[styles.notifDot, { backgroundColor: colors.primary }]} />}
-    </Pressable>
-  );
-}
-
-function HomeCoachCodeCard({ coachCode, colors }: { coachCode: string; colors: any }) {
-  const [revealed, setRevealed] = useState(false);
-  return (
-    <View style={[styles.coachCodeCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-      <View style={styles.coachCodeLeft}>
-        <Text style={[styles.coachCodeLabel, { color: colors.text }]}>Your Coach Code</Text>
-        <Text style={[styles.coachCodeDesc, { color: colors.textMuted }]}>Share this with clients to connect</Text>
-      </View>
-      <Pressable
-        style={styles.coachCodeBadge}
-        onPress={() => {
-          setRevealed(!revealed);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }}
-      >
-        {revealed ? (
-          <>
-            <Text style={[styles.coachCodeValue, { color: colors.primary }]}>{coachCode}</Text>
-            <Ionicons name="eye-off-outline" size={14} color={colors.primary} />
-          </>
-        ) : (
-          <>
-            <Ionicons name="eye-outline" size={14} color={colors.textMuted} />
-            <Text style={[styles.coachCodeHiddenText, { color: colors.textMuted }]}>Tap to reveal</Text>
-          </>
-        )}
-      </Pressable>
-    </View>
-  );
-}
-
 export default function HomeScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -375,7 +297,6 @@ export default function HomeScreen() {
   const [prs, setPRs] = useState<LiftPR[]>(getCachedPRs());
   const [clients, setClients] = useState<ClientInfo[]>(getCachedClients());
   const [notifications, setNotifications] = useState<AppNotification[]>(getCachedNotifications());
-  const [clientSearch, setClientSearch] = useState('');
   const [showAllClients, setShowAllClients] = useState(false);
   const [latestMsgs, setLatestMsgs] = useState<LatestMessages>(getCachedLatestMessages());
   const [loading, setLoading] = useState(!getCachedProfile());
@@ -448,26 +369,11 @@ export default function HomeScreen() {
     try { await deleteNotification(id); } catch (e) { console.warn('Failed to delete notification:', e); }
   };
 
-  const handleClearAllNotifications = async () => {
-    await clearAllNotifications();
-    setNotifications([]);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
-
-  const bestSquat = getBestPR(prs, 'squat');
-  const bestDeadlift = getBestPR(prs, 'deadlift');
-  const bestBench = getBestPR(prs, 'bench');
-
   const isCoach = profile?.role === 'coach';
   const activePrograms = programs.filter(p => p.status === 'active');
-  const recentPrograms = programs.slice(0, 3);
-  const unreadNotifs = notifications.filter(n => !n.read);
   const clientNotifs = isCoach
     ? notifications.filter(n => n.fromRole === 'client' && n.type !== 'completion' && n.type !== 'chat')
     : notifications.filter(n => n.type !== 'chat');
-  const [showAllNotifs, setShowAllNotifs] = useState(false);
-  const visibleNotifs = showAllNotifs ? clientNotifs : clientNotifs.slice(0, 5);
-  const hasMoreNotifs = clientNotifs.length > 5;
 
   // Coach adherence rings
   let coachTotalEx = 0, coachCompletedEx = 0;
@@ -510,9 +416,6 @@ export default function HomeScreen() {
     if (bLatest) return 1;
     return 0;
   }) : clients;
-  const filteredClients = clientSearch.trim()
-    ? sortedClients.filter(c => c.name.toLowerCase().includes(clientSearch.trim().toLowerCase()))
-    : sortedClients;
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
@@ -540,21 +443,23 @@ export default function HomeScreen() {
       <Animated.View entering={FadeInDown.duration(400)}>
         <View style={styles.greetingRow}>
           <View style={styles.greetingLeft}>
-            {(() => {
-              const hour = new Date().getHours();
-              const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-              const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-              return (
-                <>
-                  <Text style={[styles.greetingSub, { color: colors.textSecondary }]} numberOfLines={1}>
-                    {profile?.name ? `${greet}, ${profile.name}` : greet}
-                  </Text>
-                  <Text style={[styles.greeting, { color: colors.text }]} numberOfLines={1}>
-                    {dateStr}
-                  </Text>
-                </>
-              );
-            })()}
+            {isCoach ? (
+              <>
+                <Text style={[styles.greetingSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {(() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; })()}{profile?.name ? `, ${profile.name}` : ''}
+                </Text>
+                <Text style={[styles.greeting, { color: colors.text }]} numberOfLines={1}>
+                  {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.greetingSub, { color: colors.textSecondary }]} numberOfLines={1}>Welcome back</Text>
+                <Text style={[styles.greeting, { color: colors.text }]} numberOfLines={1}>
+                  {profile?.name || 'Athlete'}
+                </Text>
+              </>
+            )}
           </View>
           <View style={styles.roleChipRow}>
             {isCoach && (
@@ -569,7 +474,6 @@ export default function HomeScreen() {
                 </Text>
               </View>
             )}
-            {/* LiftFlow wordmark — home page only */}
             <View style={[styles.liftflowBadge, { backgroundColor: `${colors.primary}18`, borderColor: `${colors.primary}44` }]}>
               <Text style={[styles.liftflowBadgeText, { color: colors.primary }]}>LiftFlow</Text>
             </View>
@@ -601,116 +505,81 @@ export default function HomeScreen() {
 
       {isCoach ? (
         <>
-          {pendingVideoReviews.length > 0 && (
-            <Animated.View entering={FadeInDown.delay(180).duration(400)}>
-              <Pressable
-                style={[styles.pendingReviewsCard, { backgroundColor: colors.backgroundCard, borderColor: `${colors.warning}33` }]}
-                onPress={() => router.push('/(tabs)/progress')}
-                accessibilityLabel="View pending reviews"
-                accessibilityRole="button"
-              >
-                <View style={styles.pendingReviewsHeader}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                    <View style={[styles.pendingReviewsIcon, { backgroundColor: `${colors.warning}22` }]}>
-                      <Ionicons name="videocam" size={16} color={colors.warning} />
-                    </View>
-                    <View>
-                      <Text style={[styles.pendingReviewsTitle, { color: colors.text }]}>Pending Reviews</Text>
-                      <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.warning }}>{pendingVideoReviews.length} video{pendingVideoReviews.length !== 1 ? 's' : ''} awaiting feedback</Text>
-                    </View>
+          <Animated.View entering={FadeInDown.delay(180).duration(400)}>
+            <Pressable
+              style={[styles.pendingReviewsCard, { backgroundColor: colors.backgroundCard, borderColor: `${colors.warning}33` }]}
+              onPress={() => router.push('/(tabs)/progress')}
+              accessibilityLabel="View pending reviews"
+              accessibilityRole="button"
+            >
+              <View style={styles.pendingReviewsHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                  <View style={[styles.pendingReviewsIcon, { backgroundColor: `${colors.warning}22` }]}>
+                    <Ionicons name="camera" size={16} color={colors.warning} />
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="rgba(128,128,128,0.4)" />
-                </View>
-                {pendingVideoReviews.slice(0, 3).map((n, i) => (
-                  <Pressable
-                    key={n.id}
-                    style={[styles.pendingReviewRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      handleDismissNotification(n.id);
-                      if (n.programId) router.push({ pathname: `/program/${n.programId}`, params: { highlightExercise: n.exerciseName || '' } });
-                    }}
-                    accessibilityRole="button"
-                  >
-                    <View style={[styles.pendingReviewAvatar, { backgroundColor: `${colors.primary}22` }]}>
-                      <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 12, color: colors.primary }}>
-                        {(n.title?.split(' ')?.[0]?.[0] || '?').toUpperCase()}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: colors.text }} numberOfLines={1}>{n.title}</Text>
-                      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }} numberOfLines={1}>{n.exerciseName || n.message}</Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: 'rgba(128,128,128,0.5)' }}>
-                        {n.createdAt ? (() => { const d = Date.now() - new Date(n.createdAt).getTime(); return d < 3600000 ? `${Math.floor(d/60000)}m ago` : d < 86400000 ? `${Math.floor(d/3600000)}h ago` : 'Yesterday'; })() : ''}
-                      </Text>
-                      <View style={[styles.playBtn, { backgroundColor: `${colors.warning}22` }]}>
-                        <Ionicons name="play" size={10} color={colors.warning} />
-                      </View>
-                    </View>
-                  </Pressable>
-                ))}
-                {pendingVideoReviews.length > 3 && (
-                  <View style={[styles.pendingViewAll, { borderTopColor: colors.border }]}>
-                    <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 12, color: colors.warning }}>
-                      View all {pendingVideoReviews.length} →
+                  <View>
+                    <Text style={[styles.pendingReviewsTitle, { color: colors.text }]}>Pending Reviews</Text>
+                    <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.warning }}>
+                      {pendingVideoReviews.length > 0
+                        ? `${pendingVideoReviews.length} video${pendingVideoReviews.length !== 1 ? 's' : ''} awaiting feedback`
+                        : 'All caught up'}
                     </Text>
                   </View>
-                )}
-              </Pressable>
-            </Animated.View>
-          )}
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="rgba(128,128,128,0.4)" />
+              </View>
+              {pendingVideoReviews.slice(0, 3).map((n, i) => (
+                <Pressable
+                  key={n.id}
+                  style={[styles.pendingReviewRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    handleDismissNotification(n.id);
+                    if (n.programId) router.push({ pathname: `/program/${n.programId}`, params: { highlightExercise: n.exerciseName || '' } });
+                  }}
+                  accessibilityRole="button"
+                >
+                  <View style={[styles.pendingReviewAvatar, { backgroundColor: `${colors.primary}22` }]}>
+                    <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 12, color: colors.primary }}>
+                      {(n.title?.split(' ')?.[0]?.[0] || '?').toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: colors.text }} numberOfLines={1}>{n.title}</Text>
+                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }} numberOfLines={1}>{n.exerciseName || n.message}</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: 'rgba(128,128,128,0.5)' }}>
+                      {n.createdAt ? (() => { const d = Date.now() - new Date(n.createdAt).getTime(); return d < 3600000 ? `${Math.floor(d/60000)}m ago` : d < 86400000 ? `${Math.floor(d/3600000)}h ago` : 'Yesterday'; })() : ''}
+                    </Text>
+                    <View style={[styles.playBtn, { backgroundColor: `${colors.warning}22` }]}>
+                      <Ionicons name="play" size={10} color={colors.warning} />
+                    </View>
+                  </View>
+                </Pressable>
+              ))}
+              {pendingVideoReviews.length > 3 && (
+                <View style={[styles.pendingViewAll, { borderTopColor: colors.border }]}>
+                  <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 12, color: colors.warning }}>
+                    View all {pendingVideoReviews.length} →
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+          </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Clients</Text>
-              <Pressable
-                style={styles.addBtn}
-                accessibilityLabel="View all clients"
-                accessibilityRole="button"
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/(tabs)/programs');
-                }}
-              >
-                <Ionicons name="eye-outline" size={18} color={colors.primary} />
-              </Pressable>
-            </View>
-
-            <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Ionicons name="search" size={16} color={colors.textMuted} />
-              <TextInput
-                style={[styles.searchInput, { color: colors.text }]}
-                placeholder="Search clients..."
-                placeholderTextColor={colors.textMuted}
-                value={clientSearch}
-                onChangeText={setClientSearch}
-                autoCapitalize="none"
-                autoCorrect={false}
-                accessibilityLabel="Search clients"
-              />
-              {clientSearch.length > 0 && (
-                <Pressable onPress={() => setClientSearch('')} hitSlop={8} accessibilityLabel="Clear search" accessibilityRole="button">
-                  <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-                </Pressable>
-              )}
-            </View>
+            <Text style={[styles.sectionTitleStandalone, { color: colors.text }]}>Clients</Text>
 
             {clients.length === 0 ? (
               <View style={[styles.emptyCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
                 <Ionicons name="people-outline" size={32} color={colors.textMuted} />
-                <Text style={[styles.emptyText, { color: colors.text }]}>No clients connected yet</Text>
-                <Text style={[styles.emptySubText, { color: colors.textMuted }]}>Share your coach code so clients can find you</Text>
-              </View>
-            ) : filteredClients.length === 0 ? (
-              <View style={[styles.emptyCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-                <Ionicons name="search-outline" size={24} color={colors.textMuted} />
-                <Text style={[styles.emptyText, { color: colors.text }]}>No matching clients</Text>
+                <Text style={[styles.emptyText, { color: colors.text }]}>No clients yet</Text>
+                <Text style={[styles.emptySubText, { color: colors.textMuted }]}>Clients can connect using your code from the Profile tab</Text>
               </View>
             ) : (
-              <>
-                {(clientSearch.trim() || showAllClients ? filteredClients : filteredClients.slice(0, 6)).map((client) => (
+              <View style={{ gap: 8 }}>
+                {(showAllClients ? sortedClients : sortedClients.slice(0, 6)).map((client) => (
                   <ClientCard
                     key={client.id}
                     client={client}
@@ -719,65 +588,30 @@ export default function HomeScreen() {
                     colors={colors}
                   />
                 ))}
-                {!clientSearch.trim() && filteredClients.length > 6 && (
+                {sortedClients.length > 6 && (
                   <Pressable
                     style={styles.seeAllBtn}
                     onPress={() => setShowAllClients(!showAllClients)}
                     hitSlop={4}
                   >
                     <Text style={[styles.seeAllText, { color: colors.primary }]}>
-                      {showAllClients ? 'Show less' : `View all ${filteredClients.length} clients`}
+                      {showAllClients ? 'Show less' : `View all ${sortedClients.length} clients`}
                     </Text>
                     <Ionicons name={showAllClients ? "chevron-up" : "chevron-down"} size={16} color={colors.primary} />
                   </Pressable>
                 )}
-              </>
+              </View>
             )}
           </Animated.View>
-
-          {clientNotifs.filter(n => n.type !== 'video').length > 0 && (
-            <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
-                <Pressable
-                  style={[styles.clearBtn, { backgroundColor: colors.surfaceLight }]}
-                  onPress={handleClearAllNotifications}
-                  hitSlop={8}
-                  accessibilityLabel="Clear all notifications"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="close" size={16} color={colors.textMuted} />
-                </Pressable>
-              </View>
-              {clientNotifs.filter(n => n.type !== 'video').slice(0, showAllNotifs ? undefined : 5).map(n => (
-                <NotificationItem key={n.id} notification={n} onDismiss={handleDismissNotification} colors={colors} />
-              ))}
-            </Animated.View>
-          )}
         </>
       ) : (
         <>
           <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Programs</Text>
-              <Pressable
-                style={styles.addBtn}
-                accessibilityLabel="Create new program"
-                accessibilityRole="button"
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/create-program');
-                }}
-              >
-                <Ionicons name="add" size={20} color={colors.primary} />
-              </Pressable>
-            </View>
-
-            {recentPrograms.length === 0 ? (
+            {activePrograms.length === 0 ? (
               <View style={[styles.emptyCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
                 <Ionicons name="barbell-outline" size={32} color={colors.textMuted} />
                 <Text style={[styles.emptyText, { color: colors.text }]}>No programs yet</Text>
-                <Text style={[styles.emptySubText, { color: colors.textMuted }]}>Connect with your coach to receive your first program</Text>
+                <Text style={[styles.emptySubText, { color: colors.textMuted }]}>Connect with your coach to get started</Text>
                 <Pressable
                   style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
                   accessibilityLabel="Join a coach"
@@ -788,37 +622,14 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
             ) : (
-              recentPrograms.map((prog) => (
+              activePrograms.slice(0, 2).map((prog) => (
                 <ClientProgramCard key={prog.id} program={prog} colors={colors} />
               ))
             )}
-
-            {programs.length > 3 && (
-              <Pressable
-                style={styles.seeAllBtn}
-                accessibilityLabel="See all programs"
-                accessibilityRole="button"
-                onPress={() => router.push('/(tabs)/programs')}
-              >
-                <Text style={[styles.seeAllText, { color: colors.primary }]}>See all programs</Text>
-                <Ionicons name="arrow-forward" size={16} color={colors.primary} />
-              </Pressable>
-            )}
           </Animated.View>
 
-          {/* PRs section — clients don't have a Progress tab */}
           <Animated.View entering={FadeInDown.delay(280).duration(400)}>
-            <View style={[styles.sectionHeader, { marginTop: 8 }]}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Records</Text>
-              <Pressable
-                style={styles.addBtn}
-                accessibilityLabel="Log a PR"
-                accessibilityRole="button"
-                onPress={() => router.push('/add-pr')}
-              >
-                <Ionicons name="add" size={20} color={colors.primary} />
-              </Pressable>
-            </View>
+            <Text style={[styles.sectionTitleStandalone, { color: colors.text }]}>Personal Records</Text>
             <View style={styles.prRow}>
               {(['squat', 'deadlift', 'bench'] as const).map((lift) => {
                 const best = getBestPR(prs, lift);
@@ -830,12 +641,12 @@ export default function HomeScreen() {
                     accessibilityRole="button"
                     onPress={() => router.push(`/add-pr?lift=${lift}`)}
                   >
-                    <Text style={[styles.prLift, { color: '#FFB800' }]}>{lift.charAt(0).toUpperCase() + lift.slice(1)}</Text>
+                    <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>{lift.charAt(0).toUpperCase() + lift.slice(1)}</Text>
                     <Text style={[styles.prWeight, { color: best ? '#FFB800' : colors.textMuted }]}>
                       {best ? best.weight : '—'}
                     </Text>
                     {best
-                      ? <Text style={[styles.prUnit, { color: colors.textMuted }]}>{best.unit}</Text>
+                      ? <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 10, color: 'rgba(128,128,128,0.5)', marginTop: 3 }}>{best.unit}</Text>
                       : <Text style={{ fontSize: 11, color: colors.primary, fontFamily: 'Rubik_500Medium' }}>Log</Text>
                     }
                   </Pressable>
@@ -844,13 +655,10 @@ export default function HomeScreen() {
             </View>
           </Animated.View>
 
-          {/* Previous Programs */}
           {programs.filter(p => p.status !== 'active').length > 0 && (
             <Animated.View entering={FadeInDown.delay(340).duration(400)}>
-              <View style={[styles.sectionHeader, { marginTop: 8 }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Previous Programs</Text>
-              </View>
-              {programs.filter(p => p.status !== 'active').slice(0, 4).map((prog, i) => (
+              <Text style={[styles.sectionTitleStandalone, { color: colors.text }]}>Previous Programs</Text>
+              {programs.filter(p => p.status !== 'active').slice(0, 4).map((prog) => (
                 <Pressable
                   key={prog.id}
                   style={[styles.prevProgCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
@@ -878,8 +686,8 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: 20 },
   greetingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, gap: 12 },
   greetingLeft: { flex: 1 },
-  greeting: { fontFamily: 'Rubik_700Bold', fontSize: 28, color: Colors.colors.text },
-  greetingSub: { fontFamily: 'Rubik_400Regular', fontSize: 15, color: Colors.colors.textSecondary, marginTop: 4 },
+  greeting: { fontFamily: 'Rubik_700Bold', fontSize: 22, color: Colors.colors.text, letterSpacing: -0.5 },
+  greetingSub: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textSecondary, marginBottom: 4 },
   roleChipRow: { flexDirection: 'column', alignItems: 'flex-end', gap: 6 },
   planBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -896,20 +704,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(232,81,47,0.1)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
   },
   roleChipText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.primary },
-  coachCodeCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 16,
-    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 16,
-  },
-  coachCodeLeft: { flex: 1 },
-  coachCodeLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: Colors.colors.text },
-  coachCodeDesc: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 4 },
-  coachCodeBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(232,81,47,0.1)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8,
-  },
-  coachCodeValue: { fontFamily: 'Rubik_700Bold', fontSize: 16, color: Colors.colors.primary, letterSpacing: 2 },
-  coachCodeHiddenText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.textMuted },
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
   statCard: {
     flex: 1, alignItems: 'center', backgroundColor: Colors.colors.backgroundCard,
@@ -918,17 +712,9 @@ const styles = StyleSheet.create({
   statIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   statValue: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text },
   statLabel: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, textAlign: 'center' },
-  searchBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12,
-    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 12,
-  },
-  searchInput: {
-    flex: 1, fontFamily: 'Rubik_400Regular', fontSize: 15, color: Colors.colors.text, padding: 0,
-  },
   clientCard: {
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 16,
-    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 12,
+    backgroundColor: Colors.colors.backgroundCard, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: Colors.colors.border,
   },
   clientCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   clientAvatar: {
@@ -945,28 +731,16 @@ const styles = StyleSheet.create({
   clientUnreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.colors.primary },
   clientProgress: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
   clientProgressText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.textSecondary, width: 72, textAlign: 'right' },
-  notifItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, padding: 12,
-    borderWidth: 1, borderColor: Colors.colors.border, marginBottom: 8,
-  },
-  notifItemUnread: { borderColor: Colors.colors.primary, backgroundColor: 'rgba(232,81,47,0.04)' },
-  notifIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  notifContent: { flex: 1 },
-  notifTitle: { fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: Colors.colors.text },
-  notifMsg: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted, marginTop: 4 },
-  notifDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.colors.primary },
-  prRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  prRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   prCard: {
     flex: 1, alignItems: 'center', backgroundColor: Colors.colors.backgroundCard,
-    borderRadius: 12, paddingVertical: 14, paddingHorizontal: 8,
+    borderRadius: 14, paddingVertical: 14, paddingHorizontal: 8,
     borderWidth: 1, borderColor: Colors.colors.border,
   },
-  prLift: { fontFamily: 'Rubik_600SemiBold', fontSize: 13 },
-  prWeight: { fontFamily: 'Rubik_700Bold', fontSize: 22, color: Colors.colors.text, marginTop: 4 },
-  prUnit: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted },
+  prWeight: { fontFamily: 'Rubik_700Bold', fontSize: 22, color: '#FFB800' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { fontFamily: 'Rubik_700Bold', fontSize: 18, color: Colors.colors.text, marginBottom: 12 },
+  sectionTitleStandalone: { fontFamily: 'Rubik_700Bold', fontSize: 17, color: Colors.colors.text, marginBottom: 12 },
   addBtn: {
     width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(232,81,47,0.1)', marginBottom: 12,
