@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Linking, ActivityIndicator, Modal, Alert } from "react-native";
+import { LinearGradient } from 'expo-linear-gradient';
 import { confirmAction, showAlert } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -323,21 +324,21 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
       { backgroundColor: colors.backgroundCard, borderColor: isCompleted ? `${colors.success}33` : colors.border },
       isCompleted && { opacity: 0.85 },
     ]}>
-      <View style={styles.clientExHeader}>
+      <View style={[styles.clientExHeader, { marginBottom: (!!displayNote || !isCompleted) ? 10 : 0 }]}>
         <Pressable
           onPress={handleToggleComplete}
           hitSlop={8}
-          style={[styles.clientExCheck, { backgroundColor: isCompleted ? `${colors.success}22` : 'rgba(255,255,255,0.06)', borderColor: isCompleted ? colors.success : 'rgba(255,255,255,0.18)' }]}
+          style={[styles.clientExCheck, { backgroundColor: isCompleted ? `${colors.success}22` : 'rgba(255,255,255,0.06)', borderColor: isCompleted ? colors.success : 'rgba(255,255,255,0.15)' }]}
         >
           {isCompleted && <Ionicons name="checkmark" size={13} color={colors.success} />}
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.clientExName, { color: isCompleted ? colors.textMuted : colors.text, textDecorationLine: isCompleted ? 'line-through' : 'none' }]} numberOfLines={1}>
+          <Text style={[styles.clientExName, { color: isCompleted ? '#888' : colors.text, textDecorationLine: isCompleted ? 'line-through' : 'none' }]} numberOfLines={1}>
             {name}
           </Text>
-          {meta ? <Text style={[styles.clientExMeta, { color: colors.textMuted }]}>{meta}</Text> : null}
+          {meta ? <Text style={[styles.clientExMeta, { color: '#666' }]}>{meta}</Text> : null}
         </View>
-        {hasVideo && isCompleted && (
+        {hasVideo && (
           <View style={[styles.clientExVideoBadge, { backgroundColor: `${colors.primary}22` }]}>
             <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 10, color: colors.primary }}>Video ✓</Text>
           </View>
@@ -345,13 +346,12 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
       </View>
 
       {!!displayNote && (
-        <Text style={[styles.clientExCoachNote, { color: colors.textMuted }]}>📝 {displayNote}</Text>
+        <Text style={[styles.clientExCoachNote, { color: '#666' }]}>📝 {displayNote}</Text>
       )}
 
       {!isCompleted && (
         <View style={styles.clientExActions}>
           <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.primary }]} onPress={handleRecord}>
-            <Ionicons name="videocam-outline" size={14} color={colors.primary} />
             <Text style={[styles.clientExUploadText, { color: colors.primary }]}>Upload Form Video</Text>
           </Pressable>
           <Pressable style={[styles.clientExMarkDoneBtn, { backgroundColor: colors.primary }]} onPress={handleToggleComplete}>
@@ -1113,6 +1113,10 @@ export default function ProgramDetailScreen() {
     return total > 0 ? Math.round((completed / total) * 100) : 0;
   }, [currentWeek]);
 
+  const dayTotal = exercises.filter(ex => !!ex.name).length;
+  const dayCompleted = exercises.filter(ex => !!ex.name && ex.isCompleted).length;
+  const dayPct = dayTotal > 0 ? Math.round((dayCompleted / dayTotal) * 100) : 0;
+
   const updateExercise = useCallback((exerciseId: string, updates: Partial<Exercise>) => {
     setProgram(prev => {
       if (!prev || planLocked) return prev;
@@ -1411,6 +1415,23 @@ export default function ProgramDetailScreen() {
         </ScrollView>
       </View>
 
+      {(!isCoach && isShared) && dayTotal > 0 && (
+        <View style={[styles.dayProgressBar, { borderBottomColor: colors.border }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+            <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: '#888' }}>{dayCompleted} of {dayTotal} exercises</Text>
+            <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: Colors.colors.primary }}>{dayPct}%</Text>
+          </View>
+          <View style={{ height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+            <LinearGradient
+              colors={['#E8512F', '#FF8C42']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ height: '100%', width: `${dayPct}%` as any, borderRadius: 2 }}
+            />
+          </View>
+        </View>
+      )}
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + ((!isCoach && isShared) ? 90 : (hasChanges || saveError) ? 80 : 20) + (uploads.length > 0 ? 72 : 0), paddingHorizontal: 16, paddingTop: 8 }}
@@ -1466,13 +1487,19 @@ export default function ProgramDetailScreen() {
       {(!isCoach && isShared) && (
         <View style={[styles.finishWorkoutBar, { paddingBottom: insets.bottom + 10, backgroundColor: 'rgba(15,15,15,0.97)', borderTopColor: colors.border }]}>
           <Pressable
-            style={styles.finishWorkoutBtn}
             onPress={() => {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               router.back();
             }}
           >
-            <Text style={styles.finishWorkoutText}>Finish Workout</Text>
+            <LinearGradient
+              colors={['#E8512F', '#FF8C42']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.finishWorkoutBtn}
+            >
+              <Text style={styles.finishWorkoutText}>Finish Workout</Text>
+            </LinearGradient>
           </Pressable>
         </View>
       )}
@@ -1772,6 +1799,10 @@ const styles = StyleSheet.create({
     borderRadius: 8, paddingVertical: 9,
   },
   clientExMarkDoneText: { fontFamily: 'Rubik_700Bold', fontSize: 12, color: '#fff' },
+  dayProgressBar: {
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: Colors.colors.border,
+  },
   finishWorkoutBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     paddingHorizontal: 16, paddingTop: 12,
@@ -1779,7 +1810,6 @@ const styles = StyleSheet.create({
   },
   finishWorkoutBtn: {
     borderRadius: 12, paddingVertical: 14, alignItems: 'center',
-    backgroundColor: Colors.colors.primary,
   },
   finishWorkoutText: { fontFamily: 'Rubik_700Bold', fontSize: 15, color: '#fff', letterSpacing: 0.3 },
 });
