@@ -1,177 +1,146 @@
 import React from 'react';
 
-// Reusable SVG Ring Component
-const Ring = ({ 
-  percent, 
-  color, 
-  size = 128, 
-  strokeWidth = 10,
-  label = "",
-  subLabel = ""
-}: { 
-  percent: number, 
-  color: string, 
-  size?: number, 
-  strokeWidth?: number,
-  label?: string,
-  subLabel?: string
-}) => {
-  const cx = size / 2;
-  const cy = size / 2;
+const PRIMARY = '#E8512F';
+const PRIMARY_LIGHT = '#FF6B47';
+const SUCCESS = '#34C759';
+const WARNING = '#FF9500';
+const DANGER = '#FF3B30';
+const BG = 'linear-gradient(160deg, #1c1c1c 0%, #111111 50%, #0F0F0F 100%)';
+
+const Ring = ({
+  percent, color, size = 100, strokeWidth = 8, label = '', subLabel = ''
+}: { percent: number; color: string; size?: number; strokeWidth?: number; label?: string; subLabel?: string }) => {
+  const cx = size / 2, cy = size / 2;
   const r = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * r;
   const offset = circumference - (percent / 100) * circumference;
-
   return (
-    <div className="relative flex flex-col items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={strokeWidth} />
-        <circle 
-          cx={cx} cy={cy} r={r} 
-          fill="none" 
-          stroke={color} 
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference} 
-          strokeDashoffset={offset}
-          strokeLinecap="round" 
-          transform={`rotate(-90, ${cx}, ${cy})`} 
-        />
+    <div style={{ position: 'relative', width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: 'absolute', top: 0, left: 0 }}>
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={strokeWidth} />
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={strokeWidth}
+          strokeDasharray={circumference} strokeDashoffset={offset}
+          strokeLinecap="round" transform={`rotate(-90, ${cx}, ${cy})`} />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        {label && <span className="text-white font-bold" style={{ fontSize: size * 0.25 }}>{label}</span>}
-        {subLabel && <span className="text-gray-400 text-xs font-medium">{subLabel}</span>}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
+        {label && <span style={{ color: '#fff', fontWeight: 700, fontSize: size * 0.22, lineHeight: 1 }}>{label}</span>}
+        {subLabel && <span style={{ color: '#888', fontSize: 9, marginTop: 2 }}>{subLabel}</span>}
       </div>
     </div>
   );
 };
 
-export default function Dashboard() {
-  const cardStyle = {
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '16px',
-    backdropFilter: 'blur(10px)',
-  };
+const card: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.09)',
+  borderRadius: 16,
+  backdropFilter: 'blur(12px)',
+};
 
+const outlineBtn: React.CSSProperties = {
+  background: 'transparent',
+  border: `1px solid ${PRIMARY}`,
+  borderRadius: 10,
+  color: PRIMARY,
+  fontSize: 13,
+  fontWeight: 600,
+  padding: '10px 0',
+  width: '100%',
+  cursor: 'pointer',
+  letterSpacing: 0.3,
+};
+
+export default function Dashboard() {
   return (
-    <div className="w-[390px] min-h-screen text-white font-sans overflow-y-auto pb-24 relative" style={{ background: 'linear-gradient(to bottom, #1a0a2e, #0a0a1a)' }}>
+    <div style={{ width: 390, minHeight: '100vh', background: BG, color: '#fff', fontFamily: 'system-ui, -apple-system, sans-serif', overflowY: 'auto', paddingBottom: 80, position: 'relative' }}>
+
       {/* Header */}
-      <div className="p-6 pt-12">
-        <div className="flex justify-between items-end mb-1">
-          <p className="text-gray-400 text-sm font-medium">Good morning, Alex</p>
-          <p className="text-[#a855f7] font-bold tracking-tight">LiftFlow</p>
+      <div style={{ padding: '48px 20px 16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
+          <p style={{ color: '#888', fontSize: 13, margin: 0 }}>Good morning, Alex</p>
+          <p style={{ color: PRIMARY, fontWeight: 800, fontSize: 15, margin: 0, letterSpacing: -0.5 }}>LiftFlow</p>
         </div>
-        <h1 className="text-2xl font-bold">Monday, March 21</h1>
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: -0.5 }}>Monday, March 21</h1>
       </div>
 
       {/* Stats Grid */}
-      <div className="px-4 grid grid-cols-2 gap-4 mb-8">
-        {/* Recovery Ring Card */}
-        <div style={cardStyle} className="p-4 flex flex-col items-center justify-center">
-          <Ring percent={68} color="#22c55e" size={100} strokeWidth={8} label="68%" />
-          <p className="text-gray-400 text-xs mt-3 font-medium text-center">Weekly Adherence</p>
+      <div style={{ padding: '0 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+        <div style={{ ...card, padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Ring percent={68} color={PRIMARY} size={96} strokeWidth={8} label="68%" subLabel="adherence" />
+          <p style={{ color: '#888', fontSize: 11, marginTop: 10, textAlign: 'center', margin: '10px 0 0' }}>Weekly Adherence</p>
         </div>
 
-        {/* Clients Ring Card */}
-        <div style={cardStyle} className="p-4 flex flex-col items-center justify-center">
-          <Ring percent={(9/12)*100} color="#3b82f6" size={100} strokeWidth={8} label="9/12" />
-          <p className="text-gray-400 text-xs mt-3 font-medium text-center">Active Clients</p>
+        <div style={{ ...card, padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Ring percent={(9 / 12) * 100} color={SUCCESS} size={96} strokeWidth={8} label="9/12" subLabel="active" />
+          <p style={{ color: '#888', fontSize: 11, marginTop: 10, textAlign: 'center', margin: '10px 0 0' }}>Active Clients</p>
         </div>
 
-        {/* Small Number Card 1 */}
-        <div style={cardStyle} className="p-4 flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <span className="text-4xl font-bold">47</span>
-            <div className="bg-[#f97316] bg-opacity-20 text-[#f97316] p-2 rounded-full">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+        <div style={{ ...card, padding: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1 }}>47</span>
+            <div style={{ background: `${WARNING}22`, color: WARNING, padding: 8, borderRadius: 10 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
             </div>
           </div>
-          <p className="text-[#f97316] text-xs font-semibold mt-2">Pending Reviews</p>
+          <p style={{ color: WARNING, fontSize: 11, fontWeight: 600, marginTop: 8, marginBottom: 0 }}>Pending Reviews</p>
         </div>
 
-        {/* Small Number Card 2 */}
-        <div style={cardStyle} className="p-4 flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <span className="text-4xl font-bold">3</span>
-            <div className="bg-[#a855f7] bg-opacity-20 text-[#a855f7] p-2 rounded-full">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
+        <div style={{ ...card, padding: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1 }}>3</span>
+            <div style={{ background: `${PRIMARY}22`, color: PRIMARY, padding: 8, borderRadius: 10 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
             </div>
           </div>
-          <p className="text-gray-400 text-xs font-medium mt-2">New PRs</p>
+          <p style={{ color: '#888', fontSize: 11, marginTop: 8, marginBottom: 0 }}>New PRs This Week</p>
         </div>
       </div>
 
-      {/* Client List */}
-      <div className="px-4">
-        <h2 className="text-lg font-bold mb-4">Client Overview</h2>
-        <div className="flex flex-col gap-3">
-          {/* Client 1 */}
-          <div style={cardStyle} className="p-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full border-2 border-[#22c55e] flex items-center justify-center bg-gray-800 text-lg font-bold">
-                J
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold">Jordan M</h3>
-                  <div className="w-2 h-2 rounded-full bg-[#22c55e]"></div>
+      {/* Client Overview */}
+      <div style={{ padding: '0 16px' }}>
+        <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 12, marginTop: 0 }}>Client Overview</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {[
+            { initial: 'J', name: 'Jordan M', time: '2h ago', pct: 84, status: SUCCESS },
+            { initial: 'C', name: 'Casey R', time: 'Yesterday', pct: 52, status: WARNING },
+            { initial: 'T', name: 'Taylor B', time: '3d ago', pct: 23, status: DANGER },
+          ].map((c) => (
+            <div key={c.name} style={{ ...card, padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 22, border: `2px solid ${c.status}`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.06)', fontSize: 17, fontWeight: 700 }}>
+                  {c.initial}
                 </div>
-                <p className="text-gray-400 text-xs">2h ago</p>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</span>
+                    <div style={{ width: 7, height: 7, borderRadius: 4, background: c.status }} />
+                  </div>
+                  <p style={{ color: '#888', fontSize: 11, margin: 0 }}>{c.time}</p>
+                </div>
               </div>
+              <Ring percent={c.pct} color={c.status} size={38} strokeWidth={4} label={`${c.pct}%`} />
             </div>
-            <Ring percent={84} color="#22c55e" size={40} strokeWidth={4} />
-          </div>
+          ))}
+        </div>
 
-          {/* Client 2 */}
-          <div style={cardStyle} className="p-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full border-2 border-[#f97316] flex items-center justify-center bg-gray-800 text-lg font-bold">
-                C
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold">Casey R</h3>
-                  <div className="w-2 h-2 rounded-full bg-[#f97316]"></div>
-                </div>
-                <p className="text-gray-400 text-xs">Yesterday</p>
-              </div>
-            </div>
-            <Ring percent={52} color="#f97316" size={40} strokeWidth={4} />
-          </div>
-
-          {/* Client 3 */}
-          <div style={cardStyle} className="p-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full border-2 border-[#ef4444] flex items-center justify-center bg-gray-800 text-lg font-bold">
-                T
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold">Taylor B</h3>
-                  <div className="w-2 h-2 rounded-full bg-[#ef4444]"></div>
-                </div>
-                <p className="text-gray-400 text-xs">3d ago</p>
-              </div>
-            </div>
-            <Ring percent={23} color="#ef4444" size={40} strokeWidth={4} />
-          </div>
+        {/* Hollow CTA button */}
+        <div style={{ marginTop: 14 }}>
+          <button style={outlineBtn}>View All Clients</button>
         </div>
       </div>
 
       {/* Tab Bar */}
-      <div className="absolute bottom-0 w-[390px] h-[60px] bg-[#0a0a1a] border-t border-white/10 flex justify-around items-center px-6 text-gray-400 backdrop-blur-md bg-opacity-90 z-50">
-        <div className="flex flex-col items-center text-white">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-        </div>
-        <div className="flex flex-col items-center">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-        </div>
-        <div className="flex flex-col items-center">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-        </div>
-        <div className="flex flex-col items-center">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-        </div>
+      <div style={{ position: 'fixed', bottom: 0, width: 390, height: 64, background: 'rgba(15,15,15,0.95)', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-around', alignItems: 'center', backdropFilter: 'blur(16px)', zIndex: 50 }}>
+        {[
+          { icon: <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>, active: true },
+          { icon: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>, active: false },
+          { icon: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>, active: false },
+          { icon: <><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>, active: false },
+        ].map((tab, i) => (
+          <div key={i} style={{ color: tab.active ? PRIMARY : '#555' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{tab.icon}</svg>
+          </div>
+        ))}
       </div>
     </div>
   );
