@@ -613,7 +613,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
           <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Exercise Name</Text>
           {canEditAll ? (
             <TextInput
-              style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+              style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !name && prevWeekExercise?.name ? styles.ghostedInput : null]}
               value={name}
               onChangeText={setName}
               onBlur={saveChanges}
@@ -652,7 +652,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
               <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Weight</Text>
               {canEditAll ? (
                 <TextInput
-                  style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+                  style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !weight && prevWeekExercise?.weight ? styles.ghostedInput : null]}
                   value={weight}
                   onChangeText={setWeight}
                   onBlur={saveChanges}
