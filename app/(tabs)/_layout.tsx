@@ -76,7 +76,7 @@ export default function TabLayout() {
           borderTopWidth: isWeb ? 1 : 0,
           borderTopColor: colors.border,
           elevation: 0,
-          ...(isWeb ? { height: 84 } : {}),
+          ...(isWeb ? { height: 64 } : {}),
         },
         tabBarBackground: () =>
           isIOS ? (
@@ -88,10 +88,7 @@ export default function TabLayout() {
           ) : isWeb ? (
             <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.tabBar }]} />
           ) : null,
-        tabBarLabelStyle: {
-          fontFamily: "Rubik_500Medium",
-          fontSize: 11,
-        },
+        tabBarShowLabel: false,
       }}
     >
       <Tabs.Screen
@@ -107,6 +104,7 @@ export default function TabLayout() {
         name="programs"
         options={{
           title: "Programs",
+          tabBarButton: () => null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="barbell" size={size} color={color} />
           ),
@@ -147,7 +145,7 @@ export default function TabLayout() {
           title: "Progress",
           tabBarButton: isCoach ? undefined : () => null,
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="trending-up" size={size} color={color} />
+            <Ionicons name="pulse" size={size} color={color} />
           ),
         }}
       />

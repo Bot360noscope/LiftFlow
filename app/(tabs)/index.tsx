@@ -60,7 +60,8 @@ function ClientCard({ client, programs, hasUnread, colors }: { client: ClientInf
       }
     }
   }
-  const progress = totalEx > 0 ? Math.round((completedEx / totalEx) * 100) : 0;
+  const pct = totalEx > 0 ? Math.round((completedEx / totalEx) * 100) : 0;
+  const statusColor = pct >= 70 ? colors.success : pct >= 40 ? colors.warning : colors.danger;
 
   return (
     <Pressable
@@ -72,30 +73,22 @@ function ClientCard({ client, programs, hasUnread, colors }: { client: ClientInf
         router.push({ pathname: '/client/[id]', params: { id: client.id, name: client.name } });
       }}
     >
-      <View style={styles.clientCardHeader}>
-        {client.avatarUrl ? (
-          <Image source={{ uri: getAvatarUrl(client.avatarUrl) }} style={[styles.clientAvatarImage, { borderColor: colors.primary }]} />
-        ) : (
-          <View style={styles.clientAvatar}>
-            <Text style={[styles.clientAvatarText, { color: colors.primary }]}>{(client.name || '?')[0].toUpperCase()}</Text>
-          </View>
-        )}
-        <View style={styles.clientInfo}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: statusColor, backgroundColor: `${statusColor}12`, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 16, color: statusColor }}>{(client.name || '?')[0].toUpperCase()}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <Text style={[styles.clientName, { color: colors.text }]}>{client.name || 'Client'}</Text>
-            {hasUnread && <View style={[styles.clientUnreadDot, { backgroundColor: colors.primary }]} />}
+            {hasUnread && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary }} />}
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: statusColor }} />
           </View>
-          <Text style={[styles.clientMeta, { color: colors.textMuted }]}>{clientPrograms.length} program{clientPrograms.length !== 1 ? 's' : ''}</Text>
+          <View style={{ height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+            <View style={{ height: '100%' as const, width: `${pct}%` as any, backgroundColor: statusColor, borderRadius: 2 }} />
+          </View>
         </View>
+        <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 12, color: colors.textMuted, flexShrink: 0 }}>{pct}%</Text>
       </View>
-      {totalEx > 0 && (
-        <View style={styles.clientProgress}>
-          <View style={[styles.progressBar, { backgroundColor: colors.surfaceLight }]}>
-            <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: colors.primary }]} />
-          </View>
-          <Text style={[styles.clientProgressText, { color: colors.textSecondary }]}>{progress}% complete</Text>
-        </View>
-      )}
     </Pressable>
   );
 }
@@ -209,14 +202,18 @@ function DayCircle({ index, state, primaryColor, borderColor }: { index: number;
 
 // ─── ClientProgramCard ────────────────────────────────────────────────────────
 function ClientProgramCard({ program, colors }: { program: Program; colors: any }) {
-  const activeWeekNum = useMemo(() => getActiveWeekNumber(program), [program.id]);
-  const [selectedWeek, setSelectedWeek] = useState(activeWeekNum);
+  const activeWeekNum = getActiveWeekNumber(program);
+  const [selectedWeek, setSelectedWeek] = useState(() => getActiveWeekNumber(program));
   const totalWeeks = program.weeks.length;
-  const dayStates = useMemo(() => getWeekDayStates(program, selectedWeek), [program.id, selectedWeek]);
-  const weekPct = useMemo(() => getWeekCompletionPct(program, selectedWeek), [program.id, selectedWeek]);
+  const dayStates = getWeekDayStates(program, selectedWeek);
+  const weekPct = getWeekCompletionPct(program, selectedWeek);
   const isActiveWeek = selectedWeek === activeWeekNum;
   const continueDayIdx = dayStates.findIndex(s => s === 'current');
   const statusColor = program.status === 'active' ? colors.success : colors.warning;
+
+  useEffect(() => {
+    setSelectedWeek(getActiveWeekNumber(program));
+  }, [program]);
 
   return (
     <Pressable
@@ -274,9 +271,12 @@ function ClientProgramCard({ program, colors }: { program: Program; colors: any 
 
       {/* CTA */}
       {isActiveWeek && continueDayIdx >= 0 && (
-        <View style={[styles.continueBtn, { backgroundColor: colors.primary }]}>
+        <Pressable
+          style={[styles.continueBtn, { backgroundColor: colors.primary }]}
+          onPress={() => router.push({ pathname: `/program/${program.id}`, params: { initialWeek: selectedWeek, initialDay: continueDayIdx + 1 } })}
+        >
           <Text style={styles.continueBtnText}>Continue — Day {continueDayIdx + 1}</Text>
-        </View>
+        </Pressable>
       )}
       {isActiveWeek && weekPct === 100 && (
         <View style={[styles.weekStatusBtn, { borderColor: colors.success }]}>
@@ -540,12 +540,21 @@ export default function HomeScreen() {
       <Animated.View entering={FadeInDown.duration(400)}>
         <View style={styles.greetingRow}>
           <View style={styles.greetingLeft}>
-            <Text style={[styles.greeting, { color: colors.text }]} numberOfLines={1}>
-              {isCoach ? 'Dashboard' : 'My Training'}
-            </Text>
-            <Text style={[styles.greetingSub, { color: colors.textSecondary }]} numberOfLines={1}>
-              {profile?.name ? `Welcome, ${profile.name}` : 'Welcome to LiftFlow'}
-            </Text>
+            {(() => {
+              const hour = new Date().getHours();
+              const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+              const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+              return (
+                <>
+                  <Text style={[styles.greetingSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {profile?.name ? `${greet}, ${profile.name}` : greet}
+                  </Text>
+                  <Text style={[styles.greeting, { color: colors.text }]} numberOfLines={1}>
+                    {dateStr}
+                  </Text>
+                </>
+              );
+            })()}
           </View>
           <View style={styles.roleChipRow}>
             {isCoach && (
@@ -567,12 +576,6 @@ export default function HomeScreen() {
           </View>
         </View>
       </Animated.View>
-
-      {isCoach && profile?.coachCode && (
-        <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-          <HomeCoachCodeCard coachCode={profile.coachCode} colors={colors} />
-        </Animated.View>
-      )}
 
       {isCoach && (
         <Animated.View entering={FadeInDown.delay(150).duration(400)}>
@@ -598,6 +601,67 @@ export default function HomeScreen() {
 
       {isCoach ? (
         <>
+          {pendingVideoReviews.length > 0 && (
+            <Animated.View entering={FadeInDown.delay(180).duration(400)}>
+              <Pressable
+                style={[styles.pendingReviewsCard, { backgroundColor: colors.backgroundCard, borderColor: `${colors.warning}33` }]}
+                onPress={() => router.push('/(tabs)/progress')}
+                accessibilityLabel="View pending reviews"
+                accessibilityRole="button"
+              >
+                <View style={styles.pendingReviewsHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                    <View style={[styles.pendingReviewsIcon, { backgroundColor: `${colors.warning}22` }]}>
+                      <Ionicons name="videocam" size={16} color={colors.warning} />
+                    </View>
+                    <View>
+                      <Text style={[styles.pendingReviewsTitle, { color: colors.text }]}>Pending Reviews</Text>
+                      <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.warning }}>{pendingVideoReviews.length} video{pendingVideoReviews.length !== 1 ? 's' : ''} awaiting feedback</Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="rgba(128,128,128,0.4)" />
+                </View>
+                {pendingVideoReviews.slice(0, 3).map((n, i) => (
+                  <Pressable
+                    key={n.id}
+                    style={[styles.pendingReviewRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      handleDismissNotification(n.id);
+                      if (n.programId) router.push({ pathname: `/program/${n.programId}`, params: { highlightExercise: n.exerciseName || '' } });
+                    }}
+                    accessibilityRole="button"
+                  >
+                    <View style={[styles.pendingReviewAvatar, { backgroundColor: `${colors.primary}22` }]}>
+                      <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 12, color: colors.primary }}>
+                        {(n.title?.split(' ')?.[0]?.[0] || '?').toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: colors.text }} numberOfLines={1}>{n.title}</Text>
+                      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }} numberOfLines={1}>{n.exerciseName || n.message}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: 'rgba(128,128,128,0.5)' }}>
+                        {n.createdAt ? (() => { const d = Date.now() - new Date(n.createdAt).getTime(); return d < 3600000 ? `${Math.floor(d/60000)}m ago` : d < 86400000 ? `${Math.floor(d/3600000)}h ago` : 'Yesterday'; })() : ''}
+                      </Text>
+                      <View style={[styles.playBtn, { backgroundColor: `${colors.warning}22` }]}>
+                        <Ionicons name="play" size={10} color={colors.warning} />
+                      </View>
+                    </View>
+                  </Pressable>
+                ))}
+                {pendingVideoReviews.length > 3 && (
+                  <View style={[styles.pendingViewAll, { borderTopColor: colors.border }]}>
+                    <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 12, color: colors.warning }}>
+                      View all {pendingVideoReviews.length} →
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            </Animated.View>
+          )}
+
           <Animated.View entering={FadeInDown.delay(200).duration(400)}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Clients</Text>
@@ -670,67 +734,6 @@ export default function HomeScreen() {
               </>
             )}
           </Animated.View>
-
-          {pendingVideoReviews.length > 0 && (
-            <Animated.View entering={FadeInDown.delay(250).duration(400)}>
-              <Pressable
-                style={[styles.pendingReviewsCard, { backgroundColor: colors.backgroundCard, borderColor: `${colors.warning}33` }]}
-                onPress={() => router.push('/(tabs)/programs')}
-                accessibilityLabel="View pending reviews"
-                accessibilityRole="button"
-              >
-                <View style={styles.pendingReviewsHeader}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                    <View style={[styles.pendingReviewsIcon, { backgroundColor: `${colors.warning}22` }]}>
-                      <Ionicons name="videocam" size={16} color={colors.warning} />
-                    </View>
-                    <View>
-                      <Text style={[styles.pendingReviewsTitle, { color: colors.text }]}>Pending Reviews</Text>
-                      <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.warning }}>{pendingVideoReviews.length} video{pendingVideoReviews.length !== 1 ? 's' : ''} awaiting feedback</Text>
-                    </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="rgba(128,128,128,0.4)" />
-                </View>
-                {pendingVideoReviews.slice(0, 3).map((n, i) => (
-                  <Pressable
-                    key={n.id}
-                    style={[styles.pendingReviewRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      handleDismissNotification(n.id);
-                      if (n.programId) router.push({ pathname: `/program/${n.programId}`, params: { highlightExercise: n.exerciseName || '' } });
-                    }}
-                    accessibilityRole="button"
-                  >
-                    <View style={[styles.pendingReviewAvatar, { backgroundColor: `${colors.primary}22` }]}>
-                      <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 12, color: colors.primary }}>
-                        {(n.title?.split(' ')?.[0]?.[0] || '?').toUpperCase()}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: colors.text }} numberOfLines={1}>{n.title}</Text>
-                      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }} numberOfLines={1}>{n.exerciseName || n.message}</Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: 'rgba(128,128,128,0.5)' }}>
-                        {n.createdAt ? (() => { const d = Date.now() - new Date(n.createdAt).getTime(); return d < 3600000 ? `${Math.floor(d/60000)}m ago` : d < 86400000 ? `${Math.floor(d/3600000)}h ago` : 'Yesterday'; })() : ''}
-                      </Text>
-                      <View style={[styles.playBtn, { backgroundColor: `${colors.warning}22` }]}>
-                        <Ionicons name="play" size={10} color={colors.warning} />
-                      </View>
-                    </View>
-                  </Pressable>
-                ))}
-                {pendingVideoReviews.length > 3 && (
-                  <View style={[styles.pendingViewAll, { borderTopColor: colors.border }]}>
-                    <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 12, color: colors.warning }}>
-                      View all {pendingVideoReviews.length} →
-                    </Text>
-                  </View>
-                )}
-              </Pressable>
-            </Animated.View>
-          )}
 
           {clientNotifs.filter(n => n.type !== 'video').length > 0 && (
             <Animated.View entering={FadeInDown.delay(300).duration(400)}>

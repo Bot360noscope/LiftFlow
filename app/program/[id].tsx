@@ -256,6 +256,113 @@ function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programI
   );
 }
 
+function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, programId, coachId, profileId }: {
+  exercise: Exercise;
+  index: number;
+  onUpdate: (updates: Partial<Exercise>) => void;
+  prevWeekExercise: Exercise | null;
+  programId: string;
+  coachId: string;
+  profileId: string;
+}) {
+  const { colors } = useTheme();
+  const [isCompleted, setIsCompleted] = useState(exercise.isCompleted);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(false);
+  const skipNextAutoSave = useRef(false);
+
+  useEffect(() => {
+    setIsCompleted(exercise.isCompleted);
+  }, [exercise.isCompleted]);
+
+  useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return; }
+    if (skipNextAutoSave.current) { skipNextAutoSave.current = false; return; }
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      onUpdate({ isCompleted });
+    }, 800);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, [isCompleted]);
+
+  const handleToggleComplete = () => {
+    const newVal = !isCompleted;
+    setIsCompleted(newVal);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    skipNextAutoSave.current = true;
+    onUpdate({ isCompleted: newVal });
+  };
+
+  const handleRecord = () => {
+    if (Platform.OS === 'web') {
+      ImagePicker.launchCameraAsync({ mediaTypes: ['videos'], allowsEditing: false }).then(result => {
+        if (result.canceled || !result.assets?.[0]) return;
+        const asset = result.assets[0];
+        router.push({ pathname: '/trim-video', params: { videoUri: asset.uri, videoDuration: String(asset.duration || 0), programId, exerciseId: exercise.id, uploadedBy: profileId, coachId, exerciseName: exercise.name || 'Exercise' } });
+      }).catch(() => showAlert('Error', 'Failed to open camera.'));
+    } else {
+      router.push({ pathname: '/record-video', params: { programId, exerciseId: exercise.id, uploadedBy: profileId, coachId, exerciseName: exercise.name || 'Exercise' } });
+    }
+  };
+
+  const name = exercise.name || prevWeekExercise?.name || `Exercise ${index + 1}`;
+  const repsSets = exercise.repsSets || prevWeekExercise?.repsSets;
+  const weight = exercise.weight || prevWeekExercise?.weight;
+  const rpe = exercise.rpe || prevWeekExercise?.rpe;
+  const coachNote = exercise.notes || prevWeekExercise?.notes;
+  const coachComment = exercise.coachComment || prevWeekExercise?.coachComment;
+  const displayNote = coachComment || coachNote;
+  const hasVideo = !!exercise.videoUrl;
+  const metaParts = [repsSets, weight ? `@ ${weight}` : null, rpe ? `RPE ${rpe}` : null].filter(Boolean);
+  const meta = metaParts.length > 0 ? metaParts.join(' · ') : null;
+
+  return (
+    <View style={[
+      styles.clientExCard,
+      { backgroundColor: colors.backgroundCard, borderColor: isCompleted ? `${colors.success}33` : colors.border },
+      isCompleted && { opacity: 0.85 },
+    ]}>
+      <View style={styles.clientExHeader}>
+        <Pressable
+          onPress={handleToggleComplete}
+          hitSlop={8}
+          style={[styles.clientExCheck, { backgroundColor: isCompleted ? `${colors.success}22` : 'rgba(255,255,255,0.06)', borderColor: isCompleted ? colors.success : 'rgba(255,255,255,0.18)' }]}
+        >
+          {isCompleted && <Ionicons name="checkmark" size={13} color={colors.success} />}
+        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.clientExName, { color: isCompleted ? colors.textMuted : colors.text, textDecorationLine: isCompleted ? 'line-through' : 'none' }]} numberOfLines={1}>
+            {name}
+          </Text>
+          {meta ? <Text style={[styles.clientExMeta, { color: colors.textMuted }]}>{meta}</Text> : null}
+        </View>
+        {hasVideo && isCompleted && (
+          <View style={[styles.clientExVideoBadge, { backgroundColor: `${colors.primary}22` }]}>
+            <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 10, color: colors.primary }}>Video ✓</Text>
+          </View>
+        )}
+      </View>
+
+      {!!displayNote && (
+        <Text style={[styles.clientExCoachNote, { color: colors.textMuted }]}>📝 {displayNote}</Text>
+      )}
+
+      {!isCompleted && (
+        <View style={styles.clientExActions}>
+          <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.primary }]} onPress={handleRecord}>
+            <Ionicons name="videocam-outline" size={14} color={colors.primary} />
+            <Text style={[styles.clientExUploadText, { color: colors.primary }]}>Upload Form Video</Text>
+          </Pressable>
+          <Pressable style={[styles.clientExMarkDoneBtn, { backgroundColor: colors.primary }]} onPress={handleToggleComplete}>
+            <Text style={styles.clientExMarkDoneText}>Mark Done</Text>
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+}
+
 function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId, initialExpanded, planLocked, isExpanded: isExpandedProp, onToggle }: {
   exercise: Exercise;
   index: number;
@@ -612,7 +719,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
 export default function ProgramDetailScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { id, highlightExercise } = useLocalSearchParams<{ id: string; highlightExercise?: string }>();
+  const { id, highlightExercise, initialWeek, initialDay } = useLocalSearchParams<{ id: string; highlightExercise?: string; initialWeek?: string; initialDay?: string }>();
   const [program, setProgram] = useState<Program | null>(null);
   const [activeWeek, setActiveWeek] = useState(1);
   const [activeDay, setActiveDay] = useState(1);
@@ -717,6 +824,15 @@ export default function ProgramDetailScreen() {
                   break;
                 }
               }
+            }
+          } else if (initialWeek) {
+            const weekNum = parseInt(initialWeek as string, 10);
+            const dayNum = initialDay ? parseInt(initialDay as string, 10) : 1;
+            const weekExists = p.weeks.some(w => w.weekNumber === weekNum);
+            if (weekExists) {
+              setActiveWeek(weekNum);
+              const dayExists = p.weeks.find(w => w.weekNumber === weekNum)?.days.some(d => d.dayNumber === dayNum);
+              setActiveDay(dayExists ? dayNum : 1);
             }
           } else if (savedPos) {
             try {
@@ -1297,7 +1413,7 @@ export default function ProgramDetailScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + ((hasChanges || saveError) ? 80 : 20) + (uploads.length > 0 ? 72 : 0), paddingHorizontal: 16, paddingTop: 8 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + ((!isCoach && isShared) ? 90 : (hasChanges || saveError) ? 80 : 20) + (uploads.length > 0 ? 72 : 0), paddingHorizontal: 16, paddingTop: 8 }}
       >
         {exercises.length === 0 ? (
           <View style={styles.emptyDay}>
@@ -1307,22 +1423,34 @@ export default function ProgramDetailScreen() {
         ) : (
           exercises.map((ex, idx) => (
             <Animated.View key={ex.id} entering={FadeInDown.delay(idx * 40).duration(250)}>
-              <ExerciseRow
-                exercise={ex}
-                index={idx}
-                isCoach={isCoach ?? false}
-                isShared={isShared}
-                onUpdate={(updates) => updateExercise(ex.id, updates)}
-                onDelete={() => deleteExercise(ex.id)}
-                prevWeekExercise={prevWeekDay?.exercises[idx] || null}
-                programId={program.id}
-                coachId={program.coachId}
-                profileId={profileId}
-                initialExpanded={false}
-                planLocked={false}
-                isExpanded={expandedExerciseId === ex.id}
-                onToggle={() => setExpandedExerciseId(prev => prev === ex.id ? null : ex.id)}
-              />
+              {(!isCoach && isShared) ? (
+                <ClientExerciseCard
+                  exercise={ex}
+                  index={idx}
+                  onUpdate={(updates) => updateExercise(ex.id, updates)}
+                  prevWeekExercise={prevWeekDay?.exercises[idx] || null}
+                  programId={program.id}
+                  coachId={program.coachId}
+                  profileId={profileId}
+                />
+              ) : (
+                <ExerciseRow
+                  exercise={ex}
+                  index={idx}
+                  isCoach={isCoach ?? false}
+                  isShared={isShared}
+                  onUpdate={(updates) => updateExercise(ex.id, updates)}
+                  onDelete={() => deleteExercise(ex.id)}
+                  prevWeekExercise={prevWeekDay?.exercises[idx] || null}
+                  programId={program.id}
+                  coachId={program.coachId}
+                  profileId={profileId}
+                  initialExpanded={false}
+                  planLocked={false}
+                  isExpanded={expandedExerciseId === ex.id}
+                  onToggle={() => setExpandedExerciseId(prev => prev === ex.id ? null : ex.id)}
+                />
+              )}
             </Animated.View>
           ))
         )}
@@ -1335,7 +1463,21 @@ export default function ProgramDetailScreen() {
         )}
       </ScrollView>
 
-      {(hasChanges || saveError) && !planLocked && (
+      {(!isCoach && isShared) && (
+        <View style={[styles.finishWorkoutBar, { paddingBottom: insets.bottom + 10, backgroundColor: 'rgba(15,15,15,0.97)', borderTopColor: colors.border }]}>
+          <Pressable
+            style={styles.finishWorkoutBtn}
+            onPress={() => {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              router.back();
+            }}
+          >
+            <Text style={styles.finishWorkoutText}>Finish Workout</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {(hasChanges || saveError) && !planLocked && (isCoach || !isShared) && (
         <Animated.View entering={FadeIn.duration(200)} style={[styles.saveBar, { paddingBottom: insets.bottom + 10, backgroundColor: colors.backgroundElevated, borderTopColor: colors.border }]}>
           <View style={[styles.saveBarDot, { backgroundColor: saveError ? colors.danger : colors.warning }]} />
           <Text style={[styles.saveBarText, { color: colors.textSecondary }]}>{saveError ? 'Save failed' : 'Unsaved changes'}</Text>
@@ -1601,4 +1743,43 @@ const styles = StyleSheet.create({
   assignClientName: {
     flex: 1, fontFamily: 'Rubik_500Medium', fontSize: 15, color: Colors.colors.text,
   },
+  clientExCard: {
+    borderRadius: 16, borderWidth: 1, marginBottom: 10,
+    padding: 14, backgroundColor: Colors.colors.backgroundCard,
+  },
+  clientExHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  clientExCheck: {
+    width: 24, height: 24, borderRadius: 12, borderWidth: 1.5,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1,
+  },
+  clientExName: { fontFamily: 'Rubik_700Bold', fontSize: 14, color: Colors.colors.text },
+  clientExMeta: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, marginTop: 2 },
+  clientExVideoBadge: {
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, flexShrink: 0, marginTop: 1,
+  },
+  clientExCoachNote: {
+    fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted,
+    fontStyle: 'italic', marginTop: 8, marginLeft: 34,
+  },
+  clientExActions: { flexDirection: 'row', gap: 8, marginTop: 12, marginLeft: 34 },
+  clientExUploadBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    borderWidth: 1, borderRadius: 8, paddingVertical: 9,
+  },
+  clientExUploadText: { fontFamily: 'Rubik_600SemiBold', fontSize: 12 },
+  clientExMarkDoneBtn: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    borderRadius: 8, paddingVertical: 9,
+  },
+  clientExMarkDoneText: { fontFamily: 'Rubik_700Bold', fontSize: 12, color: '#fff' },
+  finishWorkoutBar: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    paddingHorizontal: 16, paddingTop: 12,
+    borderTopWidth: 1, borderTopColor: Colors.colors.border,
+  },
+  finishWorkoutBtn: {
+    borderRadius: 12, paddingVertical: 14, alignItems: 'center',
+    backgroundColor: Colors.colors.primary,
+  },
+  finishWorkoutText: { fontFamily: 'Rubik_700Bold', fontSize: 15, color: '#fff', letterSpacing: 0.3 },
 });

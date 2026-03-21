@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform } from "react-native";
+import Svg, { Circle } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState, useMemo, useRef } from "react";
@@ -117,6 +118,22 @@ function getOverallAdherence(programs: Program[]): { pct: number; done: number; 
   return { pct: total === 0 ? 0 : Math.round((done / total) * 100), done, total };
 }
 
+function SmallRing({ pct, color }: { pct: number; color: string }) {
+  const size = 48, sw = 4, cx = size / 2, cy = size / 2, r = (size - sw) / 2, circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} style={StyleSheet.absoluteFill as any}>
+        <Circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(128,128,128,0.15)" strokeWidth={sw} />
+        <Circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={sw}
+          strokeDasharray={`${circ} ${circ}`} strokeDashoffset={offset}
+          strokeLinecap="round" transform={`rotate(-90, ${cx}, ${cy})`} />
+      </Svg>
+      <Text style={{ fontSize: 10, fontFamily: 'Rubik_700Bold', color }}>{pct}%</Text>
+    </View>
+  );
+}
+
 function ClientProgressCard({ client, programs, delay, colors, seenMap }: {
   client: ClientInfo; programs: Program[]; delay: number; colors: any; seenMap: Record<string, string>;
 }) {
@@ -126,7 +143,6 @@ function ClientProgressCard({ client, programs, delay, colors, seenMap }: {
   const lastActive = getLastActive(clientPrograms);
   const status = getStatus(adherence, lastActive);
   const statusColor = status === 'green' ? colors.success : status === 'yellow' ? colors.warning : colors.danger;
-  const statusLabel = status === 'green' ? 'On track' : status === 'yellow' ? 'Needs check-in' : 'Gone quiet';
 
   return (
     <Animated.View entering={FadeInDown.delay(delay).duration(400)}>
@@ -134,35 +150,33 @@ function ClientProgressCard({ client, programs, delay, colors, seenMap }: {
         style={({ pressed }) => [styles.clientCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.85 }]}
         onPress={() => router.push(`/client/${client.id}?name=${encodeURIComponent(client.name || '')}`)}
       >
-        <View style={styles.clientTop}>
-          <View style={styles.clientAvatar}>
-            <Text style={[styles.clientAvatarText, { color: colors.primary }]}>{(client.name || '?')[0].toUpperCase()}</Text>
-          </View>
-          <View style={styles.clientInfo}>
-            <Text style={[styles.clientName, { color: colors.text }]}>{client.name || 'Client'}</Text>
-            <View style={styles.statusRow}>
-              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[styles.statusLabel, { color: statusColor }]}>{statusLabel}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          {/* Left side */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+            <View style={{ width: 42, height: 42, borderRadius: 21, borderWidth: 2, borderColor: statusColor, backgroundColor: `${statusColor}12`, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 16, color: statusColor }}>{(client.name || '?')[0].toUpperCase()}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                <Text style={[styles.clientName, { color: colors.text }]} numberOfLines={1}>{client.name || 'Client'}</Text>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: statusColor }} />
+              </View>
+              <View style={{ height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden', marginBottom: 3 }}>
+                <View style={{ height: '100%' as const, width: `${adherence}%` as any, backgroundColor: statusColor, borderRadius: 2 }} />
+              </View>
+              <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 10, color: colors.textMuted }}>Last active {formatLastActive(lastActive)}</Text>
             </View>
           </View>
-          <Text style={[styles.lastActive, { color: colors.textMuted }]}>{formatLastActive(lastActive)}</Text>
-        </View>
-        <View style={styles.metricsRow}>
-          <View style={[styles.metricBox, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.metricValue, { color: adherence >= 70 ? colors.success : adherence >= 40 ? colors.warning : colors.danger }]}>{adherence}%</Text>
-            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Adherence</Text>
+          {/* Right side */}
+          <View style={{ alignItems: 'center', gap: 6, marginLeft: 12, flexShrink: 0 }}>
+            <SmallRing pct={adherence} color={statusColor} />
+            {pendingReviews > 0 && (
+              <View style={{ backgroundColor: `${colors.primary}22`, borderWidth: 1, borderColor: `${colors.primary}44`, borderRadius: 99, paddingHorizontal: 7, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <Ionicons name="play" size={8} color={colors.primary} />
+                <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 10, color: colors.primary }}>{pendingReviews} to review</Text>
+              </View>
+            )}
           </View>
-          <View style={[styles.metricBox, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.metricValue, { color: pendingReviews > 0 ? colors.primary : colors.textMuted }]}>{pendingReviews}</Text>
-            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Pending Reviews</Text>
-          </View>
-          <View style={[styles.metricBox, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.metricValue, { color: colors.text }]}>{clientPrograms.length}</Text>
-            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Programs</Text>
-          </View>
-        </View>
-        <View style={[styles.adherenceBar, { backgroundColor: colors.surfaceLight }]}>
-          <View style={[styles.adherenceFill, { width: `${adherence}%` as any, backgroundColor: statusColor }]} />
         </View>
       </Pressable>
     </Animated.View>
