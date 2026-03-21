@@ -47,43 +47,67 @@ export default function Dashboard() {
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: -0.5 }}>Monday, March 21</h1>
       </div>
 
-      {/* Stats Grid — 2x2 */}
-      <div style={{ padding: '0 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+      {/* Stats Grid — rings row */}
+      <div style={{ padding: '0 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
         <div style={{ ...card, padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <Ring percent={68} color={PRIMARY} size={96} strokeWidth={8} label="68%" subLabel="adherence" />
           <p style={{ color: '#888', fontSize: 11, margin: '10px 0 0', textAlign: 'center' }}>Weekly Adherence</p>
         </div>
-
         <div style={{ ...card, padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <Ring percent={(9 / 12) * 100} color={SUCCESS} size={96} strokeWidth={8} label="9/12" subLabel="clients" />
           <p style={{ color: '#888', fontSize: 11, margin: '10px 0 0', textAlign: 'center' }}>On Track</p>
           <p style={{ color: '#555', fontSize: 10, margin: '2px 0 0', textAlign: 'center' }}>≥70% adherence</p>
         </div>
+      </div>
 
-        <div style={{ ...card, padding: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1 }}>47</span>
-            <div style={{ background: `${WARNING}22`, color: WARNING, padding: 8, borderRadius: 10 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
-                <circle cx="12" cy="13" r="3"/>
-              </svg>
+      {/* Pending Reviews — full width, tappable, shows preview */}
+      <div style={{ padding: '0 16px', marginBottom: 20 }}>
+        <div style={{ ...card, padding: 16, border: `1px solid ${WARNING}33` }}>
+          {/* Header row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ background: `${WARNING}22`, color: WARNING, padding: 8, borderRadius: 10 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                  <circle cx="12" cy="13" r="3"/>
+                </svg>
+              </div>
+              <div>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>Pending Reviews</p>
+                <p style={{ margin: 0, color: WARNING, fontSize: 11, fontWeight: 600 }}>47 videos awaiting feedback</p>
+              </div>
+            </div>
+            <div style={{ color: '#555' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
             </div>
           </div>
-          <p style={{ color: WARNING, fontSize: 11, fontWeight: 600, marginTop: 8, marginBottom: 0 }}>Pending Reviews</p>
-        </div>
-
-        <div style={{ ...card, padding: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1 }}>74<span style={{ fontSize: 20, color: '#888', fontWeight: 600 }}>%</span></span>
-            <div style={{ background: `${SUCCESS}22`, color: SUCCESS, padding: 8, borderRadius: 10 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-              </svg>
+          {/* Preview rows — tapping the card opens the full review queue */}
+          {[
+            { name: 'Jordan M', exercise: 'Back Squat', time: '2h ago' },
+            { name: 'Casey R', exercise: 'Romanian Deadlift', time: '5h ago' },
+            { name: 'Taylor B', exercise: 'Bench Press', time: 'Yesterday' },
+          ].map((r, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: i > 0 ? 10 : 0, borderTop: i > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 16, background: `${PRIMARY}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: PRIMARY }}>
+                  {r.name[0]}
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{r.name}</p>
+                  <p style={{ margin: 0, color: '#666', fontSize: 11 }}>{r.exercise}</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#555', fontSize: 11 }}>{r.time}</span>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: `${WARNING}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: WARNING }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </div>
+              </div>
             </div>
+          ))}
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+            <span style={{ color: WARNING, fontSize: 12, fontWeight: 600 }}>View all 47 →</span>
           </div>
-          <p style={{ color: '#888', fontSize: 11, marginTop: 8, marginBottom: 0 }}>Avg Completion</p>
-          <p style={{ color: '#555', fontSize: 10, marginTop: 2, marginBottom: 0 }}>exercises this week</p>
         </div>
       </div>
 
