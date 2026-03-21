@@ -1,9 +1,9 @@
 import React from 'react';
 
 const PRIMARY = '#E8512F';
-const PRIMARY_MID = '#FF8C42';
-const PRIMARY_LIGHT = '#FFAB6E';
 const SUCCESS = '#34C759';
+const WARNING = '#FF9500';
+const GOLD = '#FFB800';
 const BG = 'linear-gradient(160deg, #1c1c1c 0%, #111111 50%, #0F0F0F 100%)';
 
 const card: React.CSSProperties = {
@@ -13,101 +13,94 @@ const card: React.CSSProperties = {
   backdropFilter: 'blur(12px)',
 };
 
-export default function Progress() {
-  const percent = 72;
-  const size = 148;
-  const strokeWidth = 12;
+// Small ring used inline in stat cards
+const SmallRing = ({ percent, color }: { percent: number; color: string }) => {
+  const size = 52, sw = 5;
   const cx = size / 2, cy = size / 2;
-  const r = (size - strokeWidth) / 2;
+  const r = (size - sw) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (percent / 100) * circ;
+  return (
+    <div style={{ position: 'relative', width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: 'absolute' }}>
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={sw} />
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={sw}
+          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" transform={`rotate(-90,${cx},${cy})`} />
+      </svg>
+      <span style={{ zIndex: 1, fontSize: 11, fontWeight: 700, color: '#fff' }}>{percent}%</span>
+    </div>
+  );
+};
+
+export default function Progress() {
+  // Big adherence ring
+  const percent = 68;
+  const size = 148, sw = 12;
+  const cx = size / 2, cy = size / 2;
+  const r = (size - sw) / 2;
   const circ = 2 * Math.PI * r;
   const offset = circ - (percent / 100) * circ;
 
-  // Program has 5 days — client is on Day 4
-  const days = [
-    { label: 'Day 1', done: true },
-    { label: 'Day 2', done: true },
-    { label: 'Day 3', done: true },
-    { label: 'Day 4', done: false, current: true },
-    { label: 'Day 5', done: false },
+  const clients = [
+    { initial: 'J', name: 'Jordan M', pct: 84, status: SUCCESS, last: '2h ago' },
+    { initial: 'C', name: 'Casey R', pct: 52, status: WARNING, last: 'Yesterday' },
+    { initial: 'T', name: 'Taylor B', pct: 23, status: '#FF3B30', last: '3d ago' },
   ];
 
   return (
     <div style={{ width: 390, minHeight: '100vh', background: BG, color: '#fff', fontFamily: 'system-ui,-apple-system,sans-serif', overflowY: 'auto', paddingBottom: 80, position: 'relative' }}>
 
       {/* Header */}
-      <div style={{ padding: '48px 20px 16px', textAlign: 'center' }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: -0.5 }}>Progress</h1>
-        <p style={{ color: '#888', fontSize: 13, margin: '4px 0 0' }}>Strength Block 1 — Week 2</p>
+      <div style={{ padding: '48px 20px 16px' }}>
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: -0.5 }}>Client Progress</h1>
       </div>
 
-      {/* Big Ring */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
-        <div style={{ position: 'relative', width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: 'absolute', top: 0, left: 0 }}>
-            <defs>
-              <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor={PRIMARY} />
-                <stop offset="100%" stopColor={PRIMARY_MID} />
-              </linearGradient>
-            </defs>
-            <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={strokeWidth} />
-            <circle cx={cx} cy={cy} r={r} fill="none" stroke="url(#ringGrad)" strokeWidth={strokeWidth}
-              strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" transform={`rotate(-90,${cx},${cy})`} />
-          </svg>
-          <div style={{ zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <span style={{ fontSize: 42, fontWeight: 800, lineHeight: 1 }}>72%</span>
-            <span style={{ color: '#888', fontSize: 11, marginTop: 4 }}>Complete</span>
-          </div>
+      {/* Overview row — 3 small stats */}
+      <div style={{ padding: '0 16px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
+        <div style={{ ...card, padding: '12px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 26, fontWeight: 800, color: SUCCESS, lineHeight: 1 }}>9</span>
+          <span style={{ color: '#888', fontSize: 10, textAlign: 'center' }}>Active This Week</span>
+        </div>
+        <div style={{ ...card, padding: '12px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 26, fontWeight: 800, color: PRIMARY, lineHeight: 1 }}>68%</span>
+          <span style={{ color: '#888', fontSize: 10, textAlign: 'center' }}>Roster Adherence</span>
+        </div>
+        <div style={{ ...card, padding: '12px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 26, fontWeight: 800, color: WARNING, lineHeight: 1 }}>2</span>
+          <span style={{ color: '#888', fontSize: 10, textAlign: 'center' }}>Gone Quiet</span>
         </div>
       </div>
 
-      {/* Day circles */}
-      <div style={{ padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
-        {days.map((d, i) => {
-          const bg = d.done ? PRIMARY : d.current ? 'rgba(232,81,47,0.15)' : 'rgba(255,255,255,0.06)';
-          const numColor = d.done ? '#fff' : d.current ? PRIMARY : '#555';
-          const border = d.current ? `2px solid ${PRIMARY}` : '2px solid transparent';
-          return (
-            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <span style={{ color: '#555', fontSize: 10, fontWeight: 600 }}>{i + 1}</span>
-              <div style={{ width: 34, height: 34, borderRadius: 17, background: bg, border, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {d.done
-                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  : <span style={{ color: numColor, fontSize: 13, fontWeight: 700 }}>{d.current ? '·' : ''}</span>
-                }
+      {/* Client list */}
+      <div style={{ padding: '0 16px' }}>
+        <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 12, marginTop: 0 }}>
+          Clients <span style={{ color: WARNING, fontSize: 13, fontWeight: 600 }}>· 2 gone quiet</span>
+        </h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {clients.map((c) => (
+            <div key={c.name} style={{ ...card, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 22, border: `2px solid ${c.status}`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.06)', fontSize: 17, fontWeight: 700, flexShrink: 0 }}>
+                  {c.initial}
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</span>
+                    <div style={{ width: 7, height: 7, borderRadius: 4, background: c.status }} />
+                  </div>
+                  {/* Mini adherence bar */}
+                  <div style={{ width: 110, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', marginBottom: 3 }}>
+                    <div style={{ height: '100%', width: `${c.pct}%`, background: c.status, borderRadius: 2 }} />
+                  </div>
+                  <span style={{ color: '#555', fontSize: 10 }}>Last active {c.last}</span>
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Personal Records */}
-      <div style={{ padding: '0 16px', marginBottom: 20 }}>
-        <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 12, marginTop: 0 }}>Personal Records</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-          {[
-            { label: 'Squat', value: '185', unit: 'kg', badge: '↑ 5kg', color: PRIMARY },
-            { label: 'Deadlift', value: '220', unit: 'kg', badge: '↑ 10kg', color: PRIMARY_MID },
-            { label: 'Bench', value: '120', unit: 'kg', badge: '→ Same', color: PRIMARY_LIGHT },
-          ].map((pr) => (
-            <div key={pr.label} style={{ ...card, padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-              <p style={{ color: '#888', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8, margin: '0 0 8px' }}>{pr.label}</p>
-              <p style={{ fontSize: 20, fontWeight: 800, margin: '0 0 6px', color: pr.color }}>
-                {pr.value}<span style={{ fontSize: 10, color: '#888', marginLeft: 2 }}>{pr.unit}</span>
-              </p>
-              <div style={{ background: `${pr.color}22`, color: pr.color, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99 }}>
-                {pr.badge}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                <SmallRing percent={c.pct} color={c.status} />
               </div>
             </div>
           ))}
         </div>
-      </div>
-
-      {/* CTA */}
-      <div style={{ padding: '0 16px' }}>
-        <button style={{ background: 'transparent', border: `1px solid ${PRIMARY}`, borderRadius: 10, color: PRIMARY, fontSize: 13, fontWeight: 600, padding: '10px 0', width: '100%', cursor: 'pointer' }}>
-          Continue — Day 4
-        </button>
       </div>
 
       {/* Tab Bar */}
