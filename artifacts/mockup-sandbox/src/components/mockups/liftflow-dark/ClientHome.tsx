@@ -72,6 +72,7 @@ export default function ClientHome() {
           </div>
 
           {/* Day circles for current week */}
+          <p style={{ color: '#555', fontSize: 10, margin: '0 0 8px', textAlign: 'center' }}>tap any day to view</p>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
             {[
               { done: true },

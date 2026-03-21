@@ -55,8 +55,9 @@ export default function Dashboard() {
         </div>
 
         <div style={{ ...card, padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <Ring percent={(9 / 12) * 100} color={SUCCESS} size={96} strokeWidth={8} label="9/12" subLabel="active" />
-          <p style={{ color: '#888', fontSize: 11, margin: '10px 0 0', textAlign: 'center' }}>Active Clients</p>
+          <Ring percent={(9 / 12) * 100} color={SUCCESS} size={96} strokeWidth={8} label="9/12" subLabel="clients" />
+          <p style={{ color: '#888', fontSize: 11, margin: '10px 0 0', textAlign: 'center' }}>On Track</p>
+          <p style={{ color: '#555', fontSize: 10, margin: '2px 0 0', textAlign: 'center' }}>≥70% adherence</p>
         </div>
 
         <div style={{ ...card, padding: 16 }}>
@@ -74,14 +75,15 @@ export default function Dashboard() {
 
         <div style={{ ...card, padding: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1 }}>6</span>
-            <div style={{ background: `${PRIMARY}22`, color: PRIMARY, padding: 8, borderRadius: 10 }}>
+            <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1 }}>74<span style={{ fontSize: 20, color: '#888', fontWeight: 600 }}>%</span></span>
+            <div style={{ background: `${SUCCESS}22`, color: SUCCESS, padding: 8, borderRadius: 10 }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M3 9h18"/>
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
               </svg>
             </div>
           </div>
-          <p style={{ color: '#888', fontSize: 11, marginTop: 8, marginBottom: 0 }}>Active Programs</p>
+          <p style={{ color: '#888', fontSize: 11, marginTop: 8, marginBottom: 0 }}>Avg Completion</p>
+          <p style={{ color: '#555', fontSize: 10, marginTop: 2, marginBottom: 0 }}>exercises this week</p>
         </div>
       </div>
 
