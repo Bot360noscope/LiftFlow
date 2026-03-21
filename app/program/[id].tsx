@@ -787,7 +787,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
 export default function ProgramDetailScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { id, highlightExercise, initialWeek, initialDay } = useLocalSearchParams<{ id: string; highlightExercise?: string; initialWeek?: string; initialDay?: string }>();
+  const { id, highlightExercise, highlightExerciseId, initialWeek, initialDay } = useLocalSearchParams<{ id: string; highlightExercise?: string; highlightExerciseId?: string; initialWeek?: string; initialDay?: string }>();
   const [program, setProgram] = useState<Program | null>(null);
   const [activeWeek, setActiveWeek] = useState(1);
   const [activeDay, setActiveDay] = useState(1);
@@ -875,7 +875,16 @@ export default function ProgramDetailScreen() {
     if (id) {
       Promise.all([getProgram(id), getProfile(), AsyncStorage.getItem(programPositionKey(id)).catch(() => null)]).catch(() => [null, null, null] as const).then(async ([p, prof, savedPos]) => {
         if (p) {
-          if (highlightExercise) {
+          if (highlightExerciseId) {
+            const weekNum = initialWeek ? parseInt(initialWeek as string, 10) : 0;
+            const dayNum = initialDay ? parseInt(initialDay as string, 10) : 0;
+            if (weekNum && dayNum) {
+              setActiveWeek(weekNum);
+              setActiveDay(dayNum);
+            }
+            setHighlightedExerciseId(highlightExerciseId);
+            setExpandedExerciseId(highlightExerciseId);
+          } else if (highlightExercise) {
             let matched = false;
             for (const week of [...p.weeks].reverse()) {
               if (matched) break;

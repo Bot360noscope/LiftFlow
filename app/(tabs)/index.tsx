@@ -406,7 +406,7 @@ export default function HomeScreen() {
   }).length;
 
   // Pending reviews — count exercises with video/notes but no coach comment (from program data, not notifications)
-  const pendingReviewItems: { id: string; clientName: string; exerciseName: string; programId: string; videoUrl?: string; updatedAt?: string }[] = [];
+  const pendingReviewItems: { id: string; clientName: string; exerciseName: string; programId: string; videoUrl?: string; updatedAt?: string; weekNumber: number; dayNumber: number }[] = [];
   for (const prog of programs) {
     if (!prog.clientId) continue;
     const client = clients.find(c => c.id === prog.clientId);
@@ -423,6 +423,8 @@ export default function HomeScreen() {
                 programId: prog.id,
                 videoUrl: ex.videoUrl,
                 updatedAt: prog.updatedAt || prog.createdAt,
+                weekNumber: week.weekNumber,
+                dayNumber: day.dayNumber,
               });
             }
           }
@@ -568,7 +570,7 @@ export default function HomeScreen() {
                   style={[styles.pendingReviewRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    if (item.programId) router.push({ pathname: `/program/${item.programId}`, params: { highlightExercise: item.exerciseName } });
+                    if (item.programId) router.push({ pathname: `/program/${item.programId}`, params: { highlightExerciseId: item.id, initialWeek: String(item.weekNumber), initialDay: String(item.dayNumber) } });
                   }}
                   accessibilityRole="button"
                 >
