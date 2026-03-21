@@ -1,4 +1,4 @@
-import { Tabs } from "expo-router";
+import { Tabs, useFocusEffect } from "expo-router";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,6 +15,11 @@ export default function TabLayout() {
   const [isCoach, setIsCoach] = useState<boolean>(() => getCachedProfile()?.role === 'coach');
   const wsUnreadRef = useRef(false);
   const pollCountRef = useRef(0);
+
+  useFocusEffect(useCallback(() => {
+    const profile = getCachedProfile();
+    if (profile) setIsCoach(profile.role === 'coach');
+  }, []));
 
   const checkUnread = useCallback(async () => {
     try {
