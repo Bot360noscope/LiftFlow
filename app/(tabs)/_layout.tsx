@@ -111,6 +111,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="progress"
+        options={{
+          title: "Progress",
+          tabBarButton: isCoach ? undefined : () => null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="pulse" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="chat"
         listeners={{
           tabPress: () => {
@@ -136,16 +146,6 @@ export default function TabLayout() {
                 }} />
               )}
             </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="progress"
-        options={{
-          title: "Progress",
-          tabBarButton: isCoach ? undefined : () => null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="pulse" size={size} color={color} />
           ),
         }}
       />
