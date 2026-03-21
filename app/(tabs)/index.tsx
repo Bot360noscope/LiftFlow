@@ -5,6 +5,7 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { router, useFocusEffect } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
@@ -306,6 +307,7 @@ export default function HomeScreen() {
   const lastRefetchRef = useRef<number>(0);
 
   const dismissedIdsRef = useRef<Set<string>>(new Set());
+  const [seenMap, setSeenMap] = useState<Record<string, string>>({});
 
   const refreshDashboard = useCallback(async () => {
     try {
@@ -338,6 +340,9 @@ export default function HomeScreen() {
     if (cachedNotifs.length > 0) setNotifications(cachedNotifs);
     const cachedMsgs = getCachedLatestMessages();
     if (Object.keys(cachedMsgs).length > 0) setLatestMsgs(cachedMsgs);
+    AsyncStorage.getItem('liftflow_seen_exercises').then(stored => {
+      if (stored) setSeenMap(JSON.parse(stored));
+    });
     const now = Date.now();
     if (now - lastRefetchRef.current >= 3000) {
       lastRefetchRef.current = now;
@@ -375,27 +380,56 @@ export default function HomeScreen() {
     ? notifications.filter(n => n.fromRole === 'client' && n.type !== 'completion' && n.type !== 'chat')
     : notifications.filter(n => n.type !== 'chat');
 
-  // Coach adherence rings
-  let coachTotalEx = 0, coachCompletedEx = 0;
-  for (const p of programs) {
-    for (const w of p.weeks) {
-      for (const d of w.days) {
-        for (const e of d.exercises) {
-          if (!e.name) continue;
-          coachTotalEx++;
-          if (e.isCompleted) coachCompletedEx++;
+  // Coach adherence rings — only count up to the highest week with any client activity
+  const getWeeklyAdh = (progs: Program[]) => {
+    let totalNamed = 0, totalCompleted = 0;
+    for (const prog of progs) {
+      let maxActiveWeek = 0;
+      for (const week of (prog.weeks || [])) {
+        const exercises = week.days.flatMap(d => d.exercises.filter(e => e.name));
+        if (exercises.some(e => e.isCompleted || e.clientNotes || e.videoUrl)) maxActiveWeek = Math.max(maxActiveWeek, week.weekNumber);
+      }
+      if (maxActiveWeek === 0) maxActiveWeek = 1;
+      for (const week of (prog.weeks || [])) {
+        if (week.weekNumber > maxActiveWeek) continue;
+        const exercises = week.days.flatMap(d => d.exercises.filter(e => e.name));
+        totalNamed += exercises.length;
+        totalCompleted += exercises.filter(e => e.isCompleted).length;
+      }
+    }
+    return totalNamed > 0 ? Math.round((totalCompleted / totalNamed) * 100) : 0;
+  };
+  const adherencePct = getWeeklyAdh(programs);
+  const onTrackCount = clients.filter(c => {
+    const cp = programs.filter(p => p.clientId === c.id);
+    return getWeeklyAdh(cp) >= 70;
+  }).length;
+
+  // Pending reviews — count exercises with video/notes but no coach comment (from program data, not notifications)
+  const pendingReviewItems: { id: string; clientName: string; exerciseName: string; programId: string; videoUrl?: string; updatedAt?: string }[] = [];
+  for (const prog of programs) {
+    if (!prog.clientId) continue;
+    const client = clients.find(c => c.id === prog.clientId);
+    for (const week of (prog.weeks || [])) {
+      for (const day of week.days) {
+        for (const ex of day.exercises) {
+          if ((ex.videoUrl || ex.clientNotes) && !ex.coachComment) {
+            const contentKey = `${ex.clientNotes || ''}::${ex.videoUrl || ''}`;
+            if (seenMap[ex.id] !== contentKey) {
+              pendingReviewItems.push({
+                id: ex.id,
+                clientName: client?.name || 'Client',
+                exerciseName: ex.name || 'Exercise',
+                programId: prog.id,
+                videoUrl: ex.videoUrl,
+                updatedAt: prog.updatedAt || prog.createdAt,
+              });
+            }
+          }
         }
       }
     }
   }
-  const adherencePct = coachTotalEx > 0 ? Math.round((coachCompletedEx / coachTotalEx) * 100) : 0;
-  const onTrackCount = clients.filter(c => {
-    const cp = programs.filter(p => p.clientId === c.id);
-    let t = 0, done = 0;
-    for (const p of cp) { for (const w of p.weeks) { for (const d of w.days) { for (const e of d.exercises) { if (!e.name) continue; t++; if (e.isCompleted) done++; } } } }
-    return t > 0 && Math.round((done / t) * 100) >= 70;
-  }).length;
-  const pendingVideoReviews = clientNotifs.filter(n => n.type === 'video');
 
   const sortedClients = isCoach ? [...clients].sort((a, b) => {
     const aMsg = latestMsgs[a.clientProfileId || ''];
@@ -520,48 +554,46 @@ export default function HomeScreen() {
                   <View>
                     <Text style={[styles.pendingReviewsTitle, { color: colors.text }]}>Pending Reviews</Text>
                     <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.warning }}>
-                      {pendingVideoReviews.length > 0
-                        ? `${pendingVideoReviews.length} video${pendingVideoReviews.length !== 1 ? 's' : ''} awaiting feedback`
+                      {pendingReviewItems.length > 0
+                        ? `${pendingReviewItems.length} video${pendingReviewItems.length !== 1 ? 's' : ''} awaiting feedback`
                         : 'All caught up'}
                     </Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="rgba(128,128,128,0.4)" />
               </View>
-              {pendingVideoReviews.slice(0, 3).map((n, i) => (
+              {pendingReviewItems.slice(0, 3).map((item, i) => (
                 <Pressable
-                  key={n.id}
+                  key={item.id}
                   style={[styles.pendingReviewRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    handleDismissNotification(n.id);
-                    if (n.programId) router.push({ pathname: `/program/${n.programId}`, params: { highlightExercise: n.exerciseName || '' } });
+                    if (item.programId) router.push({ pathname: `/program/${item.programId}`, params: { highlightExercise: item.exerciseName } });
                   }}
                   accessibilityRole="button"
                 >
                   <View style={[styles.pendingReviewAvatar, { backgroundColor: `${colors.primary}22` }]}>
                     <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 12, color: colors.primary }}>
-                      {(n.title?.split(' ')?.[0]?.[0] || '?').toUpperCase()}
+                      {(item.clientName[0] || '?').toUpperCase()}
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: colors.text }} numberOfLines={1}>{n.title}</Text>
-                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }} numberOfLines={1}>{n.exerciseName || n.message}</Text>
+                    <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: colors.text }} numberOfLines={1}>{item.clientName}</Text>
+                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }} numberOfLines={1}>{item.exerciseName}</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: 'rgba(128,128,128,0.5)' }}>
-                      {n.createdAt ? (() => { const d = Date.now() - new Date(n.createdAt).getTime(); return d < 3600000 ? `${Math.floor(d/60000)}m ago` : d < 86400000 ? `${Math.floor(d/3600000)}h ago` : 'Yesterday'; })() : ''}
-                    </Text>
-                    <View style={[styles.playBtn, { backgroundColor: `${colors.warning}22` }]}>
-                      <Ionicons name="play" size={10} color={colors.warning} />
-                    </View>
+                    {item.videoUrl && (
+                      <View style={[styles.playBtn, { backgroundColor: `${colors.warning}22` }]}>
+                        <Ionicons name="play" size={10} color={colors.warning} />
+                      </View>
+                    )}
                   </View>
                 </Pressable>
               ))}
-              {pendingVideoReviews.length > 3 && (
+              {pendingReviewItems.length > 3 && (
                 <View style={[styles.pendingViewAll, { borderTopColor: colors.border }]}>
                   <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 12, color: colors.warning }}>
-                    View all {pendingVideoReviews.length} →
+                    View all {pendingReviewItems.length} →
                   </Text>
                 </View>
               )}

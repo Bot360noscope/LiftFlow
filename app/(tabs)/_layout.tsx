@@ -95,8 +95,8 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "home" : "home-outline"} size={size} color={color} />
           ),
         }}
       />
@@ -104,7 +104,7 @@ export default function TabLayout() {
         name="programs"
         options={{
           title: "Programs",
-          tabBarButton: () => null,
+          href: null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="barbell" size={size} color={color} />
           ),
@@ -115,8 +115,8 @@ export default function TabLayout() {
         options={{
           title: "Progress",
           tabBarButton: isCoach ? undefined : () => null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="pulse" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "pulse" : "pulse-outline"} size={size} color={color} />
           ),
         }}
       />
@@ -129,9 +129,9 @@ export default function TabLayout() {
         }}
         options={{
           title: "Chat",
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size, focused }) => (
             <View>
-              <Ionicons name="chatbubbles" size={size} color={color} />
+              <Ionicons name={focused ? "chatbubble" : "chatbubble-outline"} size={size} color={color} />
               {hasUnreadChat && (
                 <View style={{
                   position: 'absolute',
@@ -153,8 +153,8 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "person" : "person-outline"} size={size} color={color} />
           ),
         }}
       />

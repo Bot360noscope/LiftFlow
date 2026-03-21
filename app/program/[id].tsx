@@ -268,13 +268,20 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
 }) {
   const { colors } = useTheme();
   const [isCompleted, setIsCompleted] = useState(exercise.isCompleted);
+  const [clientNotes, setClientNotes] = useState(exercise.clientNotes || '');
+  const [expanded, setExpanded] = useState(false);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notesAutoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(false);
   const skipNextAutoSave = useRef(false);
 
   useEffect(() => {
     setIsCompleted(exercise.isCompleted);
   }, [exercise.isCompleted]);
+
+  useEffect(() => {
+    setClientNotes(exercise.clientNotes || '');
+  }, [exercise.clientNotes]);
 
   useEffect(() => {
     if (!mountedRef.current) { mountedRef.current = true; return; }
@@ -307,6 +314,14 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
     }
   };
 
+  const handleNotesChange = (text: string) => {
+    setClientNotes(text);
+    if (notesAutoSaveTimer.current) clearTimeout(notesAutoSaveTimer.current);
+    notesAutoSaveTimer.current = setTimeout(() => {
+      onUpdate({ clientNotes: text });
+    }, 800);
+  };
+
   const name = exercise.name || prevWeekExercise?.name || `Exercise ${index + 1}`;
   const repsSets = exercise.repsSets || prevWeekExercise?.repsSets;
   const weight = exercise.weight || prevWeekExercise?.weight;
@@ -319,14 +334,17 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
   const meta = metaParts.length > 0 ? metaParts.join(' · ') : null;
 
   return (
-    <View style={[
-      styles.clientExCard,
-      { backgroundColor: colors.backgroundCard, borderColor: isCompleted ? `${colors.success}33` : colors.border },
-      isCompleted && { opacity: 0.85 },
-    ]}>
-      <View style={[styles.clientExHeader, { marginBottom: (!!displayNote || !isCompleted) ? 10 : 0 }]}>
+    <Pressable
+      onPress={() => setExpanded(prev => !prev)}
+      style={[
+        styles.clientExCard,
+        { backgroundColor: colors.backgroundCard, borderColor: isCompleted ? `${colors.success}33` : colors.border },
+        isCompleted && { opacity: 0.85 },
+      ]}
+    >
+      <View style={[styles.clientExHeader, { marginBottom: (!!displayNote || !isCompleted || expanded) ? 10 : 0 }]}>
         <Pressable
-          onPress={handleToggleComplete}
+          onPress={(e) => { e.stopPropagation(); handleToggleComplete(); }}
           hitSlop={8}
           style={[styles.clientExCheck, { backgroundColor: isCompleted ? `${colors.success}22` : 'rgba(255,255,255,0.06)', borderColor: isCompleted ? colors.success : 'rgba(255,255,255,0.15)' }]}
         >
@@ -338,11 +356,14 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
           </Text>
           {meta ? <Text style={[styles.clientExMeta, { color: '#666' }]}>{meta}</Text> : null}
         </View>
-        {hasVideo && (
-          <View style={[styles.clientExVideoBadge, { backgroundColor: `${colors.primary}22` }]}>
-            <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 10, color: colors.primary }}>Video ✓</Text>
-          </View>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {hasVideo && (
+            <View style={[styles.clientExVideoBadge, { backgroundColor: `${colors.primary}22` }]}>
+              <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 10, color: colors.primary }}>Video ✓</Text>
+            </View>
+          )}
+          <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={colors.textMuted} />
+        </View>
       </View>
 
       {!!displayNote && (
@@ -351,15 +372,51 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
 
       {!isCompleted && (
         <View style={styles.clientExActions}>
-          <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.primary }]} onPress={handleRecord}>
+          <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.primary }]} onPress={(e) => { e.stopPropagation(); handleRecord(); }}>
             <Text style={[styles.clientExUploadText, { color: colors.primary }]}>Upload Form Video</Text>
           </Pressable>
-          <Pressable style={[styles.clientExMarkDoneBtn, { backgroundColor: colors.primary }]} onPress={handleToggleComplete}>
+          <Pressable style={[styles.clientExMarkDoneBtn, { backgroundColor: colors.primary }]} onPress={(e) => { e.stopPropagation(); handleToggleComplete(); }}>
             <Text style={styles.clientExMarkDoneText}>Mark Done</Text>
           </Pressable>
         </View>
       )}
-    </View>
+
+      {expanded && (
+        <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 }}>
+          {hasVideo && (
+            <VideoPlayerInline videoUrl={exercise.videoUrl} />
+          )}
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6, marginTop: hasVideo ? 10 : 0 }}>
+            <Ionicons name="chatbubble-outline" size={11} color={colors.textSecondary} />
+            <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 12, color: colors.textSecondary }}>My Notes</Text>
+          </View>
+          <TextInput
+            style={[styles.fieldInput, { minHeight: 50, color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+            value={clientNotes}
+            onChangeText={handleNotesChange}
+            placeholder={prevWeekExercise?.clientNotes || "How it felt, feedback..."}
+            placeholderTextColor={prevWeekExercise?.clientNotes ? colors.textGhost : colors.textMuted}
+            multiline
+            textAlignVertical="top"
+          />
+
+          {!!coachComment && (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6, marginTop: 10 }}>
+                <Ionicons name="school-outline" size={11} color={colors.accent} />
+                <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 12, color: colors.accent }}>Coach Comment</Text>
+              </View>
+              <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.accent }]}>
+                <Text style={[styles.readOnlyText, { color: colors.textMuted }]}>
+                  {coachComment}
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+      )}
+    </Pressable>
   );
 }
 
@@ -414,7 +471,12 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   useEffect(() => {
     if (!contentKey) { setSeenContent(true); return; }
     AsyncStorage.getItem(seenStorageKey).then(stored => {
-      setSeenContent(stored === contentKey);
+      if (stored === contentKey) {
+        setSeenContent(true);
+      } else {
+        setSeenContent(false);
+        if (expanded && isCoach && isShared) markSeen();
+      }
     });
   }, [contentKey, seenStorageKey]);
 
@@ -630,9 +692,10 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
             </View>
           )}
 
-          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-            <Ionicons name="chatbubble-outline" size={12} color={colors.textSecondary} /> {isShared ? 'Client Notes' : 'Notes'}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+            <Ionicons name="chatbubble-outline" size={12} color={colors.textSecondary} />
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginBottom: 0 }]}>{isShared ? 'Client Notes' : 'Notes'}</Text>
+          </View>
           {(isCoach && isShared) ? (
             <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
               <Text style={[styles.readOnlyText, { color: colors.textMuted }, !clientNotes && prevWeekExercise?.clientNotes ? [styles.ghostText, { color: colors.textGhost }] : null]}>
@@ -653,9 +716,10 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
 
           {isShared && (
             <>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                <Ionicons name="school-outline" size={12} color={colors.accent} /> Coach Comment
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                <Ionicons name="school-outline" size={12} color={colors.accent} />
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginBottom: 0 }]}>Coach Comment</Text>
+              </View>
               {isCoach ? (
                 <TextInput
                   style={[styles.fieldInput, styles.coachInput, { minHeight: 50, color: colors.text, backgroundColor: colors.surface, borderColor: colors.accent }]}

@@ -107,7 +107,14 @@ function getStatus(adherence: number, lastActive: Date | null): 'green' | 'yello
 function getOverallAdherence(programs: Program[]): { pct: number; done: number; total: number } {
   let done = 0, total = 0;
   for (const prog of programs) {
+    let maxActiveWeek = 0;
     for (const week of (prog.weeks || [])) {
+      const exercises = week.days.flatMap(d => d.exercises.filter(e => e.name));
+      if (exercises.some(e => e.isCompleted || e.clientNotes || e.videoUrl)) maxActiveWeek = Math.max(maxActiveWeek, week.weekNumber);
+    }
+    if (maxActiveWeek === 0) maxActiveWeek = 1;
+    for (const week of (prog.weeks || [])) {
+      if (week.weekNumber > maxActiveWeek) continue;
       for (const day of week.days) {
         const named = day.exercises.filter(e => e.name);
         total += named.length;
