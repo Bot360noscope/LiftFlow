@@ -202,14 +202,6 @@ function configureExpoAndLanding(app: express.Application) {
       return serveExpoManifest(platform, res);
     }
 
-    if (req.path === "/" && hasWebBuild) {
-      const userAgent = req.header("user-agent") || "";
-      const isExpoClient = req.header("expo-platform") || userAgent.includes("Expo");
-      if (!isExpoClient) {
-        return res.sendFile(path.join(webDistPath, "index.html"));
-      }
-    }
-
     if (req.path === "/") {
       return serveLandingPage({
         req,
