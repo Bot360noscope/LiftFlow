@@ -1,8 +1,9 @@
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, ActivityIndicator, Image } from "react-native";
+import Svg, { Circle } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -119,6 +120,156 @@ function ProgramCard({ program, colors }: { program: Program; colors: any }) {
         </View>
         <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{progress}%</Text>
       </View>
+    </Pressable>
+  );
+}
+
+// ─── Week helpers ────────────────────────────────────────────────────────────
+function getActiveWeekNumber(program: Program): number {
+  let maxActive = 1;
+  for (const week of program.weeks) {
+    const hasActivity = week.days.some(d => d.exercises.some(e => e.isCompleted || e.clientNotes || e.videoUrl));
+    if (hasActivity) maxActive = Math.max(maxActive, week.weekNumber);
+  }
+  return maxActive;
+}
+type DayState = 'done' | 'current' | 'upcoming';
+function getWeekDayStates(program: Program, weekNumber: number): DayState[] {
+  const week = program.weeks.find(w => w.weekNumber === weekNumber);
+  if (!week) return [];
+  const results: DayState[] = [];
+  let foundCurrent = false;
+  for (const day of week.days) {
+    const named = day.exercises.filter(e => e.name);
+    if (named.length === 0) { results.push('upcoming'); continue; }
+    const allDone = named.every(e => e.isCompleted);
+    if (allDone) { results.push('done'); continue; }
+    if (!foundCurrent) { results.push('current'); foundCurrent = true; }
+    else results.push('upcoming');
+  }
+  return results.length > 0 ? results : week.days.map(() => 'upcoming' as DayState);
+}
+function getWeekCompletionPct(program: Program, weekNumber: number): number {
+  const week = program.weeks.find(w => w.weekNumber === weekNumber);
+  if (!week) return 0;
+  const days = week.days.filter(d => d.exercises.some(e => e.name));
+  if (!days.length) return 0;
+  const done = days.filter(d => d.exercises.filter(e => e.name).every(e => e.isCompleted)).length;
+  return Math.round((done / days.length) * 100);
+}
+
+// ─── WeekRing ─────────────────────────────────────────────────────────────────
+function WeekRing({ percent, size = 56, strokeWidth = 4, color, textColor }: { percent: number; size?: number; strokeWidth?: number; color: string; textColor: string }) {
+  const cx = size / 2, cy = size / 2, r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (percent / 100) * circ;
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} style={StyleSheet.absoluteFill as any}>
+        <Circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(128,128,128,0.18)" strokeWidth={strokeWidth} />
+        <Circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={strokeWidth}
+          strokeDasharray={`${circ} ${circ}`} strokeDashoffset={offset}
+          strokeLinecap="round" transform={`rotate(-90, ${cx}, ${cy})`} />
+      </Svg>
+      <Text style={{ fontSize: Math.floor(size * 0.22), fontFamily: 'Rubik_700Bold', color: textColor }}>{percent}%</Text>
+    </View>
+  );
+}
+
+// ─── DayCircle ────────────────────────────────────────────────────────────────
+function DayCircle({ index, state, primaryColor, borderColor }: { index: number; state: DayState; primaryColor: string; borderColor: string }) {
+  const bgColor = state === 'done' ? primaryColor : state === 'current' ? `${primaryColor}18` : 'transparent';
+  const bColor = state === 'current' ? primaryColor : state === 'upcoming' ? borderColor : 'transparent';
+  return (
+    <View style={{ alignItems: 'center', gap: 5 }}>
+      <Text style={{ fontSize: 10, fontFamily: 'Rubik_500Medium', color: state === 'upcoming' ? 'rgba(128,128,128,0.5)' : 'rgba(128,128,128,0.8)' }}>
+        {index + 1}
+      </Text>
+      <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: bgColor, borderWidth: 1.5, borderColor: bColor, alignItems: 'center', justifyContent: 'center' }}>
+        {state === 'done' && <Ionicons name="checkmark" size={15} color="#fff" />}
+        {state === 'current' && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: primaryColor }} />}
+      </View>
+    </View>
+  );
+}
+
+// ─── ClientProgramCard ────────────────────────────────────────────────────────
+function ClientProgramCard({ program, colors }: { program: Program; colors: any }) {
+  const activeWeekNum = useMemo(() => getActiveWeekNumber(program), [program.id]);
+  const [selectedWeek, setSelectedWeek] = useState(activeWeekNum);
+  const totalWeeks = program.weeks.length;
+  const dayStates = useMemo(() => getWeekDayStates(program, selectedWeek), [program.id, selectedWeek]);
+  const weekPct = useMemo(() => getWeekCompletionPct(program, selectedWeek), [program.id, selectedWeek]);
+  const isActiveWeek = selectedWeek === activeWeekNum;
+  const continueDayIdx = dayStates.findIndex(s => s === 'current');
+  const statusColor = program.status === 'active' ? colors.success : colors.warning;
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.clientProgCard, { backgroundColor: colors.backgroundCard, borderColor: `${colors.primary}55` }, pressed && { opacity: 0.9 }]}
+      accessibilityLabel={`Open program ${program.title}`}
+      accessibilityRole="button"
+      onPress={() => router.push(`/program/${program.id}`)}
+    >
+      {/* Header row: title + ring */}
+      <View style={styles.clientProgHeader}>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: statusColor }} />
+            <Text style={{ fontSize: 11, fontFamily: 'Rubik_600SemiBold', color: statusColor, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              {program.status === 'active' ? 'Active' : 'Paused'}
+            </Text>
+          </View>
+          <Text style={[styles.clientProgTitle, { color: colors.text }]} numberOfLines={1}>{program.title}</Text>
+          <Text style={{ fontSize: 12, fontFamily: 'Rubik_400Regular', color: colors.textMuted, marginTop: 2 }}>
+            {totalWeeks}W · {program.daysPerWeek}D/wk
+          </Text>
+        </View>
+        <View style={{ alignItems: 'center', gap: 3 }}>
+          <WeekRing percent={weekPct} size={58} strokeWidth={5} color={colors.primary} textColor={colors.text} />
+          <Text style={{ fontSize: 10, fontFamily: 'Rubik_400Regular', color: colors.textMuted }}>this week</Text>
+        </View>
+      </View>
+
+      {/* Week navigation */}
+      <View style={styles.weekNav}>
+        <Pressable onPress={() => setSelectedWeek(w => Math.max(1, w - 1))} disabled={selectedWeek === 1} hitSlop={10} style={{ padding: 4 }}>
+          <Ionicons name="chevron-back" size={18} color={selectedWeek > 1 ? colors.textMuted : colors.border} />
+        </Pressable>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 14, color: colors.text }}>
+            Week {selectedWeek}<Text style={{ color: colors.textMuted, fontFamily: 'Rubik_400Regular' }}> / {totalWeeks}</Text>
+          </Text>
+          <Text style={{ fontSize: 10, fontFamily: 'Rubik_400Regular', marginTop: 1, color: isActiveWeek ? colors.primary : selectedWeek < activeWeekNum ? colors.success : colors.textMuted }}>
+            {isActiveWeek ? 'current' : selectedWeek < activeWeekNum ? 'completed' : 'upcoming'}
+          </Text>
+        </View>
+        <Pressable onPress={() => setSelectedWeek(w => Math.min(totalWeeks, w + 1))} disabled={selectedWeek === totalWeeks} hitSlop={10} style={{ padding: 4 }}>
+          <Ionicons name="chevron-forward" size={18} color={selectedWeek < totalWeeks ? colors.textMuted : colors.border} />
+        </Pressable>
+      </View>
+
+      {/* Day circles */}
+      {dayStates.length > 0 && (
+        <View style={styles.dayCirclesRow}>
+          {dayStates.map((state, i) => (
+            <DayCircle key={i} index={i} state={state} primaryColor={colors.primary} borderColor={colors.border} />
+          ))}
+        </View>
+      )}
+
+      {/* CTA */}
+      {isActiveWeek && continueDayIdx >= 0 && (
+        <View style={[styles.continueBtn, { backgroundColor: colors.primary }]}>
+          <Text style={styles.continueBtnText}>Continue — Day {continueDayIdx + 1}</Text>
+        </View>
+      )}
+      {isActiveWeek && weekPct === 100 && (
+        <View style={[styles.weekStatusBtn, { borderColor: colors.success }]}>
+          <Ionicons name="checkmark-circle" size={13} color={colors.success} />
+          <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: colors.success }}>Week Complete</Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -372,15 +523,10 @@ export default function HomeScreen() {
                 </Text>
               </View>
             )}
-            <Pressable
-              style={styles.roleChip}
-              accessibilityLabel={`Role: ${isCoach ? 'Coach' : 'Client'}. View profile`}
-              accessibilityRole="button"
-              onPress={() => router.push('/(tabs)/profile')}
-            >
-              <Ionicons name={isCoach ? 'school' : 'fitness'} size={14} color={colors.primary} />
-              <Text style={[styles.roleChipText, { color: colors.primary }]}>{isCoach ? 'Coach' : 'Client'}</Text>
-            </Pressable>
+            {/* LiftFlow wordmark — home page only */}
+            <View style={[styles.liftflowBadge, { backgroundColor: `${colors.primary}18`, borderColor: `${colors.primary}44` }]}>
+              <Text style={[styles.liftflowBadgeText, { color: colors.primary }]}>LiftFlow</Text>
+            </View>
           </View>
         </View>
       </Animated.View>
@@ -544,7 +690,7 @@ export default function HomeScreen() {
               </View>
             ) : (
               recentPrograms.map((prog) => (
-                <ProgramCard key={prog.id} program={prog} colors={colors} />
+                <ClientProgramCard key={prog.id} program={prog} colors={colors} />
               ))
             )}
 
@@ -560,6 +706,46 @@ export default function HomeScreen() {
               </Pressable>
             )}
           </Animated.View>
+
+          {/* PRs section — clients don't have a Progress tab */}
+          {prs.length > 0 && (
+            <Animated.View entering={FadeInDown.delay(280).duration(400)}>
+              <View style={[styles.sectionHeader, { marginTop: 8 }]}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Records</Text>
+                <Pressable
+                  style={styles.addBtn}
+                  accessibilityLabel="Log a PR"
+                  accessibilityRole="button"
+                  onPress={() => router.push('/add-pr')}
+                >
+                  <Ionicons name="add" size={20} color={colors.primary} />
+                </Pressable>
+              </View>
+              <View style={styles.prRow}>
+                {(['squat', 'deadlift', 'bench'] as const).map((lift) => {
+                  const best = getBestPR(prs, lift);
+                  return (
+                    <Pressable
+                      key={lift}
+                      style={[styles.prCard, { backgroundColor: colors.backgroundCard, borderLeftColor: '#FFB800' }]}
+                      accessibilityLabel={`View ${lift} PRs`}
+                      accessibilityRole="button"
+                      onPress={() => router.push(`/add-pr?lift=${lift}`)}
+                    >
+                      <Text style={[styles.prLift, { color: '#FFB800' }]}>{lift.toUpperCase()}</Text>
+                      <Text style={[styles.prWeight, { color: best ? colors.text : colors.textMuted }]}>
+                        {best ? best.weight : '—'}
+                      </Text>
+                      {best
+                        ? <Text style={[styles.prUnit, { color: colors.textMuted }]}>{best.unit}</Text>
+                        : <Text style={{ fontSize: 11, color: colors.primary, fontFamily: 'Rubik_500Medium' }}>Log</Text>
+                      }
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </Animated.View>
+          )}
         </>
       )}
     </ScrollView>
@@ -696,4 +882,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12, marginTop: 4,
   },
   seeAllText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.primary },
+  liftflowBadge: {
+    borderRadius: 99, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5,
+  },
+  liftflowBadgeText: { fontFamily: 'Rubik_700Bold', fontSize: 13, letterSpacing: -0.3 },
+  clientProgCard: {
+    borderRadius: 14, padding: 18, borderWidth: 1,
+    marginBottom: 12,
+  },
+  clientProgHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, gap: 12 },
+  clientProgTitle: { fontFamily: 'Rubik_700Bold', fontSize: 17, letterSpacing: -0.3 },
+  weekNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  dayCirclesRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 0 },
+  continueBtn: { borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 14 },
+  continueBtnText: { fontFamily: 'Rubik_700Bold', fontSize: 14, color: '#fff' },
+  weekStatusBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 10, paddingVertical: 10, borderWidth: 1, marginTop: 14 },
 });

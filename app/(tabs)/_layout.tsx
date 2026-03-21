@@ -4,7 +4,7 @@ import { Platform, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useTheme } from "@/lib/theme-context";
-import { getUnreadNotificationCount, getCachedNotifications, pushCachedNotification, getNotifications, type AppNotification } from "@/lib/storage";
+import { getUnreadNotificationCount, getCachedNotifications, pushCachedNotification, getNotifications, getCachedProfile, type AppNotification } from "@/lib/storage";
 import { addWSListener } from "@/lib/websocket";
 
 export default function TabLayout() {
@@ -12,11 +12,14 @@ export default function TabLayout() {
   const isIOS = Platform.OS === "ios";
   const { colors, theme } = useTheme();
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
+  const [isCoach, setIsCoach] = useState<boolean>(() => getCachedProfile()?.role === 'coach');
   const wsUnreadRef = useRef(false);
   const pollCountRef = useRef(0);
 
   const checkUnread = useCallback(async () => {
     try {
+      const profile = getCachedProfile();
+      if (profile) setIsCoach(profile.role === 'coach');
       if (wsUnreadRef.current) {
         setHasUnreadChat(true);
         return;
@@ -142,6 +145,7 @@ export default function TabLayout() {
         name="progress"
         options={{
           title: "Progress",
+          tabBarButton: isCoach ? undefined : () => null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="trending-up" size={size} color={color} />
           ),
