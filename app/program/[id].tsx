@@ -580,9 +580,25 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
             <Text style={[styles.exerciseName, { color: colors.text }, !exercise.name && prevWeekExercise?.name ? [styles.ghostText, { color: colors.textGhost }] : null]} numberOfLines={1}>
               {exercise.name || prevWeekExercise?.name || `Exercise ${index + 1}`}
             </Text>
-            <Text style={[styles.exerciseMeta, { color: colors.textSecondary }]}>
-              {exercise.repsSets || prevWeekExercise?.repsSets || '-'} {exercise.weight ? `@ ${exercise.weight}` : ''} {exercise.rpe ? `RPE ${exercise.rpe}` : ''}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              {exercise.repsSets ? (
+                <Text style={[styles.exerciseMeta, { color: colors.textSecondary }]}>{exercise.repsSets}</Text>
+              ) : prevWeekExercise?.repsSets ? (
+                <Text style={[styles.exerciseMeta, { color: colors.textGhost, fontStyle: 'italic' }]}>{prevWeekExercise.repsSets}</Text>
+              ) : (
+                <Text style={[styles.exerciseMeta, { color: colors.textSecondary }]}>-</Text>
+              )}
+              {exercise.weight ? (
+                <Text style={[styles.exerciseMeta, { color: colors.textSecondary }]}>@ {exercise.weight}</Text>
+              ) : prevWeekExercise?.weight ? (
+                <Text style={[styles.exerciseMeta, { color: colors.textGhost, fontStyle: 'italic' }]}>@ {prevWeekExercise.weight}</Text>
+              ) : null}
+              {exercise.rpe ? (
+                <Text style={[styles.exerciseMeta, { color: colors.textSecondary }]}>RPE {exercise.rpe}</Text>
+              ) : prevWeekExercise?.rpe ? (
+                <Text style={[styles.exerciseMeta, { color: colors.textGhost, fontStyle: 'italic' }]}>RPE {prevWeekExercise.rpe}</Text>
+              ) : null}
+            </View>
           </View>
         </View>
         <View style={styles.exerciseHeaderRight}>
