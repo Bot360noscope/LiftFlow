@@ -688,33 +688,43 @@ export default function HomeScreen() {
               })}
             </View>
             {(() => {
-              const bestLifts = ['squat', 'deadlift', 'bench'] as const;
               const squat = getBestPR(prs, 'squat');
               const deadlift = getBestPR(prs, 'deadlift');
               const bench = getBestPR(prs, 'bench');
               const profile = getCachedProfile();
               const bw = profile?.bodyWeight;
-              
+              const unit = profile?.weightUnit || 'kg';
+
               if (!squat || !deadlift || !bench || !bw) return null;
-              
-              const calculateDots = (weight: number, unit: string, bw: number): number => {
-                const weightKg = unit === 'lbs' ? weight / 2.20462 : weight;
-                const bwKg = unit === 'lbs' ? bw / 2.20462 : bw;
-                return (weightKg / bwKg) * 100;
-              };
-              
-              const sqDots = calculateDots(squat.weight, squat.unit, bw);
-              const dlDots = calculateDots(deadlift.weight, deadlift.unit, bw);
-              const benchDots = calculateDots(bench.weight, bench.unit, bw);
-              const totalDots = sqDots + dlDots + benchDots;
-              
+
+              const toKg = (w: number, u: string) => u === 'lbs' ? w / 2.20462 : w;
+              const totalWeight = squat.weight + deadlift.weight + bench.weight;
+              const totalKg = toKg(squat.weight, squat.unit) + toKg(deadlift.weight, deadlift.unit) + toKg(bench.weight, bench.unit);
+              const bwKg = toKg(bw, unit);
+
+              const maleCoeffs = [-307.75076, 24.0900756, -0.1918759221, 0.0007391293, -0.000001093];
+              const x = bwKg;
+              const denom = maleCoeffs[0] + maleCoeffs[1] * x + maleCoeffs[2] * x * x + maleCoeffs[3] * x * x * x + maleCoeffs[4] * x * x * x * x;
+              const dots = denom !== 0 ? Math.round((500 / Math.abs(denom)) * totalKg) : 0;
+
               return (
-                <View style={{ marginTop: 12, gap: 6 }}>
-                  <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>Total Dots Score</Text>
-                  <View style={{ width: '100%', height: 6, backgroundColor: 'rgba(128,128,128,0.15)', borderRadius: 3, overflow: 'hidden' }}>
-                    <View style={{ width: `${Math.min(totalDots / 900, 1) * 100}%`, height: '100%', backgroundColor: colors.primary, borderRadius: 3 }} />
+                <View style={{
+                  marginTop: 12, flexDirection: 'row', alignItems: 'center',
+                  backgroundColor: colors.backgroundCard, borderRadius: 14, padding: 16,
+                  borderWidth: 1, borderColor: colors.border,
+                }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 10, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>Total</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                      <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 24, color: '#FFB800' }}>{totalWeight}</Text>
+                      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 12, color: 'rgba(128,128,128,0.5)' }}>{squat.unit}</Text>
+                    </View>
                   </View>
-                  <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: colors.primary }}>{Math.round(totalDots)} pts</Text>
+                  <View style={{ width: 1, height: 36, backgroundColor: colors.border, marginHorizontal: 16 }} />
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 10, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>Dots</Text>
+                    <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 24, color: colors.primary }}>{dots}</Text>
+                  </View>
                 </View>
               );
             })()}
