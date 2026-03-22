@@ -56,7 +56,7 @@ function CoachCodeCard({ coachCode, onReset }: { coachCode: string; onReset: () 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { logout: authLogout } = useAuth();
-  const { colors, theme, toggleTheme } = useTheme();
+  const { colors } = useTheme();
   const cached = getCachedProfile();
   const [profile, setProfile] = useState<UserProfile>(cached || { id: '', name: '', role: 'coach', weightUnit: 'kg', coachCode: '', avatarUrl: '', plan: 'free', planUserLimit: 1 });
   const [editing, setEditing] = useState(false);
@@ -317,35 +317,20 @@ export default function ProfileScreen() {
           </Animated.View>
         )}
 
-        <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.statsRow}>
-          {isCoach ? (
-            <>
-              <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-                <Ionicons name="people" size={22} color={colors.textMuted} />
-                <Text style={[styles.statValue, { color: colors.text }]}>{stats.clients}</Text>
-                <Text style={[styles.statLabel, { color: colors.textMuted }]}>Clients</Text>
-              </View>
-              <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-                <Ionicons name="barbell" size={22} color={colors.textMuted} />
-                <Text style={[styles.statValue, { color: colors.text }]}>{stats.programs}</Text>
-                <Text style={[styles.statLabel, { color: colors.textMuted }]}>Programs</Text>
-              </View>
-            </>
-          ) : (
-            <>
-              <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-                <Ionicons name="trophy" size={22} color={colors.textMuted} />
-                <Text style={[styles.statValue, { color: colors.text }]}>{stats.prs}</Text>
-                <Text style={[styles.statLabel, { color: colors.textMuted }]}>PRs Logged</Text>
-              </View>
-              <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-                <Ionicons name="barbell" size={22} color={colors.textMuted} />
-                <Text style={[styles.statValue, { color: colors.text }]}>{stats.programs}</Text>
-                <Text style={[styles.statLabel, { color: colors.textMuted }]}>Programs</Text>
-              </View>
-            </>
-          )}
-        </Animated.View>
+        {isCoach && (
+          <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.statsRow}>
+            <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+              <Ionicons name="people" size={22} color={colors.textMuted} />
+              <Text style={[styles.statValue, { color: colors.text }]}>{stats.clients}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Clients</Text>
+            </View>
+            <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+              <Ionicons name="barbell" size={22} color={colors.textMuted} />
+              <Text style={[styles.statValue, { color: colors.text }]}>{stats.programs}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Programs</Text>
+            </View>
+          </Animated.View>
+        )}
 
         <Animated.View entering={FadeInDown.delay(150).duration(400)}>
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Training</Text>
@@ -452,18 +437,6 @@ export default function ProfileScreen() {
             <Ionicons name="swap-horizontal" size={20} color={colors.textMuted} />
           </Pressable>
 
-          <Pressable style={[styles.settingItem, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]} onPress={toggleTheme}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.settingIcon, { backgroundColor: 'rgba(102, 102, 102, 0.12)' }]}>
-                <Ionicons name={theme === 'dark' ? 'moon' : 'sunny'} size={18} color={colors.textMuted} />
-              </View>
-              <View style={styles.settingTextWrap}>
-                <Text style={[styles.settingLabel, { color: colors.text }]} numberOfLines={1}>Theme</Text>
-                <Text style={[styles.settingValue, { color: colors.textMuted }]} numberOfLines={1}>Currently: {theme === 'dark' ? 'Dark' : 'Light'} — Tap to switch</Text>
-              </View>
-            </View>
-            <Ionicons name={theme === 'dark' ? 'sunny-outline' : 'moon-outline'} size={20} color={colors.textMuted} />
-          </Pressable>
 
         </Animated.View>
 

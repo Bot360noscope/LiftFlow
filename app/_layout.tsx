@@ -32,8 +32,7 @@ import {
 SplashScreen.preventAutoHideAsync();
 
 function ThemedStatusBar() {
-  const { theme } = useTheme();
-  return <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />;
+  return <StatusBar style="light" />;
 }
 
 function RootLayoutNav() {

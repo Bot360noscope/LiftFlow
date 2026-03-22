@@ -10,7 +10,7 @@ import { addWSListener } from "@/lib/websocket";
 export default function TabLayout() {
   const isWeb = Platform.OS === "web";
   const isIOS = Platform.OS === "ios";
-  const { colors, theme } = useTheme();
+  const { colors } = useTheme();
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
   const [isCoach, setIsCoach] = useState<boolean>(() => getCachedProfile()?.role === 'coach');
   const wsUnreadRef = useRef(false);
@@ -87,7 +87,7 @@ export default function TabLayout() {
           isIOS ? (
             <BlurView
               intensity={100}
-              tint={theme === 'dark' ? 'dark' : 'light'}
+              tint="dark"
               style={StyleSheet.absoluteFill}
             />
           ) : isWeb ? (

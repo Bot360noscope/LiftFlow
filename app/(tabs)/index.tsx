@@ -687,6 +687,19 @@ export default function HomeScreen() {
                 );
               })}
             </View>
+            {(() => {
+              const bestLifts = ['squat', 'deadlift', 'bench'] as const;
+              const totalDots = bestLifts.reduce((sum, lift) => sum + (getBestPR(prs, lift)?.dots || 0), 0);
+              return totalDots > 0 ? (
+                <View style={{ marginTop: 12, gap: 6 }}>
+                  <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>Total Dots Score</Text>
+                  <View style={{ width: '100%', height: 6, backgroundColor: 'rgba(128,128,128,0.15)', borderRadius: 3, overflow: 'hidden' }}>
+                    <View style={{ width: `${Math.min(totalDots / 300, 1) * 100}%`, height: '100%', backgroundColor: colors.primary, borderRadius: 3 }} />
+                  </View>
+                  <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: colors.primary }}>{Math.round(totalDots)} pts</Text>
+                </View>
+              ) : null;
+            })()}
           </Animated.View>
 
           {programs.filter(p => p.status !== 'active').length > 0 && (
