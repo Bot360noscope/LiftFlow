@@ -720,7 +720,7 @@ export default function HomeScreen() {
                       <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 12, color: 'rgba(128,128,128,0.5)' }}>{squat.unit}</Text>
                     </View>
                   </View>
-                  <View style={{ width: 1, height: 36, backgroundColor: colors.border, marginHorizontal: 16 }} />
+                  <View style={{ marginHorizontal: 16 }} />
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 10, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>Dots</Text>
                     <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 24, color: colors.primary }}>{dots}</Text>
