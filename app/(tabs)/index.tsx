@@ -689,16 +689,34 @@ export default function HomeScreen() {
             </View>
             {(() => {
               const bestLifts = ['squat', 'deadlift', 'bench'] as const;
-              const totalDots = bestLifts.reduce((sum, lift) => sum + (getBestPR(prs, lift)?.dots || 0), 0);
-              return totalDots > 0 ? (
+              const squat = getBestPR(prs, 'squat');
+              const deadlift = getBestPR(prs, 'deadlift');
+              const bench = getBestPR(prs, 'bench');
+              const profile = getCachedProfile();
+              const bw = profile?.bodyWeight;
+              
+              if (!squat || !deadlift || !bench || !bw) return null;
+              
+              const calculateDots = (weight: number, unit: string, bw: number): number => {
+                const weightKg = unit === 'lbs' ? weight / 2.20462 : weight;
+                const bwKg = unit === 'lbs' ? bw / 2.20462 : bw;
+                return (weightKg / bwKg) * 100;
+              };
+              
+              const sqDots = calculateDots(squat.weight, squat.unit, bw);
+              const dlDots = calculateDots(deadlift.weight, deadlift.unit, bw);
+              const benchDots = calculateDots(bench.weight, bench.unit, bw);
+              const totalDots = sqDots + dlDots + benchDots;
+              
+              return (
                 <View style={{ marginTop: 12, gap: 6 }}>
                   <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>Total Dots Score</Text>
                   <View style={{ width: '100%', height: 6, backgroundColor: 'rgba(128,128,128,0.15)', borderRadius: 3, overflow: 'hidden' }}>
-                    <View style={{ width: `${Math.min(totalDots / 300, 1) * 100}%`, height: '100%', backgroundColor: colors.primary, borderRadius: 3 }} />
+                    <View style={{ width: `${Math.min(totalDots / 900, 1) * 100}%`, height: '100%', backgroundColor: colors.primary, borderRadius: 3 }} />
                   </View>
                   <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: colors.primary }}>{Math.round(totalDots)} pts</Text>
                 </View>
-              ) : null;
+              );
             })()}
           </Animated.View>
 
