@@ -447,10 +447,8 @@ function computeRpeSuggestion(prevExercise: Exercise | null | undefined): string
   const pct = pctRow[Math.min(reps, 15)];
   if (!pct) return null;
   const e1rm = prevWeight / (pct / 100);
-  const nextPct = pctRow[Math.min(reps, 15)];
-  if (!nextPct) return null;
-  const suggested = Math.round(e1rm * (nextPct / 100) * 2) / 2;
-  if (suggested <= 0 || !isFinite(suggested)) return null;
+  const suggested = Math.round(e1rm * 1.025 * (pct / 100) * 2) / 2;
+  if (suggested <= prevWeight || !isFinite(suggested)) return null;
   const unit = prevExercise.weight?.replace(/[0-9.\s]/g, '').trim() || '';
   return `${suggested}${unit ? unit : ''}`;
 }
@@ -1178,7 +1176,11 @@ export default function ProgramDetailScreen() {
       });
     }
     const newWeek: WorkoutWeek = { weekNumber: newWeekNumber, days: newDays };
-    setProgram({ ...program, weeks: [...program.weeks, newWeek] });
+    const updated = { ...program, weeks: [...program.weeks, newWeek] };
+    if (isShared && program.publishedWeeks !== undefined && program.publishedWeeks !== null) {
+      updated.publishedWeeks = program.publishedWeeks;
+    }
+    setProgram(updated);
     setActiveWeek(newWeekNumber);
     setHasChanges(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
