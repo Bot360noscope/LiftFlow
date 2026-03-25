@@ -473,8 +473,9 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   const { colors } = useTheme();
   const hasPrevNotes = !!(prevWeekExercise?.clientNotes || prevWeekExercise?.coachComment || prevWeekExercise?.notes);
   const hasCurrentNotes = !!(exercise.clientNotes || exercise.coachComment || exercise.notes);
+  const forceExpanded = isCoach && isShared && (hasCurrentNotes || hasPrevNotes);
   const [localExpanded, setLocalExpanded] = useState(initialExpanded || hasPrevNotes || hasCurrentNotes);
-  const expanded = isExpandedProp !== undefined ? isExpandedProp : localExpanded;
+  const expanded = forceExpanded || (isExpandedProp !== undefined ? isExpandedProp : localExpanded);
   const [seenContent, setSeenContent] = useState(false);
   const [name, setName] = useState(exercise.name);
   const [repsSets, setRepsSets] = useState(exercise.repsSets);
@@ -612,15 +613,17 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
             placeholder={prevWeekExercise?.name || `Exercise ${index + 1}`}
             placeholderTextColor={prevWeekExercise?.name ? colors.textGhost : colors.textMuted}
           />
-          <Pressable
-            onPress={() => {
-              if (!expanded) markSeen();
-              if (onToggle) { onToggle(); } else { setLocalExpanded(!localExpanded); }
-            }}
-            hitSlop={6}
-          >
-            <Ionicons name={expanded ? "chevron-up" : "ellipsis-horizontal"} size={16} color={colors.textMuted} />
-          </Pressable>
+          {!forceExpanded && (
+            <Pressable
+              onPress={() => {
+                if (!expanded) markSeen();
+                if (onToggle) { onToggle(); } else { setLocalExpanded(!localExpanded); }
+              }}
+              hitSlop={6}
+            >
+              <Ionicons name={expanded ? "chevron-up" : "ellipsis-horizontal"} size={16} color={colors.textMuted} />
+            </Pressable>
+          )}
           <Pressable
             onPress={() => confirmAction("Delete Exercise", `Remove "${exercise.name || 'this exercise'}"?`, onDelete, "Delete")}
             hitSlop={6}
