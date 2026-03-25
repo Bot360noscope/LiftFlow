@@ -75,8 +75,12 @@ function ClientCard({ client, programs, hasUnread, colors }: { client: ClientInf
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <View style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: statusColor, backgroundColor: `${statusColor}12`, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 16, color: statusColor }}>{(client.name || '?')[0].toUpperCase()}</Text>
+        <View style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: statusColor, backgroundColor: `${statusColor}12`, alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+          {client.avatarUrl ? (
+            <Image source={{ uri: client.avatarUrl }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+          ) : (
+            <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 16, color: statusColor }}>{(client.name || '?')[0].toUpperCase()}</Text>
+          )}
         </View>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
