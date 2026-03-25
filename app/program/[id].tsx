@@ -587,13 +587,23 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
     return (
       <View style={[styles.exerciseRow, { backgroundColor: colors.backgroundCard, borderColor: colors.border, padding: 10 }, isCompleted && [styles.exerciseRowCompleted, { borderColor: colors.success }]]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-          <Pressable onPress={handleToggleComplete} hitSlop={6}>
-            <Ionicons
-              name={isCompleted ? "checkmark-circle" : "ellipse-outline"}
-              size={18}
-              color={isCompleted ? colors.success : colors.textMuted}
-            />
-          </Pressable>
+          {isShared ? (
+            <View style={{ opacity: 0.6 }}>
+              <Ionicons
+                name={isCompleted ? "checkmark-circle" : "ellipse-outline"}
+                size={18}
+                color={isCompleted ? colors.success : colors.textMuted}
+              />
+            </View>
+          ) : (
+            <Pressable onPress={handleToggleComplete} hitSlop={6}>
+              <Ionicons
+                name={isCompleted ? "checkmark-circle" : "ellipse-outline"}
+                size={18}
+                color={isCompleted ? colors.success : colors.textMuted}
+              />
+            </Pressable>
+          )}
           <TextInput
             style={[styles.compactNameInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !name && prevWeekExercise?.name ? styles.ghostedInput : null]}
             value={name}
