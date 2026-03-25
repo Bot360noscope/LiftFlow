@@ -614,6 +614,13 @@ export default function HomeScreen() {
                 <Ionicons name="people-outline" size={32} color={colors.textMuted} />
                 <Text style={[styles.emptyText, { color: colors.text }]}>No clients yet</Text>
                 <Text style={[styles.emptySubText, { color: colors.textMuted }]}>Clients can connect using your code from the Profile tab</Text>
+                <Pressable
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, marginTop: 10 }}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/create-program'); }}
+                >
+                  <Ionicons name="add-circle" size={18} color="#fff" />
+                  <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: '#fff' }}>Create Program</Text>
+                </Pressable>
               </View>
             ) : (
               <View style={{ gap: 8 }}>
