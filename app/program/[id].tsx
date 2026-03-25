@@ -579,6 +579,127 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
     }
   };
 
+  if (canEditAll) {
+    return (
+      <View style={[styles.exerciseRow, { backgroundColor: colors.backgroundCard, borderColor: colors.border, padding: 10 }, isCompleted && [styles.exerciseRowCompleted, { borderColor: colors.success }]]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+          <Pressable onPress={handleToggleComplete} hitSlop={6}>
+            <Ionicons
+              name={isCompleted ? "checkmark-circle" : "ellipse-outline"}
+              size={18}
+              color={isCompleted ? colors.success : colors.textMuted}
+            />
+          </Pressable>
+          <TextInput
+            style={[styles.compactNameInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !name && prevWeekExercise?.name ? styles.ghostedInput : null]}
+            value={name}
+            onChangeText={setName}
+            onBlur={saveChanges}
+            placeholder={prevWeekExercise?.name || `Exercise ${index + 1}`}
+            placeholderTextColor={prevWeekExercise?.name ? colors.textGhost : colors.textMuted}
+          />
+          <Pressable
+            onPress={() => {
+              if (!expanded) markSeen();
+              if (onToggle) { onToggle(); } else { setLocalExpanded(!localExpanded); }
+            }}
+            hitSlop={6}
+          >
+            <Ionicons name={expanded ? "chevron-up" : "ellipsis-horizontal"} size={16} color={colors.textMuted} />
+          </Pressable>
+          <Pressable
+            onPress={() => confirmAction("Delete Exercise", `Remove "${exercise.name || 'this exercise'}"?`, onDelete, "Delete")}
+            hitSlop={6}
+          >
+            <Ionicons name="close" size={15} color={colors.textMuted} />
+          </Pressable>
+        </View>
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          <TextInput
+            style={[styles.compactFieldInput, { flex: 1, color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !repsSets && prevWeekExercise?.repsSets ? styles.ghostedInput : null]}
+            value={repsSets}
+            onChangeText={setRepsSets}
+            onBlur={saveChanges}
+            placeholder={prevWeekExercise?.repsSets || "Sets×Reps"}
+            placeholderTextColor={prevWeekExercise?.repsSets ? colors.textGhost : colors.textMuted}
+          />
+          <View style={{ flex: 1 }}>
+            <TextInput
+              style={[styles.compactFieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !weight && prevWeekExercise?.weight ? styles.ghostedInput : null]}
+              value={weight}
+              onChangeText={setWeight}
+              onBlur={saveChanges}
+              placeholder={prevWeekExercise?.weight || "Weight"}
+              placeholderTextColor={prevWeekExercise?.weight ? colors.textGhost : colors.textMuted}
+            />
+            {suggestionsEnabled && !weight && (() => {
+              const suggestion = computeRpeSuggestion(prevWeekExercise);
+              if (!suggestion) return null;
+              return (
+                <Pressable
+                  onPress={() => { setWeight(suggestion); saveChanges(); Haptics.selectionAsync(); }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 }}
+                >
+                  <Ionicons name="flash" size={9} color={colors.gold} />
+                  <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 9, color: colors.gold }}>{suggestion}</Text>
+                </Pressable>
+              );
+            })()}
+          </View>
+          <TextInput
+            style={[styles.compactFieldInput, { width: 50, color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !rpe && prevWeekExercise?.rpe ? styles.ghostedInput : null]}
+            value={rpe}
+            onChangeText={setRpe}
+            onBlur={saveChanges}
+            placeholder={prevWeekExercise?.rpe || "RPE"}
+            placeholderTextColor={prevWeekExercise?.rpe ? colors.textGhost : colors.textMuted}
+            keyboardType="decimal-pad"
+          />
+        </View>
+        {expanded && (
+          <View style={[styles.exerciseExpanded, { borderTopColor: colors.border, marginTop: 8 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+              <Ionicons name="chatbubble-outline" size={12} color={colors.textSecondary} />
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginBottom: 0 }]}>{isShared ? 'Client Notes' : 'Notes'}</Text>
+            </View>
+            {(isCoach && isShared) ? (
+              <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border, minHeight: 36 }]}>
+                <Text style={[styles.readOnlyText, { color: colors.textMuted }]}>{exercise.clientNotes || 'No client notes'}</Text>
+              </View>
+            ) : (
+              <TextInput
+                style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+                value={notes}
+                onChangeText={setNotes}
+                onBlur={saveChanges}
+                placeholder="Add notes..."
+                placeholderTextColor={colors.textMuted}
+                multiline
+              />
+            )}
+            {isShared && (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4, marginTop: 8 }}>
+                  <Ionicons name="megaphone-outline" size={12} color={colors.accent} />
+                  <Text style={[styles.fieldLabel, { color: colors.accent, marginBottom: 0 }]}>Coach Comment</Text>
+                </View>
+                <TextInput
+                  style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+                  value={coachComment}
+                  onChangeText={setCoachComment}
+                  onBlur={saveChanges}
+                  placeholder="Add feedback..."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                />
+              </>
+            )}
+          </View>
+        )}
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.exerciseRow, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, isCompleted && [styles.exerciseRowCompleted, { borderColor: colors.success }]]}>
       <Pressable
@@ -1850,6 +1971,16 @@ const styles = StyleSheet.create({
   dayChipTextActive: { color: '#fff' },
   emptyDay: { alignItems: 'center', paddingVertical: 40, gap: 8 },
   emptyDayText: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: Colors.colors.textMuted },
+  compactNameInput: {
+    flex: 1, fontFamily: 'Rubik_600SemiBold', fontSize: 13,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
+    borderWidth: 1, backgroundColor: Colors.colors.surface,
+  },
+  compactFieldInput: {
+    fontFamily: 'Rubik_400Regular', fontSize: 12,
+    paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6,
+    borderWidth: 1, backgroundColor: Colors.colors.surface,
+  },
   exerciseRow: {
     backgroundColor: Colors.colors.backgroundCard, borderRadius: 12, marginBottom: 8,
     borderWidth: 1, borderColor: Colors.colors.border, overflow: 'hidden',
