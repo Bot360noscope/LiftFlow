@@ -448,7 +448,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (clientRecordIds.length > 0) {
           conditions.push(inArray(programs.clientId, clientRecordIds));
         }
-        result = await db.select().from(programs).where(or(...conditions)).orderBy(desc(programs.createdAt));
+        const allPrograms = await db.select().from(programs).where(or(...conditions)).orderBy(desc(programs.createdAt));
+        result = allPrograms.filter(p => {
+          if (!p.clientId) return true;
+          const pw = p.publishedWeeks;
+          if (pw === null || pw === undefined) return true;
+          return pw > 0;
+        });
       }
       res.json(result);
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
