@@ -481,6 +481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         coachId,
         clientId: clientId || null,
         status: status || 'active',
+        publishedWeeks: clientId ? 0 : null,
       }).returning();
       res.json(program);
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
@@ -570,6 +571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         coachId: original.coachId,
         clientId,
         status: 'active',
+        publishedWeeks: 0,
       }).returning();
       res.json(copy);
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }

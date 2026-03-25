@@ -1326,7 +1326,7 @@ export default function ProgramDetailScreen() {
     const currentWeekCount = program.weeks.length;
     const updated = { ...program, weeks: [...program.weeks, newWeek] };
     if (isShared) {
-      updated.publishedWeeks = program.publishedWeeks ?? currentWeekCount;
+      updated.publishedWeeks = program.publishedWeeks ?? 0;
     }
     setProgram(updated);
     setActiveWeek(newWeekNumber);
@@ -1380,13 +1380,13 @@ export default function ProgramDetailScreen() {
     setAssigning(false);
   };
 
-  const publishedWeeks = program?.publishedWeeks ?? program?.weeks.length ?? 0;
+  const publishedWeeks = program?.publishedWeeks ?? (isShared ? 0 : (program?.weeks.length ?? 0));
   const isDraftWeek = isShared && (isCoach || false) && activeWeek > publishedWeeks;
 
   const visibleWeeks = useMemo(() => {
     if (!program) return [];
     if (isCoach || !isShared) return program.weeks;
-    const pw = program.publishedWeeks ?? program.weeks.length;
+    const pw = program.publishedWeeks ?? (isShared ? 0 : program.weeks.length);
     return program.weeks.filter(w => w.weekNumber <= pw);
   }, [program, isCoach, isShared]);
 
