@@ -482,6 +482,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   const [clientNotes, setClientNotes] = useState(exercise.clientNotes);
   const [coachComment, setCoachComment] = useState(exercise.coachComment);
   const [isCompleted, setIsCompleted] = useState(exercise.isCompleted);
+  const isCompletedRef = useRef(exercise.isCompleted);
 
   useEffect(() => {
     setName(exercise.name);
@@ -542,7 +543,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
       notes,
       clientNotes: (isCoach && isShared) ? exercise.clientNotes : clientNotes,
       coachComment: (isCoach && isShared) ? coachComment : exercise.coachComment,
-      isCompleted,
+      isCompleted: isCompletedRef.current,
     });
   };
 
@@ -569,6 +570,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   const handleToggleComplete = () => {
     const newVal = !isCompleted;
     setIsCompleted(newVal);
+    isCompletedRef.current = newVal;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     skipNextAutoSave.current = true;
@@ -1405,7 +1407,7 @@ export default function ProgramDetailScreen() {
     );
   }, [program]);
 
-  const weekProgress = useMemo(() => {
+  const weekProgress = (() => {
     if (!currentWeek) return 0;
     let total = 0;
     let completed = 0;
@@ -1418,7 +1420,7 @@ export default function ProgramDetailScreen() {
       }
     }
     return total > 0 ? Math.round((completed / total) * 100) : 0;
-  }, [currentWeek]);
+  })();
 
   const dayTotal = exercises.filter(ex => !!ex.name).length;
   const dayCompleted = exercises.filter(ex => !!ex.name && ex.isCompleted).length;
