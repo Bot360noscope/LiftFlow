@@ -176,29 +176,6 @@ export default function ClientDetailScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100).duration(350)}>
-          <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-              <Text style={[styles.statValue, { color: colors.text }]}>{programs.length}</Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Programs</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-              <Text style={[styles.statValue, { color: colors.text }]}>{programs.filter(p => p.status === 'active').length}</Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Active</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-              <Text style={[styles.statValue, { color: colors.text }]}>
-                {(() => {
-                  let t = 0, c = 0;
-                  for (const p of programs) for (const w of p.weeks) for (const d of w.days) for (const e of d.exercises) { if (!e.name) continue; t++; if (e.isCompleted) c++; }
-                  return t > 0 ? Math.round((c / t) * 100) + '%' : '0%';
-                })()}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Overall</Text>
-            </View>
-          </View>
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(150).duration(350)}>
           <Pressable
             style={({ pressed }) => [styles.newProgramBtn, { backgroundColor: colors.backgroundCard, borderColor: colors.primary }, pressed && { opacity: 0.85 }]}
             onPress={() => {
@@ -217,7 +194,7 @@ export default function ClientDetailScreen() {
           </Pressable>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(200).duration(350)}>
+        <Animated.View entering={FadeInDown.delay(150).duration(350)}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Programs</Text>
           {programs.length === 0 ? (
             <View style={[styles.emptyCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
@@ -234,7 +211,7 @@ export default function ClientDetailScreen() {
           )}
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(300).duration(350)}>
+        <Animated.View entering={FadeInDown.delay(200).duration(350)}>
           <Pressable
             style={({ pressed }) => [styles.removeClientBtn, pressed && { opacity: 0.85 }]}
             onPress={() => { setRemoveInput(''); setShowRemoveModal(true); }}
