@@ -26,6 +26,7 @@ export const darkColors = {
   squat: '#FF4444',
   deadlift: '#4488FF',
   bench: '#44CC44',
+  gold: '#FFB800',
   tabBar: '#0F0F0F',
   tabBarBorder: '#1A1A1A',
 };
@@ -56,6 +57,7 @@ export const lightColors: ThemeColors = {
   squat: '#FF4444',
   deadlift: '#4488FF',
   bench: '#44CC44',
+  gold: '#FFB800',
   tabBar: '#FFFFFF',
   tabBarBorder: '#E0E0E0',
 };

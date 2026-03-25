@@ -511,6 +511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (daysPerWeek !== undefined) updates.daysPerWeek = daysPerWeek;
       if (clientId !== undefined) updates.clientId = clientId;
       if (status !== undefined) updates.status = status;
+      if (req.body.publishedWeeks !== undefined) updates.publishedWeeks = req.body.publishedWeeks;
       updates.updatedAt = new Date();
       updates.updatedBy = senderRole || 'coach';
       const [updated] = await db.update(programs).set(updates).where(eq(programs.id, req.params.id)).returning();
@@ -1600,6 +1601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: programs.id, title: programs.title, description: programs.description,
         weeks: programs.weeks, daysPerWeek: programs.daysPerWeek, shareCode: programs.shareCode,
         coachId: programs.coachId, clientId: programs.clientId, status: programs.status,
+        publishedWeeks: programs.publishedWeeks,
         updatedAt: programs.updatedAt, updatedBy: programs.updatedBy, createdAt: programs.createdAt,
       };
 

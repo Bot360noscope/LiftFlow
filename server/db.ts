@@ -52,6 +52,7 @@ export async function initializeDatabase() {
 
       ALTER TABLE programs ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT NOW();
       ALTER TABLE programs ADD COLUMN IF NOT EXISTS updated_by TEXT NOT NULL DEFAULT 'coach';
+      ALTER TABLE programs ADD COLUMN IF NOT EXISTS published_weeks INTEGER;
 
       CREATE TABLE IF NOT EXISTS clients (
         id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),

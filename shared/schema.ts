@@ -31,6 +31,7 @@ export const programs = pgTable("programs", {
   coachId: varchar("coach_id").notNull(),
   clientId: varchar("client_id"),
   status: text("status").notNull().default('active'),
+  publishedWeeks: integer("published_weeks"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   updatedBy: text("updated_by").notNull().default('coach'),
   createdAt: timestamp("created_at").defaultNow().notNull(),

@@ -420,7 +420,42 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
   );
 }
 
-function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId, initialExpanded, planLocked, isExpanded: isExpandedProp, onToggle }: {
+function computeRpeSuggestion(prevExercise: Exercise | null | undefined): string | null {
+  if (!prevExercise) return null;
+  const prevWeight = parseFloat(prevExercise.weight?.replace(/[^0-9.]/g, '') || '');
+  const prevRpe = parseFloat(prevExercise.rpe || '');
+  const repsMatch = prevExercise.repsSets?.match(/(\d+)\s*[xX×]\s*(\d+)/);
+  if (!repsMatch || isNaN(prevWeight) || prevWeight <= 0 || isNaN(prevRpe)) return null;
+  const reps = parseInt(repsMatch[2], 10);
+  if (reps <= 0 || reps > 15) return null;
+
+  const rpeTable: Record<number, Record<number, number>> = {
+    10:  {1:100, 2:95.5, 3:92.2, 4:89.2, 5:86.3, 6:83.7, 7:81.1, 8:78.6, 9:76.2, 10:73.9, 11:71.7, 12:69.5, 13:67.4, 14:65.3, 15:63.2},
+    9.5: {1:97.8, 2:93.9, 3:90.7, 4:87.8, 5:85.0, 6:82.4, 7:79.9, 8:77.4, 9:75.1, 10:72.8, 11:70.6, 12:68.5, 13:66.4, 14:64.3, 15:62.3},
+    9:   {1:95.5, 2:92.2, 3:89.2, 4:86.3, 5:83.7, 6:81.1, 7:78.6, 8:76.2, 9:73.9, 10:71.7, 11:69.5, 12:67.4, 13:65.3, 14:63.2, 15:61.3},
+    8.5: {1:93.9, 2:90.7, 3:87.8, 4:85.0, 5:82.4, 6:79.9, 7:77.4, 8:75.1, 9:72.8, 10:70.6, 11:68.5, 12:66.4, 13:64.3, 14:62.3, 15:60.4},
+    8:   {1:92.2, 2:89.2, 3:86.3, 4:83.7, 5:81.1, 6:78.6, 7:76.2, 8:73.9, 9:71.7, 10:69.5, 11:67.4, 12:65.3, 13:63.2, 14:61.3, 15:59.5},
+    7.5: {1:90.7, 2:87.8, 3:85.0, 4:82.4, 5:79.9, 6:77.4, 7:75.1, 8:72.8, 9:70.6, 10:68.5, 11:66.4, 12:64.3, 13:62.3, 14:60.4, 15:58.6},
+    7:   {1:89.2, 2:86.3, 3:83.7, 4:81.1, 5:78.6, 6:76.2, 7:73.9, 8:71.7, 9:69.5, 10:67.4, 11:65.3, 12:63.2, 13:61.3, 14:59.5, 15:57.8},
+    6.5: {1:87.8, 2:85.0, 3:82.4, 4:79.9, 5:77.4, 6:75.1, 7:72.8, 8:70.6, 9:68.5, 10:66.4, 11:64.3, 12:62.3, 13:60.4, 14:58.6, 15:56.9},
+    6:   {1:86.3, 2:83.7, 3:81.1, 4:78.6, 5:76.2, 6:73.9, 7:71.7, 8:69.5, 9:67.4, 10:65.3, 11:63.2, 12:61.3, 13:59.5, 14:57.8, 15:56.2},
+  };
+  const roundedRpe = Math.round(prevRpe * 2) / 2;
+  const clampedRpe = Math.max(6, Math.min(10, roundedRpe));
+  const pctRow = rpeTable[clampedRpe];
+  if (!pctRow) return null;
+  const pct = pctRow[Math.min(reps, 15)];
+  if (!pct) return null;
+  const e1rm = prevWeight / (pct / 100);
+  const nextPct = pctRow[Math.min(reps, 15)];
+  if (!nextPct) return null;
+  const suggested = Math.round(e1rm * (nextPct / 100) * 2) / 2;
+  if (suggested <= 0 || !isFinite(suggested)) return null;
+  const unit = prevExercise.weight?.replace(/[0-9.\s]/g, '').trim() || '';
+  return `${suggested}${unit ? unit : ''}`;
+}
+
+function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId, initialExpanded, planLocked, isExpanded: isExpandedProp, onToggle, suggestionsEnabled }: {
   exercise: Exercise;
   index: number;
   isCoach: boolean;
@@ -435,6 +470,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   planLocked?: boolean;
   isExpanded?: boolean;
   onToggle?: () => void;
+  suggestionsEnabled?: boolean;
 }) {
   const { colors } = useTheme();
   const [localExpanded, setLocalExpanded] = useState(initialExpanded || false);
@@ -682,6 +718,19 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
                   </Text>
                 </View>
               )}
+              {suggestionsEnabled && canEditAll && !weight && (() => {
+                const suggestion = computeRpeSuggestion(prevWeekExercise);
+                if (!suggestion) return null;
+                return (
+                  <Pressable
+                    onPress={() => { setWeight(suggestion); saveChanges(); Haptics.selectionAsync(); }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 }}
+                  >
+                    <Ionicons name="flash" size={10} color={colors.gold} />
+                    <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: colors.gold }}>{suggestion}</Text>
+                  </Pressable>
+                );
+              })()}
             </View>
             <View style={{ width: 70 }}>
               <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>RPE</Text>
@@ -1181,6 +1230,16 @@ export default function ProgramDetailScreen() {
     setAssigning(false);
   };
 
+  const publishedWeeks = program?.publishedWeeks ?? program?.weeks.length ?? 0;
+  const isDraftWeek = isShared && (isCoach || false) && activeWeek > publishedWeeks;
+
+  const visibleWeeks = useMemo(() => {
+    if (!program) return [];
+    if (isCoach || !isShared) return program.weeks;
+    const pw = program.publishedWeeks ?? program.weeks.length;
+    return program.weeks.filter(w => w.weekNumber <= pw);
+  }, [program, isCoach, isShared]);
+
   const currentWeek = program?.weeks.find(w => w.weekNumber === activeWeek);
   const currentDay = currentWeek?.days.find(d => d.dayNumber === activeDay);
   const exercises = currentDay?.exercises || [];
@@ -1190,6 +1249,37 @@ export default function ProgramDetailScreen() {
     const prevWeek = program.weeks.find(w => w.weekNumber === activeWeek - 1);
     return prevWeek?.days.find(d => d.dayNumber === activeDay) || null;
   }, [program, activeWeek, activeDay]);
+
+  const [suggestionsEnabled, setSuggestionsEnabled] = useState(false);
+  useEffect(() => {
+    if (!program) return;
+    AsyncStorage.getItem(`liftflow_suggestions_${program.id}`).then(val => {
+      if (val === 'true') setSuggestionsEnabled(true);
+    }).catch(() => {});
+  }, [program?.id]);
+
+  const toggleSuggestions = useCallback(() => {
+    if (!program) return;
+    const next = !suggestionsEnabled;
+    setSuggestionsEnabled(next);
+    AsyncStorage.setItem(`liftflow_suggestions_${program.id}`, next ? 'true' : 'false').catch(() => {});
+    Haptics.selectionAsync();
+  }, [program, suggestionsEnabled]);
+
+  const publishWeeks = useCallback(() => {
+    if (!program) return;
+    confirmAction(
+      'Publish All Weeks',
+      `This will make all ${program.weeks.length} weeks visible to your client. Continue?`,
+      () => {
+        const updated = { ...program, publishedWeeks: program.weeks.length };
+        setProgram(updated);
+        setHasChanges(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      },
+      'Publish'
+    );
+  }, [program]);
 
   const weekProgress = useMemo(() => {
     if (!currentWeek) return 0;
@@ -1435,33 +1525,36 @@ export default function ProgramDetailScreen() {
       {!planLocked && (<>
       <View style={[styles.weekSelector, { borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekScrollContent}>
-          {program.weeks.map(week => (
-            <View key={week.weekNumber} style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Pressable
-                style={[styles.weekChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, activeWeek === week.weekNumber && [styles.weekChipActive, { backgroundColor: colors.primary, borderColor: colors.primary }]]}
-                onPress={() => { Haptics.selectionAsync(); setActiveWeek(week.weekNumber); setActiveDay(1); }}
-                onLongPress={() => {
-                  if ((isCoach || !isShared) && !planLocked) {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    deleteWeek(week.weekNumber);
-                  }
-                }}
-              >
-                <Text style={[styles.weekChipText, { color: colors.textSecondary }, activeWeek === week.weekNumber && styles.weekChipTextActive]}>
-                  W{week.weekNumber}
-                </Text>
-              </Pressable>
-              {Platform.OS === 'web' && (isCoach || !isShared) && !planLocked && program.weeks.length > 1 && (
+          {visibleWeeks.map(week => {
+            const weekIsDraft = isShared && week.weekNumber > publishedWeeks;
+            return (
+              <View key={week.weekNumber} style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Pressable
-                  style={styles.chipDeleteBtn}
-                  onPress={() => deleteWeek(week.weekNumber)}
-                  hitSlop={4}
+                  style={[styles.weekChip, { backgroundColor: colors.backgroundCard, borderColor: weekIsDraft ? colors.warning : colors.border }, activeWeek === week.weekNumber && [styles.weekChipActive, { backgroundColor: weekIsDraft ? colors.warning : colors.primary, borderColor: weekIsDraft ? colors.warning : colors.primary }]]}
+                  onPress={() => { Haptics.selectionAsync(); setActiveWeek(week.weekNumber); setActiveDay(1); }}
+                  onLongPress={() => {
+                    if ((isCoach || !isShared) && !planLocked) {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      deleteWeek(week.weekNumber);
+                    }
+                  }}
                 >
-                  <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+                  <Text style={[styles.weekChipText, { color: weekIsDraft ? colors.warning : colors.textSecondary }, activeWeek === week.weekNumber && styles.weekChipTextActive]}>
+                    W{week.weekNumber}
+                  </Text>
                 </Pressable>
-              )}
-            </View>
-          ))}
+                {Platform.OS === 'web' && (isCoach || !isShared) && !planLocked && program.weeks.length > 1 && (
+                  <Pressable
+                    style={styles.chipDeleteBtn}
+                    onPress={() => deleteWeek(week.weekNumber)}
+                    hitSlop={4}
+                  >
+                    <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+                  </Pressable>
+                )}
+              </View>
+            );
+          })}
           {(isCoach || !isShared) && (
             <Pressable style={[styles.addWeekChip, { borderColor: colors.primary }]} onPress={addWeek} accessibilityLabel="Add week" accessibilityRole="button">
               <Ionicons name="add" size={16} color={colors.primary} />
@@ -1469,12 +1562,39 @@ export default function ProgramDetailScreen() {
           )}
         </ScrollView>
         <View style={styles.weekProgressRow}>
-          <View style={[styles.weekProgressBar, { backgroundColor: colors.surfaceLight }]}>
+          {isDraftWeek && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 8 }}>
+              <Ionicons name="eye-off" size={12} color={colors.warning} />
+              <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.warning }}>Draft</Text>
+            </View>
+          )}
+          {isShared && isCoach && program.weeks.length > publishedWeeks && (
+            <Pressable
+              onPress={publishWeeks}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 8, backgroundColor: 'rgba(52,199,89,0.12)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}
+            >
+              <Ionicons name="paper-plane" size={11} color={colors.success} />
+              <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.success }}>Publish</Text>
+            </Pressable>
+          )}
+          <View style={[styles.weekProgressBar, { backgroundColor: colors.surfaceLight, flex: 1 }]}>
             <View style={[styles.weekProgressFill, { width: `${weekProgress}%`, backgroundColor: colors.success }]} />
           </View>
           <Text style={[styles.weekProgressText, { color: colors.textSecondary }]}>{weekProgress}%</Text>
         </View>
       </View>
+
+      {(isCoach || !isShared) && (
+        <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 2 }}>
+          <Pressable
+            onPress={toggleSuggestions}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: suggestionsEnabled ? 'rgba(255,184,0,0.12)' : colors.backgroundCard, borderWidth: 1, borderColor: suggestionsEnabled ? colors.gold : colors.border }}
+          >
+            <Ionicons name="flash" size={13} color={suggestionsEnabled ? colors.gold : colors.textMuted} />
+            <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 11, color: suggestionsEnabled ? colors.gold : colors.textMuted }}>Auto-Suggest</Text>
+          </Pressable>
+        </View>
+      )}
 
       <View style={[styles.daySelector, { borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayScrollContent}>
@@ -1563,6 +1683,7 @@ export default function ProgramDetailScreen() {
                   planLocked={false}
                   isExpanded={expandedExerciseId === ex.id}
                   onToggle={() => setExpandedExerciseId(prev => prev === ex.id ? null : ex.id)}
+                  suggestionsEnabled={suggestionsEnabled}
                 />
               )}
             </Animated.View>

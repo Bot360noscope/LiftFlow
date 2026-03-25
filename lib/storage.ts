@@ -47,6 +47,7 @@ export interface Program {
   coachId: string;
   clientId: string | null;
   status: 'draft' | 'active' | 'completed';
+  publishedWeeks?: number | null;
   updatedAt?: string;
   updatedBy?: 'coach' | 'client';
 }
@@ -376,6 +377,7 @@ function mapProgram(p: any): Program {
     coachId: p.coachId || p.coach_id,
     clientId: p.clientId || p.client_id || null,
     status: (p.status || 'active') as 'draft' | 'active' | 'completed',
+    publishedWeeks: p.publishedWeeks ?? p.published_weeks ?? null,
     updatedAt: p.updatedAt || p.updated_at || p.createdAt || p.created_at,
     updatedBy: (p.updatedBy || p.updated_by || 'coach') as 'coach' | 'client',
   };
@@ -467,6 +469,7 @@ export async function updateProgram(program: Program): Promise<void> {
         daysPerWeek: program.daysPerWeek,
         clientId: program.clientId,
         status: program.status,
+        publishedWeeks: program.publishedWeeks,
         updatedAt: program.updatedAt || now,
         role,
       },
@@ -482,6 +485,7 @@ export async function updateProgram(program: Program): Promise<void> {
       daysPerWeek: program.daysPerWeek,
       clientId: program.clientId,
       status: program.status,
+      publishedWeeks: program.publishedWeeks,
       updatedAt: program.updatedAt || now,
       role,
     });
@@ -507,6 +511,7 @@ export async function updateProgram(program: Program): Promise<void> {
         daysPerWeek: program.daysPerWeek,
         clientId: program.clientId,
         status: program.status,
+        publishedWeeks: program.publishedWeeks,
         updatedAt: program.updatedAt || now,
         role,
       },
