@@ -645,6 +645,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/clients/:id", async (req, res) => {
     try {
+      await db.delete(programs).where(eq(programs.clientId, req.params.id));
       await db.delete(clients).where(eq(clients.id, req.params.id));
       res.json({ ok: true });
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
