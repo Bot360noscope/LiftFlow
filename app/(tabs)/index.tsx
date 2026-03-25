@@ -380,24 +380,23 @@ export default function HomeScreen() {
     ? notifications.filter(n => n.fromRole === 'client' && n.type !== 'completion' && n.type !== 'chat')
     : notifications.filter(n => n.type !== 'chat');
 
-  // Coach adherence rings — only count up to the highest week with any client activity
   const getWeeklyAdh = (progs: Program[]) => {
-    let totalNamed = 0, totalCompleted = 0;
+    let totalEx = 0, totalCompleted = 0;
     for (const prog of progs) {
       let maxActiveWeek = 0;
       for (const week of (prog.weeks || [])) {
-        const exercises = week.days.flatMap(d => d.exercises.filter(e => e.name));
+        const exercises = week.days.flatMap(d => d.exercises);
         if (exercises.some(e => e.isCompleted || e.clientNotes || e.videoUrl)) maxActiveWeek = Math.max(maxActiveWeek, week.weekNumber);
       }
       if (maxActiveWeek === 0) maxActiveWeek = 1;
       for (const week of (prog.weeks || [])) {
         if (week.weekNumber > maxActiveWeek) continue;
-        const exercises = week.days.flatMap(d => d.exercises.filter(e => e.name));
-        totalNamed += exercises.length;
+        const exercises = week.days.flatMap(d => d.exercises);
+        totalEx += exercises.length;
         totalCompleted += exercises.filter(e => e.isCompleted).length;
       }
     }
-    return totalNamed > 0 ? Math.round((totalCompleted / totalNamed) * 100) : 0;
+    return totalEx > 0 ? Math.round((totalCompleted / totalEx) * 100) : 0;
   };
   const adherencePct = getWeeklyAdh(programs);
   const onTrackCount = clients.filter(c => {
