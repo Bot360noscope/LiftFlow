@@ -1176,15 +1176,16 @@ export default function ProgramDetailScreen() {
       });
     }
     const newWeek: WorkoutWeek = { weekNumber: newWeekNumber, days: newDays };
+    const currentWeekCount = program.weeks.length;
     const updated = { ...program, weeks: [...program.weeks, newWeek] };
-    if (isShared && program.publishedWeeks !== undefined && program.publishedWeeks !== null) {
-      updated.publishedWeeks = program.publishedWeeks;
+    if (isShared) {
+      updated.publishedWeeks = program.publishedWeeks ?? currentWeekCount;
     }
     setProgram(updated);
     setActiveWeek(newWeekNumber);
     setHasChanges(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }, [program]);
+  }, [program, isShared]);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
