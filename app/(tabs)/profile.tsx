@@ -317,20 +317,6 @@ export default function ProfileScreen() {
           </Animated.View>
         )}
 
-        {isCoach && (
-          <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-              <Ionicons name="people" size={22} color={colors.textMuted} />
-              <Text style={[styles.statValue, { color: colors.text }]}>{stats.clients}</Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Clients</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-              <Ionicons name="barbell" size={22} color={colors.textMuted} />
-              <Text style={[styles.statValue, { color: colors.text }]}>{stats.programs}</Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Programs</Text>
-            </View>
-          </Animated.View>
-        )}
 
         <Animated.View entering={FadeInDown.delay(150).duration(400)}>
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Training</Text>
