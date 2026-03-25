@@ -48,3 +48,9 @@ id = "ba_0sTgorFHwN9G4hTM8N"
 uri = "file://LiftFlow 1.7.9.zip"
 type = "unspecified"
 title = "LiftFlow 1.7.9"
+
+[[outputs]]
+id = "Oxst5c54rP00Wkkio3nxP"
+uri = "file://liftflow-update.zip"
+type = "unspecified"
+title = "LiftFlow v1.7.9 - Latest Changes"
