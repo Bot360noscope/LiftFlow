@@ -1388,7 +1388,11 @@ export default function ProgramDetailScreen() {
       () => {
         const filtered = program.weeks.filter(w => w.weekNumber !== weekNumber);
         const renumbered = filtered.map((w, i) => ({ ...w, weekNumber: i + 1 }));
-        setProgram({ ...program, weeks: renumbered });
+        const updated = { ...program, weeks: renumbered };
+        if (isShared && program.publishedWeeks != null) {
+          updated.publishedWeeks = Math.min(program.publishedWeeks, renumbered.length);
+        }
+        setProgram(updated);
         if (activeWeek >= weekNumber) {
           setActiveWeek(Math.max(1, activeWeek > renumbered.length ? renumbered.length : activeWeek - 1));
         }
