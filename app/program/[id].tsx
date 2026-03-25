@@ -367,7 +367,10 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
       </View>
 
       {!!displayNote && (
-        <Text style={[styles.clientExCoachNote, { color: '#666' }]}>📝 {displayNote}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 5, marginBottom: 4 }}>
+          <Ionicons name="megaphone-outline" size={12} color={colors.accent} style={{ marginTop: 1 }} />
+          <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 12, color: colors.accent, flex: 1 }}>{displayNote}</Text>
+        </View>
       )}
 
       {!isCompleted && (
@@ -674,20 +677,20 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
           />
         </View>
         {expanded && (
-          <View style={[styles.exerciseExpanded, { borderTopColor: colors.border, marginTop: 8 }]}>
+          <View style={[styles.exerciseExpanded, { borderTopColor: colors.border, marginTop: 6, paddingBottom: 4 }]}>
             {hasPrevNotes && (
-              <View style={{ marginBottom: 8, padding: 8, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                  <Ionicons name="time-outline" size={11} color={colors.textMuted} />
-                  <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: colors.textMuted }}>Previous Week</Text>
+              <View style={{ marginBottom: 6, padding: 6, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                  <Ionicons name="time-outline" size={10} color={colors.textMuted} />
+                  <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 9, color: colors.textMuted }}>Previous Week</Text>
                 </View>
                 {!!prevWeekExercise?.clientNotes && (
-                  <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textSecondary, marginBottom: 2 }}>
+                  <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textSecondary, marginBottom: 1 }}>
                     Client: {prevWeekExercise.clientNotes}
                   </Text>
                 )}
                 {!!prevWeekExercise?.coachComment && (
-                  <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.accent, marginBottom: 2 }}>
+                  <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.accent, marginBottom: 1 }}>
                     Coach: {prevWeekExercise.coachComment}
                   </Text>
                 )}
@@ -698,17 +701,17 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
                 )}
               </View>
             )}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-              <Ionicons name="chatbubble-outline" size={12} color={colors.textSecondary} />
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginBottom: 0 }]}>{isShared ? 'Client Notes' : 'Notes'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+              <Ionicons name="chatbubble-outline" size={11} color={colors.textSecondary} />
+              <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.textSecondary }}>{isShared ? 'Client Notes' : 'Notes'}</Text>
             </View>
             {(isCoach && isShared) ? (
-              <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border, minHeight: 36 }]}>
-                <Text style={[styles.readOnlyText, { color: colors.textMuted }]}>{exercise.clientNotes || 'No client notes'}</Text>
+              <View style={{ backgroundColor: colors.surfaceLight, borderColor: colors.border, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, minHeight: 28 }}>
+                <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 12, color: colors.textMuted }}>{exercise.clientNotes || 'No client notes'}</Text>
               </View>
             ) : (
               <TextInput
-                style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+                style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, paddingVertical: 6, fontSize: 12 }]}
                 value={notes}
                 onChangeText={setNotes}
                 onBlur={saveChanges}
@@ -719,12 +722,12 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
             )}
             {isShared && (
               <>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4, marginTop: 8 }}>
-                  <Ionicons name="megaphone-outline" size={12} color={colors.accent} />
-                  <Text style={[styles.fieldLabel, { color: colors.accent, marginBottom: 0 }]}>Coach Comment</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3, marginTop: 6 }}>
+                  <Ionicons name="megaphone-outline" size={11} color={colors.accent} />
+                  <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.accent }}>Coach Comment</Text>
                 </View>
                 <TextInput
-                  style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+                  style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, paddingVertical: 6, fontSize: 12 }]}
                   value={coachComment}
                   onChangeText={setCoachComment}
                   onBlur={saveChanges}
@@ -2044,7 +2047,7 @@ const styles = StyleSheet.create({
   exerciseName: { fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: Colors.colors.text },
   exerciseMeta: { fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textSecondary, marginTop: 2 },
   exerciseHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  exerciseExpanded: { paddingHorizontal: 14, paddingBottom: 14, borderTopWidth: 1, borderTopColor: Colors.colors.border },
+  exerciseExpanded: { paddingHorizontal: 14, paddingBottom: 8, borderTopWidth: 1, borderTopColor: Colors.colors.border },
   fieldLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 12, color: Colors.colors.textSecondary, marginBottom: 6, marginTop: 14 },
   fieldInput: {
     fontFamily: 'Rubik_400Regular', fontSize: 14, color: Colors.colors.text,
