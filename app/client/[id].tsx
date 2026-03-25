@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   progressBarWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 4 },
   progressBar: { flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.colors.surfaceLight, overflow: 'hidden' as const },
   progressFill: { height: '100%' as const, borderRadius: 2, backgroundColor: Colors.colors.primary },
-  progressText: { fontFamily: 'Rubik_500Medium', fontSize: 11, color: Colors.colors.textSecondary, width: 28, textAlign: 'right' },
+  progressText: { fontFamily: 'Rubik_500Medium', fontSize: 11, color: Colors.colors.textSecondary, minWidth: 32, textAlign: 'right' as const },
   emptyCard: {
     alignItems: 'center', backgroundColor: Colors.colors.backgroundCard, borderRadius: 14,
     padding: 30, borderWidth: 1, borderColor: Colors.colors.border, gap: 6,
