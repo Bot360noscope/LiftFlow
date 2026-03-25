@@ -152,9 +152,9 @@ function getWeekDayStates(program: Program, weekNumber: number): DayState[] {
   const results: DayState[] = [];
   let foundCurrent = false;
   for (const day of week.days) {
-    const named = day.exercises.filter(e => e.name);
-    if (named.length === 0) { results.push('upcoming'); continue; }
-    const allDone = named.every(e => e.isCompleted);
+    const exs = day.exercises;
+    if (exs.length === 0) { results.push('upcoming'); continue; }
+    const allDone = exs.every(e => e.isCompleted);
     if (allDone) { results.push('done'); continue; }
     if (!foundCurrent) { results.push('current'); foundCurrent = true; }
     else results.push('upcoming');
@@ -164,9 +164,9 @@ function getWeekDayStates(program: Program, weekNumber: number): DayState[] {
 function getWeekCompletionPct(program: Program, weekNumber: number): number {
   const week = program.weeks.find(w => w.weekNumber === weekNumber);
   if (!week) return 0;
-  const days = week.days.filter(d => d.exercises.some(e => e.name));
+  const days = week.days.filter(d => d.exercises.length > 0);
   if (!days.length) return 0;
-  const done = days.filter(d => d.exercises.filter(e => e.name).every(e => e.isCompleted)).length;
+  const done = days.filter(d => d.exercises.every(e => e.isCompleted)).length;
   return Math.round((done / days.length) * 100);
 }
 
