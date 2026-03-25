@@ -472,7 +472,8 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
 }) {
   const { colors } = useTheme();
   const hasPrevNotes = !!(prevWeekExercise?.clientNotes || prevWeekExercise?.coachComment || prevWeekExercise?.notes);
-  const [localExpanded, setLocalExpanded] = useState(initialExpanded || hasPrevNotes);
+  const hasCurrentNotes = !!(exercise.clientNotes || exercise.coachComment || exercise.notes);
+  const [localExpanded, setLocalExpanded] = useState(initialExpanded || hasPrevNotes || hasCurrentNotes);
   const expanded = isExpandedProp !== undefined ? isExpandedProp : localExpanded;
   const [seenContent, setSeenContent] = useState(false);
   const [name, setName] = useState(exercise.name);
