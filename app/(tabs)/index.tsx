@@ -398,7 +398,8 @@ export default function HomeScreen() {
     }
     return totalEx > 0 ? Math.round((totalCompleted / totalEx) * 100) : 0;
   };
-  const adherencePct = getWeeklyAdh(programs);
+  const clientPrograms = isCoach ? programs.filter(p => !!p.clientId) : programs;
+  const adherencePct = getWeeklyAdh(clientPrograms);
   const onTrackCount = clients.filter(c => {
     const cp = programs.filter(p => p.clientId === c.id);
     return getWeeklyAdh(cp) >= 70;
