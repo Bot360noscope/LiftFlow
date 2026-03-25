@@ -471,7 +471,8 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   suggestionsEnabled?: boolean;
 }) {
   const { colors } = useTheme();
-  const [localExpanded, setLocalExpanded] = useState(initialExpanded || false);
+  const hasPrevNotes = !!(prevWeekExercise?.clientNotes || prevWeekExercise?.coachComment || prevWeekExercise?.notes);
+  const [localExpanded, setLocalExpanded] = useState(initialExpanded || hasPrevNotes);
   const expanded = isExpandedProp !== undefined ? isExpandedProp : localExpanded;
   const [seenContent, setSeenContent] = useState(false);
   const [name, setName] = useState(exercise.name);
@@ -660,6 +661,29 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
         </View>
         {expanded && (
           <View style={[styles.exerciseExpanded, { borderTopColor: colors.border, marginTop: 8 }]}>
+            {hasPrevNotes && (
+              <View style={{ marginBottom: 8, padding: 8, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                  <Ionicons name="time-outline" size={11} color={colors.textMuted} />
+                  <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: colors.textMuted }}>Previous Week</Text>
+                </View>
+                {!!prevWeekExercise?.clientNotes && (
+                  <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textSecondary, marginBottom: 2 }}>
+                    Client: {prevWeekExercise.clientNotes}
+                  </Text>
+                )}
+                {!!prevWeekExercise?.coachComment && (
+                  <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.accent, marginBottom: 2 }}>
+                    Coach: {prevWeekExercise.coachComment}
+                  </Text>
+                )}
+                {!!prevWeekExercise?.notes && !prevWeekExercise?.clientNotes && !prevWeekExercise?.coachComment && (
+                  <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textSecondary }}>
+                    {prevWeekExercise.notes}
+                  </Text>
+                )}
+              </View>
+            )}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
               <Ionicons name="chatbubble-outline" size={12} color={colors.textSecondary} />
               <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginBottom: 0 }]}>{isShared ? 'Client Notes' : 'Notes'}</Text>
@@ -1413,17 +1437,15 @@ export default function ProgramDetailScreen() {
     let completed = 0;
     for (const day of currentWeek.days) {
       for (const ex of day.exercises) {
-        if (ex.name) {
-          total++;
-          if (ex.isCompleted) completed++;
-        }
+        total++;
+        if (ex.isCompleted) completed++;
       }
     }
     return total > 0 ? Math.round((completed / total) * 100) : 0;
   })();
 
-  const dayTotal = exercises.filter(ex => !!ex.name).length;
-  const dayCompleted = exercises.filter(ex => !!ex.name && ex.isCompleted).length;
+  const dayTotal = exercises.length;
+  const dayCompleted = exercises.filter(ex => ex.isCompleted).length;
   const dayPct = dayTotal > 0 ? Math.round((dayCompleted / dayTotal) * 100) : 0;
 
   const updateExercise = useCallback((exerciseId: string, updates: Partial<Exercise>) => {
