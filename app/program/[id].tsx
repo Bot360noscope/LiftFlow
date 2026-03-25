@@ -1751,10 +1751,13 @@ export default function ProgramDetailScreen() {
 
       <View style={[styles.daySelector, { borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayScrollContent}>
-          {(currentWeek?.days || []).map(day => (
+          {(currentWeek?.days || []).map(day => {
+            const dayExercises = day.exercises || [];
+            const allDone = dayExercises.length > 0 && dayExercises.every(e => e.isCompleted);
+            return (
             <View key={day.dayNumber} style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Pressable
-                style={[styles.dayChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, activeDay === day.dayNumber && [styles.dayChipActive, { backgroundColor: colors.accent, borderColor: colors.accent }]]}
+                style={[styles.dayChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, activeDay === day.dayNumber && [styles.dayChipActive, { backgroundColor: colors.accent, borderColor: colors.accent }], allDone && activeDay !== day.dayNumber && { borderColor: colors.success }]}
                 onPress={() => { Haptics.selectionAsync(); setActiveDay(day.dayNumber); }}
                 onLongPress={() => {
                   if (isCoach || !isShared) {
@@ -1763,9 +1766,12 @@ export default function ProgramDetailScreen() {
                   }
                 }}
               >
-                <Text style={[styles.dayChipText, { color: colors.textSecondary }, activeDay === day.dayNumber && styles.dayChipTextActive]}>
-                  Day {day.dayNumber}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  {allDone && <Ionicons name="checkmark-circle" size={13} color={activeDay === day.dayNumber ? '#fff' : colors.success} />}
+                  <Text style={[styles.dayChipText, { color: colors.textSecondary }, activeDay === day.dayNumber && styles.dayChipTextActive]}>
+                    Day {day.dayNumber}
+                  </Text>
+                </View>
               </Pressable>
               {Platform.OS === 'web' && (isCoach || !isShared) && !planLocked && (currentWeek?.days || []).length > 1 && (
                 <Pressable
@@ -1777,7 +1783,7 @@ export default function ProgramDetailScreen() {
                 </Pressable>
               )}
             </View>
-          ))}
+          ); })}
         </ScrollView>
       </View>
 
