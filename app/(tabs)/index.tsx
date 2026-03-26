@@ -13,7 +13,7 @@ import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { HomeSkeleton } from "@/components/SkeletonLoader";
 import {
-  getDashboard, getBestPR,
+  getDashboard, getLatestPR,
   deleteNotification, removeCachedNotification,
   getCachedProfile, getCachedPrograms, getCachedPRs, getCachedClients, getCachedNotifications, getCachedLatestMessages,
   type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification, type LatestMessages,
@@ -677,7 +677,7 @@ export default function HomeScreen() {
             <Text style={[styles.sectionTitleStandalone, { color: colors.text }]}>Personal Records</Text>
             <View style={styles.prRow}>
               {(['squat', 'deadlift', 'bench'] as const).map((lift) => {
-                const best = getBestPR(prs, lift);
+                const best = getLatestPR(prs, lift);
                 return (
                   <Pressable
                     key={lift}
@@ -699,9 +699,9 @@ export default function HomeScreen() {
               })}
             </View>
             {(() => {
-              const squat = getBestPR(prs, 'squat');
-              const deadlift = getBestPR(prs, 'deadlift');
-              const bench = getBestPR(prs, 'bench');
+              const squat = getLatestPR(prs, 'squat');
+              const deadlift = getLatestPR(prs, 'deadlift');
+              const bench = getLatestPR(prs, 'bench');
               const profile = getCachedProfile();
               const bw = profile?.bodyWeight;
               const unit = profile?.weightUnit || 'kg';
