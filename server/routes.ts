@@ -454,6 +454,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const pw = p.publishedWeeks;
           if (pw === null || pw === undefined) return true;
           return pw > 0;
+        }).map(p => {
+          if (!p.clientId) return p;
+          const pw = p.publishedWeeks;
+          if (pw === null || pw === undefined) return p;
+          const weeks = (p.weeks as any[]) || [];
+          return { ...p, weeks: weeks.filter((w: any) => w.weekNumber <= pw) };
         });
       }
       res.json(result);
