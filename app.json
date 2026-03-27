@@ -41,6 +41,12 @@
     "web": {
       "favicon": "./assets/images/favicon.png"
     },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e6d95b82-5700-4441-a590-28af34a5dca5"
+    },
     "plugins": [
       [
         "expo-router",
@@ -63,7 +69,8 @@
           "icon": "./assets/images/icon.png",
           "color": "#E8512F"
         }
-      ]
+      ],
+      "expo-updates"
     ],
     "experiments": {
       "typedRoutes": true,
