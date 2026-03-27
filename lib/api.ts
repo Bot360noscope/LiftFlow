@@ -144,15 +144,18 @@ async function tryLocalTrimAndCompress(uri: string, startTime: number, endTime: 
   try {
     const { Video } = require('react-native-compressor');
     const duration = endTime - startTime;
+    const startMs = Math.round(startTime * 1000);
+    const endMs = Math.round(endTime * 1000);
     const result = await Video.compress(uri, {
       compressionMethod: 'manual',
       bitrate: adaptiveBitrate(duration),
       maxSize: 720,
-      startTime,
-      endTime,
+      startTime: startMs,
+      endTime: endMs,
     });
     return result;
-  } catch {
+  } catch (e) {
+    console.warn('[trim] local trim+compress failed:', e);
     return null;
   }
 }
@@ -272,17 +275,22 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   let finalFilename = filename;
   let finalVideoUrl = videoUrl;
 
-  // Server-side trim only as a last-resort fallback (Expo Go, local trim failed).
   if (serverTrim) {
-    const trimRes = await retryFetch(`${BASE}/api/trim-video`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders },
-      body: JSON.stringify({ filename, startTime: serverTrim.startTime, endTime: serverTrim.endTime }),
-    });
-    if (trimRes.ok) {
-      const trimData = await trimRes.json();
-      finalFilename = trimData.filename;
-      finalVideoUrl = trimData.videoUrl;
+    try {
+      const trimRes = await retryFetch(`${BASE}/api/trim-video`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ filename, startTime: serverTrim.startTime, endTime: serverTrim.endTime }),
+      });
+      if (trimRes.ok) {
+        const trimData = await trimRes.json();
+        finalFilename = trimData.filename;
+        finalVideoUrl = trimData.videoUrl;
+      } else {
+        console.warn('[trim] server-side trim failed:', trimRes.status);
+      }
+    } catch (e) {
+      console.warn('[trim] server-side trim error:', e);
     }
   }
 
