@@ -314,6 +314,43 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
     }
   };
 
+  const handleUpload = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['videos'],
+        videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
+        allowsEditing: false,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      router.push({
+        pathname: '/trim-video',
+        params: {
+          videoUri: asset.uri,
+          videoDuration: String(asset.duration || 0),
+          programId,
+          exerciseId: exercise.id,
+          uploadedBy: profileId,
+          coachId,
+          exerciseName: exercise.name || 'Exercise',
+        },
+      });
+    } catch {
+      showAlert("Error", "Failed to open library.");
+    }
+  };
+
+  const handleDeleteVideo = () => {
+    confirmAction(
+      "Delete Video",
+      "Are you sure you want to remove this video?",
+      () => {
+        onUpdate({ videoUrl: '' });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    );
+  };
+
   const handleNotesChange = (text: string) => {
     setClientNotes(text);
     if (notesAutoSaveTimer.current) clearTimeout(notesAutoSaveTimer.current);
@@ -374,14 +411,41 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
       )}
 
       {!isCompleted && (
-        <View style={styles.clientExActions}>
-          <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.primary }]} onPress={(e) => { e.stopPropagation(); handleRecord(); }}>
-            <Text style={[styles.clientExUploadText, { color: colors.primary }]}>Upload Form Video</Text>
-          </Pressable>
+        <View style={{ gap: 8 }}>
+          <View style={styles.clientExActions}>
+            <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.primary, flex: 1 }]} onPress={(e) => { e.stopPropagation(); handleRecord(); }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
+                <Ionicons name="videocam-outline" size={15} color={colors.primary} />
+                <Text style={[styles.clientExUploadText, { color: colors.primary }]}>Record</Text>
+              </View>
+            </Pressable>
+            <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.textSecondary, flex: 1 }]} onPress={(e) => { e.stopPropagation(); handleUpload(); }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
+                <Ionicons name="cloud-upload-outline" size={15} color={colors.textSecondary} />
+                <Text style={[styles.clientExUploadText, { color: colors.textSecondary }]}>Upload</Text>
+              </View>
+            </Pressable>
+            {hasVideo && (
+              <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.danger, paddingHorizontal: 10 }]} onPress={(e) => { e.stopPropagation(); handleDeleteVideo(); }}>
+                <Ionicons name="trash-outline" size={15} color={colors.danger} />
+              </Pressable>
+            )}
+          </View>
           <Pressable style={[styles.clientExMarkDoneBtn, { backgroundColor: colors.primary }]} onPress={(e) => { e.stopPropagation(); handleToggleComplete(); }}>
             <Text style={styles.clientExMarkDoneText}>Mark Done</Text>
           </Pressable>
         </View>
+      )}
+      {isCompleted && hasVideo && (
+        <Pressable
+          style={[styles.clientExUploadBtn, { borderColor: colors.danger, alignSelf: 'flex-start', marginTop: 6 }]}
+          onPress={(e) => { e.stopPropagation(); handleDeleteVideo(); }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Ionicons name="trash-outline" size={14} color={colors.danger} />
+            <Text style={[styles.clientExUploadText, { color: colors.danger }]}>Delete Video</Text>
+          </View>
+        </Pressable>
       )}
 
       {expanded && (
