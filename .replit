@@ -93,3 +93,8 @@ task = "shell.exec"
 args = "npm run expo:dev"
 waitForPort = 8081
 ensurePreviewReachable = "/status"
+
+[userenv]
+
+[userenv.shared]
+GITHUB_PAT = "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"
