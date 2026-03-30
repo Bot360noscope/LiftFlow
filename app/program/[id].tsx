@@ -1313,6 +1313,24 @@ export default function ProgramDetailScreen() {
         setIsCoach(prof.role === 'coach');
         setProfileId(prof.id);
         markNotificationsReadByProgram(id).catch(() => {});
+        if (prof.role === 'coach' && shared && p) {
+          AsyncStorage.getItem('liftflow_seen_exercises').then(stored => {
+            const map: Record<string, string> = stored ? JSON.parse(stored) : {};
+            let updated = false;
+            for (const week of p.weeks) {
+              for (const day of week.days) {
+                for (const ex of day.exercises) {
+                  const ck = `${ex.clientNotes || ''}::${ex.videoUrl || ''}`;
+                  if (ck !== '::' && map[ex.id] !== ck) {
+                    map[ex.id] = ck;
+                    updated = true;
+                  }
+                }
+              }
+            }
+            if (updated) AsyncStorage.setItem('liftflow_seen_exercises', JSON.stringify(map));
+          }).catch(() => {});
+        }
 
         if (prof.role === 'coach' && shared) {
           try {
