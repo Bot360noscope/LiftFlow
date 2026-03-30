@@ -145,7 +145,6 @@ export default function ChatScreen() {
           });
           appendMessageToCache(cId, cpId, m);
           markChatNotifsRead(cId, cpId);
-          setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
         }
       }
       if (event.type === 'message_sent' && event.message) {
@@ -185,7 +184,6 @@ export default function ChatScreen() {
         return [...prev, msg];
       });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (e: any) {
       setInput(text);
       setSendError(e.message || 'Failed to send');
@@ -216,7 +214,7 @@ export default function ChatScreen() {
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior="padding"
-      keyboardVerticalOffset={0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
     >
       <View style={[styles.header, { paddingTop: insets.top + webTopInset + 8, backgroundColor: colors.backgroundCard, borderBottomColor: colors.border }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
@@ -247,15 +245,14 @@ export default function ChatScreen() {
         <>
           <FlatList
             ref={flatListRef}
-            data={messages}
+            data={[...messages].reverse()}
+            inverted
             keyExtractor={(item) => item.id}
             renderItem={renderMessage}
-            contentContainerStyle={[styles.messagesList, { paddingBottom: 12 }]}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+            contentContainerStyle={[styles.messagesList, { paddingTop: 12 }]}
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
-            onStartReachedThreshold={0.1}
-            ListHeaderComponent={hasMore ? (
+            ListFooterComponent={hasMore ? (
               <Pressable onPress={loadOlderMessages} style={styles.loadMoreBtn}>
                 {loadingMore ? (
                   <ActivityIndicator size="small" color={colors.primary} />
@@ -265,7 +262,7 @@ export default function ChatScreen() {
               </Pressable>
             ) : null}
             ListEmptyComponent={
-              <View style={styles.emptyChat}>
+              <View style={[styles.emptyChat, { transform: [{ scaleY: -1 }] }]}>
                 <Ionicons name="chatbubbles-outline" size={40} color={colors.textMuted} />
                 <Text style={[styles.emptyChatText, { color: colors.textSecondary }]}>No messages yet</Text>
                 <Text style={[styles.emptyChatSub, { color: colors.textMuted }]}>Start the conversation!</Text>
@@ -298,9 +295,6 @@ export default function ChatScreen() {
               maxLength={1000}
               onSubmitEditing={handleSend}
               blurOnSubmit={false}
-              autoCorrect={false}
-              spellCheck={false}
-              autoComplete="off"
             />
             <Pressable
               style={[styles.sendBtn, { backgroundColor: colors.primary }, (!input.trim() || sending) && [styles.sendBtnDisabled, { backgroundColor: colors.surfaceLight }]]}
