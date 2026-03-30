@@ -688,10 +688,10 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   }, [contentKey, seenStorageKey]);
 
   useEffect(() => {
-    if (expanded && isCoach && isShared && contentKey && !seenContent) {
+    if (expanded && !forceExpanded && isCoach && isShared && contentKey && !seenContent) {
       markSeen();
     }
-  }, [expanded, isCoach, isShared, contentKey, seenContent, markSeen]);
+  }, [expanded, forceExpanded, isCoach, isShared, contentKey, seenContent, markSeen]);
 
   const canEditAll = (isCoach || !isShared) && !planLocked;
 
@@ -903,7 +903,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
       <Pressable
         style={styles.exerciseHeader}
         onPress={() => {
-          if (!expanded) markSeen();
+          if (!seenContent) markSeen();
           if (onToggle) { onToggle(); } else { setLocalExpanded(!localExpanded); }
         }}
         onLongPress={() => {
