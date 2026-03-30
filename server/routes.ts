@@ -478,15 +478,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return { ...p, weeks: weeks.filter((w: any) => w.weekNumber <= pw) };
         });
       }
-      res.json(result);
+      const enriched = await Promise.all(result.map((p: any) => enrichProgramWithVideos(p)));
+      res.json(enriched);
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
+
+  async function enrichProgramWithVideos(program: any): Promise<any> {
+    try {
+      const uploads = await db.select().from(videoUploads).where(eq(videoUploads.programId, program.id)).orderBy(desc(videoUploads.uploadedAt));
+      if (!uploads.length) return program;
+      const latestByExercise: Record<string, string> = {};
+      for (const u of uploads) {
+        if (!latestByExercise[u.exerciseId]) {
+          latestByExercise[u.exerciseId] = u.filename;
+        }
+      }
+      const weeks = Array.isArray(program.weeks) ? (program.weeks as any[]) : [];
+      let changed = false;
+      for (const week of weeks) {
+        for (const day of (week.days || [])) {
+          for (const ex of (day.exercises || [])) {
+            if (latestByExercise[ex.id] && !ex.videoUrl) {
+              ex.videoUrl = `/api/videos/${latestByExercise[ex.id]}`;
+              changed = true;
+            }
+          }
+        }
+      }
+      if (changed) {
+        await db.update(programs).set({ weeks }).where(eq(programs.id, program.id));
+        return { ...program, weeks };
+      }
+      return program;
+    } catch { return program; }
+  }
 
   app.get("/api/programs/:id", async (req, res) => {
     try {
       const [program] = await db.select().from(programs).where(eq(programs.id, req.params.id));
       if (!program) return res.status(404).json({ error: "Not found" });
-      res.json(program);
+      const enriched = await enrichProgramWithVideos(program);
+      res.json(enriched);
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
@@ -1010,6 +1042,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { filename, programId, exerciseId, uploadedBy, coachId } = req.body;
       if (!filename) return res.status(400).json({ error: "filename required" });
+      const videoUrl = `/api/videos/${filename}`;
       if (programId && exerciseId && uploadedBy && coachId) {
         await db.insert(videoUploads).values({
           id: randomUUID(),
@@ -1019,8 +1052,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           uploadedBy,
           coachId,
         });
+        try {
+          const [prog] = await db.select().from(programs).where(eq(programs.id, programId));
+          if (prog) {
+            const weeks = Array.isArray(prog.weeks) ? (prog.weeks as any[]) : [];
+            let changed = false;
+            for (const week of weeks) {
+              for (const day of (week.days || [])) {
+                for (const ex of (day.exercises || [])) {
+                  if (ex.id === exerciseId) {
+                    ex.videoUrl = videoUrl;
+                    changed = true;
+                  }
+                }
+              }
+            }
+            if (changed) {
+              await db.update(programs).set({ weeks, updatedAt: new Date() }).where(eq(programs.id, programId));
+            }
+          }
+        } catch (e2: any) { console.error('Failed to update program with videoUrl:', e2); }
       }
-      res.json({ success: true, videoUrl: `/api/videos/${filename}` });
+      res.json({ success: true, videoUrl });
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
@@ -1072,6 +1125,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           uploadedBy,
           coachId,
         });
+        try {
+          const [prog] = await db.select().from(programs).where(eq(programs.id, programId));
+          if (prog) {
+            const weeks = Array.isArray(prog.weeks) ? (prog.weeks as any[]) : [];
+            let changed = false;
+            for (const week of weeks) {
+              for (const day of (week.days || [])) {
+                for (const ex of (day.exercises || [])) {
+                  if (ex.id === exerciseId) {
+                    ex.videoUrl = videoUrl;
+                    changed = true;
+                  }
+                }
+              }
+            }
+            if (changed) {
+              await db.update(programs).set({ weeks, updatedAt: new Date() }).where(eq(programs.id, programId));
+            }
+          }
+        } catch (e2: any) { console.error('Failed to update program with videoUrl:', e2); }
       }
       res.json({ videoUrl });
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
