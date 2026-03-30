@@ -410,12 +410,10 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
 
   const handleUpload = async () => {
     try {
-      const useNativeTrim = Platform.OS === 'ios';
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['videos'],
         videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
-        allowsEditing: useNativeTrim,
-        videoMaxDuration: useNativeTrim ? 60 : undefined,
+        allowsEditing: false,
       });
       if (result.canceled || !result.assets?.[0]) return;
       const asset = result.assets[0];
@@ -429,7 +427,6 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
           uploadedBy: profileId,
           coachId,
           exerciseName: exercise.name || 'Exercise',
-          nativeTrimmed: useNativeTrim ? 'true' : 'false',
         },
       });
     } catch {
