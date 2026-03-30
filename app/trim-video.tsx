@@ -28,11 +28,13 @@ export default function TrimVideoScreen() {
     coachId: string;
     exerciseName: string;
     fromRecording: string;
+    nativeTrimmed: string;
   }>();
 
   const videoUri = params.videoUri || '';
   const rawDuration = Number(params.videoDuration || '0');
   const videoHasNoAudio = params.fromRecording === 'true';
+  const nativeTrimmed = params.nativeTrimmed === 'true';
   const totalDurationMs = rawDuration > 500 ? rawDuration : rawDuration * 1000;
   const initialDuration = Math.max(1, Math.round(totalDurationMs / 1000));
   const [totalDuration, _setTotalDuration] = useState(initialDuration);
@@ -314,8 +316,8 @@ export default function TrimVideoScreen() {
     const s = startRef.current;
     const e = endRef.current;
     const td = totalDurationRef.current;
-    const shouldTrim = s > 0 || e < td - 0.5;
-    console.log(`[trim-video] doUpload: start=${s}, end=${e}, total=${td}, shouldTrim=${shouldTrim}`);
+    const shouldTrim = !nativeTrimmed && (s > 0 || e < td - 0.5);
+    console.log(`[trim-video] doUpload: start=${s}, end=${e}, total=${td}, shouldTrim=${shouldTrim}, nativeTrimmed=${nativeTrimmed}`);
     addUpload({
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       uri: videoUri,
@@ -326,7 +328,7 @@ export default function TrimVideoScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     intentionalDismissRef.current = true;
     router.back();
-  }, [videoUri, programId, exerciseId, uploadedBy, coachId, exerciseName, addUpload]);
+  }, [videoUri, programId, exerciseId, uploadedBy, coachId, exerciseName, addUpload, nativeTrimmed]);
 
   const handleSubmit = () => {
     if (!isValidClip) return;
