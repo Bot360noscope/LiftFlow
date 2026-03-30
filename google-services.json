@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "442059201343",
+    "project_id": "lift-flow",
+    "storage_bucket": "lift-flow.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:442059201343:android:e6b4e045d1dc6e36a8518a",
+        "android_client_info": {
+          "package_name": "com.liftflow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAfKfrn8CRyD9-1m95I-Wq0yy8mzNkDU3g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

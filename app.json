@@ -28,6 +28,7 @@
     "android": {
       "package": "com.liftflow",
       "versionCode": 15,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0F0F0F",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
