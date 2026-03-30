@@ -20,6 +20,7 @@ import OnboardingScreen from "./onboarding";
 import Colors from "@/constants/colors";
 import OfflineBanner from "@/components/OfflineBanner";
 import UploadBanner from "@/components/UploadBanner";
+import ForceUpdate from "@/components/ForceUpdate";
 import { UploadProvider } from "@/lib/upload-context";
 import {
   useFonts,
@@ -145,12 +146,14 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
           <KeyboardProvider>
             <ThemeProvider>
-              <AuthProvider>
-                <UploadProvider>
-                  <ThemedStatusBar />
-                  <AppContent />
-                </UploadProvider>
-              </AuthProvider>
+              <ForceUpdate>
+                <AuthProvider>
+                  <UploadProvider>
+                    <ThemedStatusBar />
+                    <AppContent />
+                  </UploadProvider>
+                </AuthProvider>
+              </ForceUpdate>
             </ThemeProvider>
           </KeyboardProvider>
         </GestureHandlerRootView>

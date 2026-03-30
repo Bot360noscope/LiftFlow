@@ -192,6 +192,15 @@ async function sendPushNotification(targetProfileId: string, title: string, body
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
+  app.get("/api/app-config", (_req, res) => {
+    res.json({
+      minVersion: process.env.MIN_APP_VERSION || "1.7.9",
+      latestVersion: process.env.LATEST_APP_VERSION || "1.7.9",
+      forceUpdate: process.env.FORCE_UPDATE === "true",
+      updateMessage: process.env.UPDATE_MESSAGE || "A new version of LiftFlow is available with important improvements.",
+    });
+  });
+
   // Google Search Console verification
   app.get("/google4edce6fc3ed32d06.html", (_req, res) => {
     res.type("text/html").send("google-site-verification: google4edce6fc3ed32d06.html");
