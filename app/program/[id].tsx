@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Linking, ActivityIndicator, Modal, Alert } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Linking, ActivityIndicator, Modal, Alert, PanResponder } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { confirmAction, showAlert } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,13 +22,25 @@ function programPositionKey(programId: string) {
   return `liftflow_prog_pos_${programId}`;
 }
 
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
 function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
   const { colors } = useTheme();
   const [directUrl, setDirectUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isScrubbing, setIsScrubbing] = useState(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrubBarRef = useRef<View>(null);
+  const scrubBarWidthRef = useRef(0);
+  const isScrubbingRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,33 +52,77 @@ function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
 
   const player = useVideoPlayer(directUrl, player => {
     player.loop = false;
+    player.volume = 0;
   });
 
   useEffect(() => {
     if (!player) return;
-    const sub = player.addListener('playingChange', ({ isPlaying: playing }: { isPlaying: boolean }) => {
+    const playSub = player.addListener('playingChange', ({ isPlaying: playing }: { isPlaying: boolean }) => {
       setIsPlaying(playing);
       if (playing) {
-        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-        hideTimerRef.current = setTimeout(() => setShowControls(false), 2000);
+        resetHideTimer();
       } else {
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
         setShowControls(true);
       }
     });
-    return () => { sub.remove(); if (hideTimerRef.current) clearTimeout(hideTimerRef.current); };
+    const timeSub = player.addListener('timeUpdate', ({ currentTime: ct }: { currentTime: number }) => {
+      if (!isScrubbingRef.current) setCurrentTime(ct);
+    });
+    const statusSub = player.addListener('statusChange', ({ status }: { status: string }) => {
+      if (status === 'readyToPlay' && player.duration) {
+        setDuration(player.duration);
+      }
+    });
+    return () => { playSub.remove(); timeSub.remove(); statusSub.remove(); if (hideTimerRef.current) clearTimeout(hideTimerRef.current); };
   }, [player]);
 
+  const resetHideTimer = () => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    setShowControls(true);
+    hideTimerRef.current = setTimeout(() => { if (!isScrubbingRef.current) setShowControls(false); }, 3000);
+  };
+
   const handlePress = () => {
+    if (!player) return;
     if (player.playing) {
       player.pause();
     } else {
       player.play();
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = setTimeout(() => setShowControls(false), 2000);
     }
-    setShowControls(true);
+    resetHideTimer();
   };
+
+  const scrubPanResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: (evt) => {
+      isScrubbingRef.current = true;
+      setIsScrubbing(true);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      setShowControls(true);
+      if (player?.playing) player.pause();
+      const x = evt.nativeEvent.locationX;
+      const pct = Math.max(0, Math.min(1, x / scrubBarWidthRef.current));
+      const t = pct * duration;
+      setCurrentTime(t);
+      if (player) player.currentTime = t;
+    },
+    onPanResponderMove: (_, gs) => {
+      scrubBarRef.current?.measure((_fx, _fy, width, _h, px) => {
+        const x = gs.moveX - px;
+        const pct = Math.max(0, Math.min(1, x / width));
+        const t = pct * duration;
+        setCurrentTime(t);
+        if (player) player.currentTime = t;
+      });
+    },
+    onPanResponderRelease: () => {
+      isScrubbingRef.current = false;
+      setIsScrubbing(false);
+      resetHideTimer();
+    },
+  }), [player, duration]);
 
   if (error) {
     return (
@@ -85,22 +141,57 @@ function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
     );
   }
 
+  const progress = duration > 0 ? currentTime / duration : 0;
+
   return (
-    <Pressable onPress={handlePress} style={{ position: 'relative' }}>
-      <VideoView
-        style={styles.videoPlayer}
-        player={player}
-        nativeControls={false}
-        contentFit="contain"
-      />
-      {showControls && (
-        <View style={styles.videoOverlay} pointerEvents="none">
-          <View style={styles.videoPlayBtn}>
-            <Ionicons name={isPlaying ? 'pause' : 'play'} size={26} color="#fff" />
+    <View>
+      <Pressable onPress={handlePress} style={{ position: 'relative' }}>
+        <VideoView
+          style={styles.videoPlayer}
+          player={player}
+          nativeControls={false}
+          contentFit="contain"
+        />
+        {showControls && (
+          <View style={styles.videoOverlay} pointerEvents="none">
+            <View style={styles.videoPlayBtn}>
+              <Ionicons name={isPlaying ? 'pause' : 'play'} size={26} color="#fff" />
+            </View>
+          </View>
+        )}
+      </Pressable>
+      {(showControls || isScrubbing) && duration > 0 && (
+        <View style={{ paddingHorizontal: 8, paddingTop: 6, paddingBottom: 2 }}>
+          <View
+            ref={scrubBarRef}
+            onLayout={(e) => { scrubBarWidthRef.current = e.nativeEvent.layout.width; }}
+            style={{ height: 28, justifyContent: 'center' }}
+            {...scrubPanResponder.panHandlers}
+          >
+            <View style={{ height: 4, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 2 }}>
+              <View style={{ height: 4, backgroundColor: colors.primary, borderRadius: 2, width: `${progress * 100}%` }} />
+            </View>
+            <View
+              style={{
+                position: 'absolute',
+                left: `${progress * 100}%`,
+                marginLeft: -7,
+                width: 14,
+                height: 14,
+                borderRadius: 7,
+                backgroundColor: colors.primary,
+                borderWidth: 2,
+                borderColor: '#fff',
+              }}
+            />
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>
+            <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 10, color: colors.textMuted }}>{formatTime(currentTime)}</Text>
+            <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 10, color: colors.textMuted }}>{formatTime(duration)}</Text>
           </View>
         </View>
       )}
-    </Pressable>
+    </View>
   );
 }
 

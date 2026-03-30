@@ -144,18 +144,33 @@ async function tryLocalTrimAndCompress(uri: string, startTime: number, endTime: 
   try {
     const { Video } = require('react-native-compressor');
     const duration = endTime - startTime;
-    const startMs = Math.round(startTime * 1000);
-    const endMs = Math.round(endTime * 1000);
     const result = await Video.compress(uri, {
       compressionMethod: 'manual',
       bitrate: adaptiveBitrate(duration),
       maxSize: 720,
-      startTime: startMs,
-      endTime: endMs,
+      startTime,
+      endTime,
     });
     return result;
   } catch (e) {
     console.warn('[trim] local trim+compress failed:', e);
+    return null;
+  }
+}
+
+async function tryLocalTrimOnly(uri: string, startTime: number, endTime: number): Promise<string | null> {
+  if (isExpoGo || Platform.OS === 'web') return null;
+  if (!Number.isFinite(endTime) || endTime <= startTime) return null;
+  try {
+    const { Video } = require('react-native-compressor');
+    const result = await Video.compress(uri, {
+      compressionMethod: 'auto',
+      startTime,
+      endTime,
+    });
+    return result;
+  } catch (e) {
+    console.warn('[trim] local trim-only failed:', e);
     return null;
   }
 }
@@ -241,17 +256,20 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   });
 
   if (trim) {
-    // Try local trim+compress in one pass — no server ffmpeg needed.
     const localResult = await tryLocalTrimAndCompress(uri, trim.startTime, trim.endTime);
     if (localResult) {
       uploadUri = localResult;
     } else {
-      // Expo Go / fallback: upload raw and trim server-side.
-      serverTrim = trim;
-      const keptDuration = trim.endTime - trim.startTime;
-      if (keptDuration > 30) {
-        const compressed = await tryLocalCompress(uri, keptDuration);
-        if (compressed) uploadUri = compressed;
+      const trimOnly = await tryLocalTrimOnly(uri, trim.startTime, trim.endTime);
+      if (trimOnly) {
+        uploadUri = trimOnly;
+      } else {
+        serverTrim = trim;
+        const keptDuration = trim.endTime - trim.startTime;
+        if (keptDuration > 30) {
+          const compressed = await tryLocalCompress(uri, keptDuration);
+          if (compressed) uploadUri = compressed;
+        }
       }
     }
   } else {
