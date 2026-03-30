@@ -574,6 +574,17 @@ export default function HomeScreen() {
                   style={[styles.pendingReviewRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    const prog = programs.find(p => p.id === item.programId);
+                    const ex = prog?.weeks.flatMap(w => w.days.flatMap(d => d.exercises)).find(e => e.id === item.id);
+                    if (ex) {
+                      const contentKey = `${ex.clientNotes || ''}::${ex.videoUrl || ''}`;
+                      setSeenMap(prev => ({ ...prev, [item.id]: contentKey }));
+                      AsyncStorage.getItem('liftflow_seen_exercises').then(stored => {
+                        const map: Record<string, string> = stored ? JSON.parse(stored) : {};
+                        map[item.id] = contentKey;
+                        AsyncStorage.setItem('liftflow_seen_exercises', JSON.stringify(map));
+                      }).catch(() => {});
+                    }
                     if (item.programId) router.push({ pathname: `/program/${item.programId}`, params: { highlightExerciseId: item.id, initialWeek: String(item.weekNumber), initialDay: String(item.dayNumber) } });
                   }}
                   accessibilityRole="button"
