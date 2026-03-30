@@ -31,10 +31,9 @@ export default function TrimVideoScreen() {
   }>();
 
   const videoUri = params.videoUri || '';
-  const totalDurationMs = Number(params.videoDuration || '0');
-  // Videos recorded in-app are always muted (no audio track)
+  const rawDuration = Number(params.videoDuration || '0');
   const videoHasNoAudio = params.fromRecording === 'true';
-  // Initial duration from params — may be 0 on web (asset.duration is null)
+  const totalDurationMs = rawDuration > 500 ? rawDuration : rawDuration * 1000;
   const initialDuration = Math.max(1, Math.round(totalDurationMs / 1000));
   const [totalDuration, setTotalDuration] = useState(initialDuration);
   const programId = params.programId || '';
@@ -304,7 +303,8 @@ export default function TrimVideoScreen() {
   }), [totalDuration]);
 
   const doUpload = useCallback(() => {
-    const shouldTrim = startTime > 0 || endTime < totalDuration;
+    const shouldTrim = startTime > 0 || endTime < totalDuration - 0.5;
+    console.log(`[trim-video] doUpload: start=${startTime}, end=${endTime}, total=${totalDuration}, shouldTrim=${shouldTrim}`);
     addUpload({
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       uri: videoUri,

@@ -140,10 +140,14 @@ function adaptiveBitrate(durationSeconds: number): number {
 
 async function tryLocalTrimAndCompress(uri: string, startTime: number, endTime: number): Promise<string | null> {
   if (isExpoGo || Platform.OS === 'web') return null;
-  if (!Number.isFinite(endTime) || endTime <= startTime) return null;
+  if (!Number.isFinite(endTime) || endTime <= startTime) {
+    console.warn(`[trim] invalid range: start=${startTime}, end=${endTime}`);
+    return null;
+  }
   try {
     const { Video } = require('react-native-compressor');
     const duration = endTime - startTime;
+    console.log(`[trim] attempting local trim+compress: ${startTime}s-${endTime}s (${duration.toFixed(1)}s), bitrate=${adaptiveBitrate(duration)}`);
     const result = await Video.compress(uri, {
       compressionMethod: 'manual',
       bitrate: adaptiveBitrate(duration),
@@ -151,9 +155,10 @@ async function tryLocalTrimAndCompress(uri: string, startTime: number, endTime: 
       startTime,
       endTime,
     });
+    console.log(`[trim] local trim+compress result: ${result ? 'success' : 'null'}`);
     return result;
-  } catch (e) {
-    console.warn('[trim] local trim+compress failed:', e);
+  } catch (e: any) {
+    console.warn('[trim] local trim+compress failed:', e?.message || e);
     return null;
   }
 }
@@ -163,14 +168,16 @@ async function tryLocalTrimOnly(uri: string, startTime: number, endTime: number)
   if (!Number.isFinite(endTime) || endTime <= startTime) return null;
   try {
     const { Video } = require('react-native-compressor');
+    console.log(`[trim] attempting local trim-only: ${startTime}s-${endTime}s`);
     const result = await Video.compress(uri, {
       compressionMethod: 'auto',
       startTime,
       endTime,
     });
+    console.log(`[trim] local trim-only result: ${result ? 'success' : 'null'}`);
     return result;
-  } catch (e) {
-    console.warn('[trim] local trim-only failed:', e);
+  } catch (e: any) {
+    console.warn('[trim] local trim-only failed:', e?.message || e);
     return null;
   }
 }
