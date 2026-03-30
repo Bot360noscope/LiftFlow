@@ -2,7 +2,7 @@
   "expo": {
     "name": "LiftFlow",
     "slug": "liftflow",
-    "version": "1.7.9",
+    "version": "1.8.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "liftflow",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "app.sambaayno.liftflow",
-      "buildNumber": "27",
+      "buildNumber": "28",
       "infoPlist": {
         "NSCameraUsageDescription": "LiftFlow needs access to your camera to record form check videos for your coach to review.",
         "NSMicrophoneUsageDescription": "LiftFlow needs microphone access to record audio with your form check videos.",
@@ -27,7 +27,7 @@
     },
     "android": {
       "package": "com.liftflow",
-      "versionCode": 15,
+      "versionCode": 16,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0F0F0F",
