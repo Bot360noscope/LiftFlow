@@ -189,11 +189,11 @@ export default function ProgramsScreen() {
                 <View style={styles.cardTop}>
                   <View style={styles.cardTitleRow}>
                     <View style={[styles.statusDot, { backgroundColor: prog.status === 'active' ? colors.success : colors.warning }]} />
-                    <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>{prog.title}</Text>
+                    <Text style={[styles.cardTitle, { color: colors.text }]}>{prog.title}</Text>
                   </View>
                 </View>
 
-                <Text style={[styles.cardDesc, { color: colors.textMuted }]} numberOfLines={2}>{prog.description}</Text>
+                <Text style={[styles.cardDesc, { color: colors.textMuted }]}>{prog.description}</Text>
 
                 <View style={styles.cardStats}>
                   <View style={styles.cardStat}>
