@@ -637,7 +637,8 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   const { colors } = useTheme();
   const hasPrevNotes = !!(prevWeekExercise?.clientNotes || prevWeekExercise?.coachComment || prevWeekExercise?.notes);
   const hasCurrentNotes = !!(exercise.clientNotes || exercise.coachComment || exercise.notes);
-  const forceExpanded = isCoach && isShared && (hasCurrentNotes || hasPrevNotes);
+  const hasVideo = isCoach && isShared && !!exercise.videoUrl;
+  const forceExpanded = isCoach && isShared && (hasCurrentNotes || hasPrevNotes || !!exercise.videoUrl);
   const [localExpanded, setLocalExpanded] = useState(initialExpanded || hasPrevNotes || hasCurrentNotes);
   const expanded = forceExpanded || (isExpandedProp !== undefined ? isExpandedProp : localExpanded);
   const [seenContent, setSeenContent] = useState(false);
