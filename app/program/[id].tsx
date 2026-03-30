@@ -980,7 +980,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
         </View>
       </Pressable>
 
-      {isCoach && isShared && !!exercise.videoUrl && !expanded && (
+      {isCoach && isShared && !!exercise.videoUrl && (
         <View style={{ paddingHorizontal: 12, paddingBottom: 10 }}>
           <VideoPlayerInline videoUrl={exercise.videoUrl} isCoach={true} />
         </View>
@@ -1150,10 +1150,6 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
               }}
             />
           )}
-          {isCoach && isShared && !!exercise.videoUrl && (
-            <VideoPlayerInline videoUrl={exercise.videoUrl} isCoach={true} />
-          )}
-
           {(!isCoach || !isShared) && (
             <Pressable
               style={[styles.completionToggle, { backgroundColor: colors.surface, borderColor: colors.border }, isCompleted && [styles.completionToggleActive, { borderColor: colors.success }]]}
