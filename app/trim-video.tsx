@@ -35,7 +35,12 @@ export default function TrimVideoScreen() {
   const videoHasNoAudio = params.fromRecording === 'true';
   const totalDurationMs = rawDuration > 500 ? rawDuration : rawDuration * 1000;
   const initialDuration = Math.max(1, Math.round(totalDurationMs / 1000));
-  const [totalDuration, setTotalDuration] = useState(initialDuration);
+  const [totalDuration, _setTotalDuration] = useState(initialDuration);
+  const totalDurationRef = useRef(initialDuration);
+  const setTotalDuration = useCallback((v: number) => {
+    totalDurationRef.current = v;
+    _setTotalDuration(v);
+  }, []);
   const programId = params.programId || '';
   const exerciseId = params.exerciseId || '';
   const uploadedBy = params.uploadedBy || '';
@@ -129,6 +134,9 @@ export default function TrimVideoScreen() {
       p.currentTime = startRef.current;
     }
     p.volume = 0;
+    if ('audioMixingMode' in p) {
+      (p as any).audioMixingMode = 'mixWithOthers';
+    }
     p.play();
   });
 
@@ -303,19 +311,22 @@ export default function TrimVideoScreen() {
   }), [totalDuration]);
 
   const doUpload = useCallback(() => {
-    const shouldTrim = startTime > 0 || endTime < totalDuration - 0.5;
-    console.log(`[trim-video] doUpload: start=${startTime}, end=${endTime}, total=${totalDuration}, shouldTrim=${shouldTrim}`);
+    const s = startRef.current;
+    const e = endRef.current;
+    const td = totalDurationRef.current;
+    const shouldTrim = s > 0 || e < td - 0.5;
+    console.log(`[trim-video] doUpload: start=${s}, end=${e}, total=${td}, shouldTrim=${shouldTrim}`);
     addUpload({
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       uri: videoUri,
       meta: { programId, exerciseId, uploadedBy, coachId },
-      trim: shouldTrim ? { startTime, endTime } : undefined,
+      trim: shouldTrim ? { startTime: s, endTime: e } : undefined,
       exerciseName,
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     intentionalDismissRef.current = true;
     router.back();
-  }, [startTime, endTime, totalDuration, videoUri, programId, exerciseId, uploadedBy, coachId, exerciseName, addUpload]);
+  }, [videoUri, programId, exerciseId, uploadedBy, coachId, exerciseName, addUpload]);
 
   const handleSubmit = () => {
     if (!isValidClip) return;

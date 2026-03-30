@@ -53,6 +53,9 @@ function VideoPlayerView({ videoUrl }: { videoUrl: string }) {
   const player = useVideoPlayer(directUrl, player => {
     player.loop = false;
     player.volume = 0;
+    if ('audioMixingMode' in player) {
+      (player as any).audioMixingMode = 'mixWithOthers';
+    }
   });
 
   useEffect(() => {
