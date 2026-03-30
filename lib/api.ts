@@ -256,14 +256,19 @@ export async function uploadVideo(uri: string, meta?: { programId: string; exerc
   });
 
   if (trim) {
+    console.log(`[upload] trim requested: ${trim.startTime}s - ${trim.endTime}s (${(trim.endTime - trim.startTime).toFixed(1)}s clip), isExpoGo=${isExpoGo}`);
     const localResult = await tryLocalTrimAndCompress(uri, trim.startTime, trim.endTime);
     if (localResult) {
+      console.log('[upload] local trim+compress succeeded');
       uploadUri = localResult;
     } else {
+      console.log('[upload] local trim+compress failed, trying trim-only...');
       const trimOnly = await tryLocalTrimOnly(uri, trim.startTime, trim.endTime);
       if (trimOnly) {
+        console.log('[upload] local trim-only succeeded');
         uploadUri = trimOnly;
       } else {
+        console.log('[upload] all local trim methods failed, falling back to server-side trim');
         serverTrim = trim;
         const keptDuration = trim.endTime - trim.startTime;
         if (keptDuration > 30) {

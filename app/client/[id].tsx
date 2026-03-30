@@ -1,20 +1,144 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Image, Modal, TextInput } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Image, Modal, TextInput, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { useVideoPlayer, VideoView } from "expo-video";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import {
   getPrograms, getClients, removeClient, invalidateProgramsCache, getCachedPrograms,
   getNotifications,
-  type Program, type ClientInfo,
+  type Program, type ClientInfo, type Exercise,
 } from "@/lib/storage";
-import { getAvatarUrl } from "@/lib/api";
+import { getAvatarUrl, getDirectVideoUrl } from "@/lib/api";
 import { showAlert } from "@/lib/confirm";
 import { addWSListener } from "@/lib/websocket";
+
+type PendingReview = {
+  exercise: Exercise;
+  programTitle: string;
+  programId: string;
+  weekNumber: number;
+  dayNumber: number;
+};
+
+function getPendingReviews(programs: Program[]): PendingReview[] {
+  const reviews: PendingReview[] = [];
+  for (const prog of programs) {
+    for (const week of prog.weeks) {
+      for (const day of week.days) {
+        for (const ex of day.exercises) {
+          if (ex.videoUrl && !ex.coachComment) {
+            reviews.push({
+              exercise: ex,
+              programTitle: prog.title,
+              programId: prog.id,
+              weekNumber: week.weekNumber,
+              dayNumber: day.dayNumber,
+            });
+          }
+        }
+      }
+    }
+  }
+  return reviews;
+}
+
+function ReviewVideoPlayer({ videoUrl }: { videoUrl: string }) {
+  const { colors } = useTheme();
+  const [directUrl, setDirectUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+  const [showPlayer, setShowPlayer] = useState(false);
+
+  useEffect(() => {
+    if (!showPlayer) return;
+    let cancelled = false;
+    getDirectVideoUrl(videoUrl)
+      .then(url => { if (!cancelled) setDirectUrl(url); })
+      .catch(() => { if (!cancelled) setError(true); });
+    return () => { cancelled = true; };
+  }, [videoUrl, showPlayer]);
+
+  const player = useVideoPlayer(directUrl, p => { p.loop = false; });
+
+  if (!showPlayer) {
+    return (
+      <Pressable
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6 }}
+        onPress={() => setShowPlayer(true)}
+      >
+        <Ionicons name="play-circle-outline" size={18} color={colors.success} />
+        <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.success }}>Watch Video</Text>
+      </Pressable>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={{ height: 200, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderRadius: 10, marginTop: 8 }}>
+        <Ionicons name="alert-circle-outline" size={28} color={colors.danger} />
+        <Text style={{ color: colors.textMuted, fontSize: 12, fontFamily: 'Rubik_400Regular', marginTop: 4 }}>Video unavailable</Text>
+      </View>
+    );
+  }
+
+  if (!directUrl) {
+    return (
+      <View style={{ height: 200, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderRadius: 10, marginTop: 8 }}>
+        <ActivityIndicator size="small" color={colors.primary} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ marginTop: 8 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 4 }}>
+        <Pressable onPress={() => setShowPlayer(false)} hitSlop={8}>
+          <Ionicons name="close-circle" size={22} color={colors.textMuted} />
+        </Pressable>
+      </View>
+      <VideoView
+        style={{ width: '100%', height: 240, borderRadius: 10 }}
+        player={player}
+        nativeControls={true}
+        contentFit="contain"
+      />
+    </View>
+  );
+}
+
+function ReviewCard({ review }: { review: PendingReview }) {
+  const { colors } = useTheme();
+  return (
+    <View style={{ backgroundColor: colors.backgroundCard, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 14, marginBottom: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: colors.text, flex: 1 }} numberOfLines={1}>{review.exercise.name}</Text>
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push(`/program/${review.programId}`);
+          }}
+          hitSlop={8}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.primary }}>Open</Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+          </View>
+        </Pressable>
+      </View>
+      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, marginBottom: 6 }}>
+        {review.programTitle} — W{review.weekNumber}D{review.dayNumber}
+      </Text>
+      {review.exercise.clientNotes ? (
+        <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 12, color: colors.textSecondary, marginBottom: 6 }}>"{review.exercise.clientNotes}"</Text>
+      ) : null}
+      <ReviewVideoPlayer videoUrl={review.exercise.videoUrl} />
+    </View>
+  );
+}
 
 function ProgramCard({ program }: { program: Program }) {
   const { colors } = useTheme();
@@ -193,6 +317,24 @@ export default function ClientDetailScreen() {
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </Pressable>
         </Animated.View>
+
+        {(() => {
+          const reviews = getPendingReviews(programs);
+          if (reviews.length === 0) return null;
+          return (
+            <Animated.View entering={FadeInDown.delay(120).duration(350)}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>Pending Reviews</Text>
+                <View style={{ backgroundColor: `${colors.primary}22`, borderRadius: 99, paddingHorizontal: 8, paddingVertical: 2 }}>
+                  <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 11, color: colors.primary }}>{reviews.length}</Text>
+                </View>
+              </View>
+              {reviews.map((r, i) => (
+                <ReviewCard key={r.exercise.id} review={r} />
+              ))}
+            </Animated.View>
+          );
+        })()}
 
         <Animated.View entering={FadeInDown.delay(150).duration(350)}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Programs</Text>

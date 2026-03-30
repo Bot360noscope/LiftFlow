@@ -100,7 +100,14 @@ async function isCoachOverLimit(coachProfileId: string): Promise<{ overLimit: bo
   return { overLimit: currentClients.length > limit, plan, limit, clientCount: currentClients.length };
 }
 
+let ffmpegAvailable = false;
+execFile('ffmpeg', ['-version'], { timeout: 5000 }, (err) => {
+  if (!err) { ffmpegAvailable = true; console.log('[Server] ffmpeg is available for server-side video trimming'); }
+  else { console.warn('[Server] ffmpeg NOT found — server-side video trimming will fail. Install ffmpeg or rely on client-side trimming.'); }
+});
+
 async function trimVideoBuffer(buffer: Buffer, startTime: number, endTime: number): Promise<Buffer> {
+  if (!ffmpegAvailable) throw new Error('ffmpeg is not available on this server');
   const tmpDir = os.tmpdir();
   const inputPath = path.join(tmpDir, `input_${randomUUID()}.mp4`);
   const outputPath = path.join(tmpDir, `output_${randomUUID()}.mp4`);
