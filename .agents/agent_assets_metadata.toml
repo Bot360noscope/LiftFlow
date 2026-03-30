@@ -54,3 +54,9 @@ id = "Oxst5c54rP00Wkkio3nxP"
 uri = "file://liftflow-update.zip"
 type = "unspecified"
 title = "LiftFlow - All Latest Fixes (PR tracking, trim, video buttons)"
+
+[[outputs]]
+id = "WfQlvitwkT4yZeIF2prgB"
+uri = "file://liftflow-1.8.0.zip"
+type = "unspecified"
+title = "LiftFlow v1.8.0"
