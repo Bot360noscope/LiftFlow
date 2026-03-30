@@ -129,11 +129,7 @@ export default function TrimVideoScreen() {
     if (startRef.current > 0) {
       p.currentTime = startRef.current;
     }
-    // Mute preview for in-app recordings (no audio track) so the player
-    // never claims the audio session and background music keeps playing
-    if (videoHasNoAudio) {
-      p.volume = 0;
-    }
+    p.volume = 0;
     p.play();
   });
 
