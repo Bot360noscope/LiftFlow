@@ -796,6 +796,11 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
             <Ionicons name="close" size={15} color={colors.textMuted} />
           </Pressable>
         </View>
+        {isCoach && isShared && !!exercise.videoUrl && (
+          <View style={{ paddingVertical: 8 }}>
+            <VideoPlayerInline videoUrl={exercise.videoUrl} isCoach={true} />
+          </View>
+        )}
         <View style={{ flexDirection: 'row', gap: 6 }}>
           <TextInput
             style={[styles.compactFieldInput, { flex: 1, color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !repsSets && prevWeekExercise?.repsSets ? styles.ghostedInput : null]}
