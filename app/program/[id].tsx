@@ -977,6 +977,12 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
         </View>
       </Pressable>
 
+      {isCoach && isShared && !!exercise.videoUrl && !expanded && (
+        <View style={{ paddingHorizontal: 12, paddingBottom: 10 }}>
+          <VideoPlayerInline videoUrl={exercise.videoUrl} isCoach={true} />
+        </View>
+      )}
+
       {expanded && (
         <View style={[styles.exerciseExpanded, { borderTopColor: colors.border }]}>
           <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Exercise Name</Text>
@@ -2360,7 +2366,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik_400Regular', fontSize: 11, color: Colors.colors.textMuted,
     fontStyle: 'italic', marginTop: 8, marginLeft: 34,
   },
-  clientExActions: { flexDirection: 'row', gap: 8, marginTop: 12, marginLeft: 34 },
+  clientExActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
   clientExUploadBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
     borderWidth: 1, borderRadius: 8, paddingVertical: 9,
