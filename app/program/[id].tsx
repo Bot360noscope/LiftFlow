@@ -361,6 +361,7 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
   profileId: string;
 }) {
   const { colors } = useTheme();
+  const { addUpload } = useUploads();
   const [isCompleted, setIsCompleted] = useState(exercise.isCompleted);
   const [clientNotes, setClientNotes] = useState(exercise.clientNotes || '');
   const [expanded, setExpanded] = useState(false);
@@ -417,18 +418,13 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
       });
       if (result.canceled || !result.assets?.[0]) return;
       const asset = result.assets[0];
-      router.push({
-        pathname: '/trim-video',
-        params: {
-          videoUri: asset.uri,
-          videoDuration: String(asset.duration || 0),
-          programId,
-          exerciseId: exercise.id,
-          uploadedBy: profileId,
-          coachId,
-          exerciseName: exercise.name || 'Exercise',
-        },
+      addUpload({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        uri: asset.uri,
+        meta: { programId, exerciseId: exercise.id, uploadedBy: profileId, coachId },
+        exerciseName: exercise.name || 'Exercise',
       });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
       showAlert("Error", "Failed to open library.");
     }
@@ -473,7 +469,7 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
         isCompleted && { opacity: 0.85 },
       ]}
     >
-      <View style={[styles.clientExHeader, { marginBottom: (!!displayNote || !isCompleted || expanded) ? 10 : 0 }]}>
+      <View style={styles.clientExHeader}>
         <Pressable
           onPress={(e) => { e.stopPropagation(); handleToggleComplete(); }}
           hitSlop={8}
@@ -490,65 +486,61 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {hasVideo && (
             <View style={[styles.clientExVideoBadge, { backgroundColor: `${colors.primary}22` }]}>
-              <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 10, color: colors.primary }}>Video ✓</Text>
+              <Ionicons name="videocam" size={10} color={colors.primary} />
             </View>
+          )}
+          {!!clientNotes && (
+            <Ionicons name="chatbubble" size={10} color={colors.textMuted} />
           )}
           <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={colors.textMuted} />
         </View>
       </View>
 
-      {!!displayNote && (
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 5, marginBottom: 4 }}>
+      {!!displayNote && !expanded && (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 5, marginTop: 6 }}>
           <Ionicons name="megaphone-outline" size={12} color={colors.accent} style={{ marginTop: 1 }} />
-          <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 12, color: colors.accent, flex: 1 }}>{displayNote}</Text>
+          <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 12, color: colors.accent, flex: 1 }} numberOfLines={1}>{displayNote}</Text>
         </View>
-      )}
-
-      {!isCompleted && (
-        <View style={{ gap: 8 }}>
-          <View style={styles.clientExActions}>
-            <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.primary, flex: 1 }]} onPress={(e) => { e.stopPropagation(); handleRecord(); }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
-                <Ionicons name="videocam-outline" size={15} color={colors.primary} />
-                <Text style={[styles.clientExUploadText, { color: colors.primary }]}>Record</Text>
-              </View>
-            </Pressable>
-            <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.textSecondary, flex: 1 }]} onPress={(e) => { e.stopPropagation(); handleUpload(); }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
-                <Ionicons name="cloud-upload-outline" size={15} color={colors.textSecondary} />
-                <Text style={[styles.clientExUploadText, { color: colors.textSecondary }]}>Upload</Text>
-              </View>
-            </Pressable>
-            {hasVideo && (
-              <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.danger, paddingHorizontal: 10 }]} onPress={(e) => { e.stopPropagation(); handleDeleteVideo(); }}>
-                <Ionicons name="trash-outline" size={15} color={colors.danger} />
-              </Pressable>
-            )}
-          </View>
-          <Pressable style={[styles.clientExMarkDoneBtn, { backgroundColor: colors.primary }]} onPress={(e) => { e.stopPropagation(); handleToggleComplete(); }}>
-            <Text style={styles.clientExMarkDoneText}>Mark Done</Text>
-          </Pressable>
-        </View>
-      )}
-      {isCompleted && hasVideo && (
-        <Pressable
-          style={[styles.clientExUploadBtn, { borderColor: colors.danger, alignSelf: 'flex-start', marginTop: 6 }]}
-          onPress={(e) => { e.stopPropagation(); handleDeleteVideo(); }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Ionicons name="trash-outline" size={14} color={colors.danger} />
-            <Text style={[styles.clientExUploadText, { color: colors.danger }]}>Delete Video</Text>
-          </View>
-        </Pressable>
       )}
 
       {expanded && (
         <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 }}>
-          {hasVideo && (
-            <VideoPlayerInline videoUrl={exercise.videoUrl} />
+          {!!displayNote && (
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 5, marginBottom: 10 }}>
+              <Ionicons name="megaphone-outline" size={12} color={colors.accent} style={{ marginTop: 1 }} />
+              <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 12, color: colors.accent, flex: 1 }}>{displayNote}</Text>
+            </View>
           )}
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6, marginTop: hasVideo ? 10 : 0 }}>
+          {hasVideo && (
+            <View style={{ marginBottom: 10 }}>
+              <VideoPlayerInline videoUrl={exercise.videoUrl} />
+            </View>
+          )}
+
+          <View style={{ gap: 8, marginBottom: 10 }}>
+            <View style={styles.clientExActions}>
+              <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.primary, flex: 1 }]} onPress={(e) => { e.stopPropagation(); handleRecord(); }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
+                  <Ionicons name="videocam-outline" size={15} color={colors.primary} />
+                  <Text style={[styles.clientExUploadText, { color: colors.primary }]}>Record</Text>
+                </View>
+              </Pressable>
+              <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.textSecondary, flex: 1 }]} onPress={(e) => { e.stopPropagation(); handleUpload(); }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
+                  <Ionicons name="cloud-upload-outline" size={15} color={colors.textSecondary} />
+                  <Text style={[styles.clientExUploadText, { color: colors.textSecondary }]}>Upload</Text>
+                </View>
+              </Pressable>
+              {hasVideo && (
+                <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.danger, paddingHorizontal: 10 }]} onPress={(e) => { e.stopPropagation(); handleDeleteVideo(); }}>
+                  <Ionicons name="trash-outline" size={15} color={colors.danger} />
+                </Pressable>
+              )}
+            </View>
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 }}>
             <Ionicons name="chatbubble-outline" size={11} color={colors.textSecondary} />
             <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 12, color: colors.textSecondary }}>My Notes</Text>
           </View>
