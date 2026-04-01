@@ -1,10 +1,11 @@
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Image, Modal, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import Svg, { Circle } from "react-native-svg";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import {
@@ -16,23 +17,77 @@ import { getAvatarUrl } from "@/lib/api";
 import { showAlert } from "@/lib/confirm";
 import { addWSListener } from "@/lib/websocket";
 
+function MacroDonutSmall({ protein, carbs, fat, calories, size = 50, strokeWidth = 5, colors }: {
+  protein: number; carbs: number; fat: number; calories: number; size?: number; strokeWidth?: number; colors: any;
+}) {
+  const cx = size / 2, cy = size / 2, r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+  const total = protein + carbs + fat;
+  const pPct = total > 0 ? protein / total : 0;
+  const cPct = total > 0 ? carbs / total : 0;
+  const fPct = total > 0 ? fat / total : 0;
+  const pLen = pPct * circ, cLen = cPct * circ, fLen = fPct * circ;
+  const gap = total > 0 ? 3 : 0;
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} style={StyleSheet.absoluteFill as any}>
+        <Circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(128,128,128,0.12)" strokeWidth={strokeWidth} />
+        {total > 0 && (
+          <>
+            <Circle cx={cx} cy={cy} r={r} fill="none" stroke="#4FC3F7" strokeWidth={strokeWidth}
+              strokeDasharray={`${Math.max(0, pLen - gap)} ${circ - Math.max(0, pLen - gap)}`}
+              strokeLinecap="round" transform={`rotate(-90, ${cx}, ${cy})`} />
+            <Circle cx={cx} cy={cy} r={r} fill="none" stroke={colors.gold || '#FFB800'} strokeWidth={strokeWidth}
+              strokeDasharray={`${Math.max(0, cLen - gap)} ${circ - Math.max(0, cLen - gap)}`}
+              strokeLinecap="round" transform={`rotate(${-90 + pPct * 360}, ${cx}, ${cy})`} />
+            <Circle cx={cx} cy={cy} r={r} fill="none" stroke="#FF8A65" strokeWidth={strokeWidth}
+              strokeDasharray={`${Math.max(0, fLen - gap)} ${circ - Math.max(0, fLen - gap)}`}
+              strokeLinecap="round" transform={`rotate(${-90 + (pPct + cPct) * 360}, ${cx}, ${cy})`} />
+          </>
+        )}
+      </Svg>
+      <View style={{ alignItems: 'center' }}>
+        <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: Math.floor(size * 0.2), color: colors.text, lineHeight: Math.floor(size * 0.24) }}>{calories}</Text>
+        <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: Math.floor(size * 0.11), color: colors.textMuted }}>cal</Text>
+      </View>
+    </View>
+  );
+}
+
 function ProgramCard({ program }: { program: Program }) {
   const { colors } = useTheme();
   const isNutrition = program.programType === 'nutrition';
+  const isPhysio = program.programType === 'physio';
+  const tagColor = isNutrition ? '#4FC3F7' : isPhysio ? '#FF9500' : colors.primary;
+  const tagLabel = isNutrition ? 'Diet' : isPhysio ? 'Physio' : 'Workout';
   let totalExercises = 0;
   let completedExercises = 0;
+  const macros = { calories: 0, protein: 0, carbs: 0, fat: 0 };
   for (const week of program.weeks) {
     for (const day of week.days) {
       if (isNutrition) {
         const nd = day as any;
         for (const meal of (nd.meals || [])) {
-          for (const item of (meal.items || [])) { totalExercises++; if (item.checked) completedExercises++; }
+          for (const item of (meal.items || [])) {
+            totalExercises++; if (item.checked) completedExercises++;
+            macros.calories += item.calories || 0;
+            macros.protein += item.protein || 0;
+            macros.carbs += item.carbs || 0;
+            macros.fat += item.fat || 0;
+          }
         }
       } else {
         const wd = day as any;
         for (const ex of (wd.exercises || [])) { if (!ex.name) continue; totalExercises++; if (ex.isCompleted) completedExercises++; }
       }
     }
+  }
+  const totalDays = program.weeks.reduce((s, w) => s + w.days.length, 0);
+  if (isNutrition && totalDays > 0) {
+    macros.calories = Math.round(macros.calories / totalDays);
+    macros.protein = Math.round(macros.protein / totalDays);
+    macros.carbs = Math.round(macros.carbs / totalDays);
+    macros.fat = Math.round(macros.fat / totalDays);
   }
   const progress = totalExercises > 0 ? Math.round((completedExercises / totalExercises) * 100) : 0;
   const dateStr = new Date(program.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -48,20 +103,37 @@ function ProgramCard({ program }: { program: Program }) {
       <View style={styles.programCardTop}>
         <View style={[styles.statusDot, { backgroundColor: program.status === 'active' ? colors.success : colors.warning }]} />
         <Text style={[styles.programTitle, { color: colors.text }]} numberOfLines={1}>{program.title}</Text>
+        <View style={{ backgroundColor: tagColor + '22', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, marginLeft: 'auto' as any, marginRight: 6 }}>
+          <Text style={{ fontSize: 9, fontFamily: 'Rubik_600SemiBold', color: tagColor, textTransform: 'uppercase', letterSpacing: 0.3 }}>{tagLabel}</Text>
+        </View>
         <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
       </View>
       <Text style={[styles.programDesc, { color: colors.textMuted }]} numberOfLines={1}>{program.description}</Text>
-      <View style={styles.programMeta}>
-        <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{program.weeks.length}W / {program.daysPerWeek}D</Text>
-        <Text style={[styles.programMetaDot, { color: colors.textMuted }]}>{'\u00B7'}</Text>
-        <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{dateStr}</Text>
-        <View style={styles.progressBarWrap}>
-          <View style={[styles.progressBar, { backgroundColor: colors.surfaceLight }]}>
-            <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: colors.primary }]} />
+      {isNutrition ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 }}>
+          <MacroDonutSmall protein={macros.protein} carbs={macros.carbs} fat={macros.fat} calories={macros.calories} size={50} strokeWidth={5} colors={colors} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: '#4FC3F7' }}>Protein {macros.protein}g</Text>
+              <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: colors.gold || '#FFB800' }}>Carbs {macros.carbs}g</Text>
+              <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: '#FF8A65' }}>Fat {macros.fat}g</Text>
+            </View>
+            <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 9, color: colors.textMuted }}>Avg per day</Text>
           </View>
-          <Text style={[styles.progressText, { color: colors.textSecondary }]}>{progress}%</Text>
         </View>
-      </View>
+      ) : (
+        <View style={styles.programMeta}>
+          <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{program.weeks.length}W / {program.daysPerWeek}D</Text>
+          <Text style={[styles.programMetaDot, { color: colors.textMuted }]}>{'\u00B7'}</Text>
+          <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{dateStr}</Text>
+          <View style={styles.progressBarWrap}>
+            <View style={[styles.progressBar, { backgroundColor: colors.surfaceLight }]}>
+              <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: colors.primary }]} />
+            </View>
+            <Text style={[styles.progressText, { color: colors.textSecondary }]}>{progress}%</Text>
+          </View>
+        </View>
+      )}
     </Pressable>
   );
 }

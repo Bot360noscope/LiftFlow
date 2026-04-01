@@ -102,8 +102,12 @@ function ClientCard({ client, programs, hasUnread, colors }: { client: ClientInf
 
 function ProgramCard({ program, colors }: { program: Program; colors: any }) {
   const isNutrition = program.programType === 'nutrition';
+  const isPhysio = program.programType === 'physio';
+  const tagColor = isNutrition ? '#4FC3F7' : isPhysio ? '#FF9500' : colors.primary;
+  const tagLabel = isNutrition ? 'Diet' : isPhysio ? 'Physio' : 'Workout';
   let totalItems = 0;
   let completedItems = 0;
+  const macros = { calories: 0, protein: 0, carbs: 0, fat: 0 };
   for (const week of program.weeks) {
     for (const day of week.days) {
       if (isNutrition) {
@@ -113,6 +117,10 @@ function ProgramCard({ program, colors }: { program: Program; colors: any }) {
             for (const item of (meal.items || [])) {
               totalItems++;
               if (item.checked) completedItems++;
+              macros.calories += item.calories || 0;
+              macros.protein += item.protein || 0;
+              macros.carbs += item.carbs || 0;
+              macros.fat += item.fat || 0;
             }
           }
         }
@@ -126,6 +134,13 @@ function ProgramCard({ program, colors }: { program: Program; colors: any }) {
       }
     }
   }
+  const totalDays = program.weeks.reduce((s, w) => s + w.days.length, 0);
+  if (isNutrition && totalDays > 0) {
+    macros.calories = Math.round(macros.calories / totalDays);
+    macros.protein = Math.round(macros.protein / totalDays);
+    macros.carbs = Math.round(macros.carbs / totalDays);
+    macros.fat = Math.round(macros.fat / totalDays);
+  }
   const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
   return (
@@ -138,16 +153,33 @@ function ProgramCard({ program, colors }: { program: Program; colors: any }) {
       <View style={styles.programCardHeader}>
         <View style={[styles.statusDot, { backgroundColor: program.status === 'active' ? colors.success : colors.warning }]} />
         <Text style={[styles.programTitle, { color: colors.text }]} numberOfLines={1}>{program.title}</Text>
+        <View style={{ backgroundColor: tagColor + '22', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, marginLeft: 'auto' as any, marginRight: 6 }}>
+          <Text style={{ fontSize: 9, fontFamily: 'Rubik_600SemiBold', color: tagColor, textTransform: 'uppercase', letterSpacing: 0.3 }}>{tagLabel}</Text>
+        </View>
         <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
       </View>
       <Text style={[styles.programDesc, { color: colors.textMuted }]} numberOfLines={1}>{program.description}</Text>
-      <View style={styles.programMeta}>
-        <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{program.weeks.length}W / {program.daysPerWeek}D</Text>
-        <View style={[styles.progressBar, { backgroundColor: colors.surfaceLight }]}>
-          <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: colors.primary }]} />
+      {isNutrition ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 }}>
+          <MacroDonut protein={macros.protein} carbs={macros.carbs} fat={macros.fat} calories={macros.calories} size={50} strokeWidth={5} colors={colors} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: '#4FC3F7' }}>Protein {macros.protein}g</Text>
+              <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: colors.gold || '#FFB800' }}>Carbs {macros.carbs}g</Text>
+              <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: '#FF8A65' }}>Fat {macros.fat}g</Text>
+            </View>
+            <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 9, color: colors.textMuted }}>Avg per day</Text>
+          </View>
         </View>
-        <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{progress}%</Text>
-      </View>
+      ) : (
+        <View style={styles.programMeta}>
+          <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{program.weeks.length}W / {program.daysPerWeek}D</Text>
+          <View style={[styles.progressBar, { backgroundColor: colors.surfaceLight }]}>
+            <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: colors.primary }]} />
+          </View>
+          <Text style={[styles.programMetaText, { color: colors.textSecondary }]}>{progress}%</Text>
+        </View>
+      )}
     </Pressable>
   );
 }
