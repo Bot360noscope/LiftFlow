@@ -361,9 +361,11 @@ function FoodSearchModal({ visible, onClose, onSelect, colors }: { visible: bool
     if (!query.trim()) return;
     setSearching(true);
     try {
-      const apiBase = getApiUrl();
+      const apiBase = getApiUrl().replace(/\/+$/, '');
       const res = await fetch(`${apiBase}/api/food-search?q=${encodeURIComponent(query)}`);
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { products: [] }; }
       setResults((data.products || []).filter((p: any) => p.product_name));
     } catch (e) { console.log('Food search error:', e); setResults([]); }
     setSearching(false);
@@ -450,11 +452,12 @@ function MacroBar({ label, value, color, colorsTheme }: { label: string; value: 
   );
 }
 
-function NutritionDayView({ day, canEdit, onUpdate, colors }: {
+function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay }: {
   day: NutritionDay;
   canEdit: boolean;
   onUpdate: (updated: NutritionDay) => void;
   colors: any;
+  prevWeekDay?: NutritionDay | null;
 }) {
   const [searchMealId, setSearchMealId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<{ mealId: string; itemId: string; field: string } | null>(null);
@@ -1212,38 +1215,42 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
             placeholder={prevWeekExercise?.repsSets || "Sets×Reps"}
             placeholderTextColor={prevWeekExercise?.repsSets ? colors.textGhost : colors.textMuted}
           />
-          <View style={{ flex: 1 }}>
+          {!isPhysio && (
+            <View style={{ flex: 1 }}>
+              <TextInput
+                style={[styles.compactFieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !weight && prevWeekExercise?.weight ? styles.ghostedInput : null]}
+                value={weight}
+                onChangeText={setWeight}
+                onBlur={saveChanges}
+                placeholder={prevWeekExercise?.weight || weightLabel}
+                placeholderTextColor={prevWeekExercise?.weight ? colors.textGhost : colors.textMuted}
+              />
+              {suggestionsEnabled && !weight && (() => {
+                const suggestion = computeRpeSuggestion(prevWeekExercise);
+                if (!suggestion) return null;
+                return (
+                  <Pressable
+                    onPress={() => { setWeight(suggestion); saveChanges(); Haptics.selectionAsync(); }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 }}
+                  >
+                    <Ionicons name="flash" size={9} color={colors.gold} />
+                    <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 9, color: colors.gold }}>{suggestion}</Text>
+                  </Pressable>
+                );
+              })()}
+            </View>
+          )}
+          {!isPhysio && (
             <TextInput
-              style={[styles.compactFieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !weight && prevWeekExercise?.weight ? styles.ghostedInput : null]}
-              value={weight}
-              onChangeText={setWeight}
+              style={[styles.compactFieldInput, { width: 50, color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !rpe && prevWeekExercise?.rpe ? styles.ghostedInput : null]}
+              value={rpe}
+              onChangeText={setRpe}
               onBlur={saveChanges}
-              placeholder={prevWeekExercise?.weight || weightLabel}
-              placeholderTextColor={prevWeekExercise?.weight ? colors.textGhost : colors.textMuted}
+              placeholder={prevWeekExercise?.rpe || rpeLabel}
+              placeholderTextColor={prevWeekExercise?.rpe ? colors.textGhost : colors.textMuted}
+              keyboardType="decimal-pad"
             />
-            {suggestionsEnabled && !weight && (() => {
-              const suggestion = computeRpeSuggestion(prevWeekExercise);
-              if (!suggestion) return null;
-              return (
-                <Pressable
-                  onPress={() => { setWeight(suggestion); saveChanges(); Haptics.selectionAsync(); }}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 }}
-                >
-                  <Ionicons name="flash" size={9} color={colors.gold} />
-                  <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 9, color: colors.gold }}>{suggestion}</Text>
-                </Pressable>
-              );
-            })()}
-          </View>
-          <TextInput
-            style={[styles.compactFieldInput, { width: 50, color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !rpe && prevWeekExercise?.rpe ? styles.ghostedInput : null]}
-            value={rpe}
-            onChangeText={setRpe}
-            onBlur={saveChanges}
-            placeholder={prevWeekExercise?.rpe || rpeLabel}
-            placeholderTextColor={prevWeekExercise?.rpe ? colors.textGhost : colors.textMuted}
-            keyboardType="decimal-pad"
-          />
+          )}
         </View>
         {expanded && (
           <View style={[styles.exerciseExpanded, { borderTopColor: colors.border, marginTop: 6, paddingBottom: 4 }]}>
@@ -1398,16 +1405,16 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
               ) : (
                 <Text style={[styles.exerciseMeta, { color: colors.textSecondary }]}>-</Text>
               )}
-              {exercise.weight ? (
+              {!isPhysio && (exercise.weight ? (
                 <Text style={[styles.exerciseMeta, { color: colors.textSecondary }]}>@ {exercise.weight}</Text>
               ) : prevWeekExercise?.weight ? (
                 <Text style={[styles.exerciseMeta, { color: colors.textGhost, fontStyle: 'italic' }]}>@ {prevWeekExercise.weight}</Text>
-              ) : null}
-              {exercise.rpe ? (
+              ) : null)}
+              {!isPhysio && (exercise.rpe ? (
                 <Text style={[styles.exerciseMeta, { color: colors.textSecondary }]}>{rpeLabel} {exercise.rpe}</Text>
               ) : prevWeekExercise?.rpe ? (
                 <Text style={[styles.exerciseMeta, { color: colors.textGhost, fontStyle: 'italic' }]}>{rpeLabel} {prevWeekExercise.rpe}</Text>
-              ) : null}
+              ) : null)}
             </View>
           </View>
         </View>
@@ -1480,58 +1487,62 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
                 </View>
               )}
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{weightLabel}</Text>
-              {canEditAll ? (
-                <TextInput
-                  style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !weight && prevWeekExercise?.weight ? styles.ghostedInput : null]}
-                  value={weight}
-                  onChangeText={setWeight}
-                  onBlur={saveChanges}
-                  placeholder={prevWeekExercise?.weight || (isPhysio ? "e.g., Band" : "e.g., 100kg")}
-                  placeholderTextColor={prevWeekExercise?.weight ? colors.textGhost : colors.textMuted}
-                />
-              ) : (
-                <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
-                  <Text style={[styles.readOnlyText, { color: colors.textMuted }, !weight && prevWeekExercise?.weight ? [styles.ghostText, { color: colors.textGhost }] : null]}>
-                    {weight || prevWeekExercise?.weight || '-'}
-                  </Text>
-                </View>
-              )}
-              {suggestionsEnabled && canEditAll && !weight && (() => {
-                const suggestion = computeRpeSuggestion(prevWeekExercise);
-                if (!suggestion) return null;
-                return (
-                  <Pressable
-                    onPress={() => { setWeight(suggestion); saveChanges(); Haptics.selectionAsync(); }}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 }}
-                  >
-                    <Ionicons name="flash" size={10} color={colors.gold} />
-                    <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: colors.gold }}>{suggestion}</Text>
-                  </Pressable>
-                );
-              })()}
-            </View>
-            <View style={{ width: 70 }}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{rpeLabel}</Text>
-              {canEditAll ? (
-                <TextInput
-                  style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !rpe && prevWeekExercise?.rpe ? styles.ghostedInput : null]}
-                  value={rpe}
-                  onChangeText={setRpe}
-                  onBlur={saveChanges}
-                  placeholder={prevWeekExercise?.rpe || (isPhysio ? "1-10" : "7")}
-                  placeholderTextColor={prevWeekExercise?.rpe ? colors.textGhost : colors.textMuted}
-                  keyboardType="decimal-pad"
-                />
-              ) : (
-                <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
-                  <Text style={[styles.readOnlyText, { color: colors.textMuted }, !rpe && prevWeekExercise?.rpe ? [styles.ghostText, { color: colors.textGhost }] : null]}>
-                    {rpe || prevWeekExercise?.rpe || '-'}
-                  </Text>
-                </View>
-              )}
-            </View>
+            {!isPhysio && (
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{weightLabel}</Text>
+                {canEditAll ? (
+                  <TextInput
+                    style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !weight && prevWeekExercise?.weight ? styles.ghostedInput : null]}
+                    value={weight}
+                    onChangeText={setWeight}
+                    onBlur={saveChanges}
+                    placeholder={prevWeekExercise?.weight || "e.g., 100kg"}
+                    placeholderTextColor={prevWeekExercise?.weight ? colors.textGhost : colors.textMuted}
+                  />
+                ) : (
+                  <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
+                    <Text style={[styles.readOnlyText, { color: colors.textMuted }, !weight && prevWeekExercise?.weight ? [styles.ghostText, { color: colors.textGhost }] : null]}>
+                      {weight || prevWeekExercise?.weight || '-'}
+                    </Text>
+                  </View>
+                )}
+                {suggestionsEnabled && canEditAll && !weight && (() => {
+                  const suggestion = computeRpeSuggestion(prevWeekExercise);
+                  if (!suggestion) return null;
+                  return (
+                    <Pressable
+                      onPress={() => { setWeight(suggestion); saveChanges(); Haptics.selectionAsync(); }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 }}
+                    >
+                      <Ionicons name="flash" size={10} color={colors.gold} />
+                      <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: colors.gold }}>{suggestion}</Text>
+                    </Pressable>
+                  );
+                })()}
+              </View>
+            )}
+            {!isPhysio && (
+              <View style={{ width: 70 }}>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{rpeLabel}</Text>
+                {canEditAll ? (
+                  <TextInput
+                    style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !rpe && prevWeekExercise?.rpe ? styles.ghostedInput : null]}
+                    value={rpe}
+                    onChangeText={setRpe}
+                    onBlur={saveChanges}
+                    placeholder={prevWeekExercise?.rpe || "7"}
+                    placeholderTextColor={prevWeekExercise?.rpe ? colors.textGhost : colors.textMuted}
+                    keyboardType="decimal-pad"
+                  />
+                ) : (
+                  <View style={[styles.fieldInput, styles.readOnlyField, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
+                    <Text style={[styles.readOnlyText, { color: colors.textMuted }, !rpe && prevWeekExercise?.rpe ? [styles.ghostText, { color: colors.textGhost }] : null]}>
+                      {rpe || prevWeekExercise?.rpe || '-'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           {isCoach && isShared && exercise.isCompleted && (
@@ -1965,7 +1976,11 @@ export default function ProgramDetailScreen() {
         nutritionDays.push({
           dayNumber: d,
           meals: templateDay
-            ? templateDay.meals.map(m => ({ id: Crypto.randomUUID(), name: m.name, items: [] }))
+            ? templateDay.meals.map(m => ({
+                id: Crypto.randomUUID(),
+                name: m.name,
+                items: m.items.map(item => ({ ...item, id: Crypto.randomUUID(), checked: false })),
+              }))
             : [{ id: Crypto.randomUUID(), name: 'Breakfast', items: [] }, { id: Crypto.randomUUID(), name: 'Lunch', items: [] }, { id: Crypto.randomUUID(), name: 'Dinner', items: [] }],
         });
       }
@@ -1980,11 +1995,11 @@ export default function ProgramDetailScreen() {
             ? templateDay.exercises.map(ex => ({
                 id: Crypto.randomUUID(),
                 name: ex.name,
-                repsSets: '',
-                weight: '',
-                rpe: '',
+                repsSets: ex.repsSets || '',
+                weight: programType === 'physio' ? '' : '',
+                rpe: programType === 'physio' ? '' : '',
                 isCompleted: false,
-                notes: '',
+                notes: ex.notes || '',
                 clientNotes: '',
                 coachComment: '',
                 videoUrl: '',
@@ -2071,6 +2086,63 @@ export default function ProgramDetailScreen() {
     const prevWeek = program.weeks.find(w => w.weekNumber === activeWeek - 1);
     return prevWeek?.days.find(d => d.dayNumber === activeDay) || null;
   }, [program, activeWeek, activeDay]);
+
+  const prevNutritionDay = isNutrition ? (prevWeekDay as NutritionDay | null) : null;
+
+  useEffect(() => {
+    if (!program || activeWeek <= 1 || !prevWeekDay || planLocked) return;
+
+    if (isNutrition) {
+      const nutDay = currentNutritionDay;
+      const prevNut = prevWeekDay as NutritionDay;
+      const currentHasItems = nutDay?.meals?.some(m => m.items.length > 0) ?? false;
+      if (nutDay && prevNut?.meals?.length > 0 && prevNut.meals.some(m => m.items.length > 0) && !currentHasItems) {
+        const copiedMeals = prevNut.meals.map(meal => ({
+          ...meal,
+          id: Crypto.randomUUID(),
+          items: meal.items.map(item => ({
+            ...item,
+            id: Crypto.randomUUID(),
+            checked: false,
+          })),
+        }));
+        const updatedWeeks = (program.weeks as NutritionWeek[]).map(week => {
+          if (week.weekNumber !== activeWeek) return week;
+          return {
+            ...week,
+            days: week.days.map(day => day.dayNumber === activeDay ? { ...day, meals: copiedMeals } : day),
+          };
+        });
+        setProgram({ ...program, weeks: updatedWeeks });
+        setHasChanges(true);
+      }
+    } else if (programType === 'physio') {
+      const curExercises = (currentDay as WorkoutDay)?.exercises || [];
+      const prevExercises = (prevWeekDay as WorkoutDay)?.exercises || [];
+      if (curExercises.length === 0 && prevExercises.length > 0) {
+        const copiedExercises = prevExercises.map(ex => ({
+          ...ex,
+          id: Crypto.randomUUID(),
+          isCompleted: false,
+          clientNotes: '',
+          coachComment: '',
+          videoUrl: undefined,
+        }));
+        const updatedWeeks = program.weeks.map(week => {
+          if (week.weekNumber !== activeWeek) return week;
+          return {
+            ...week,
+            days: week.days.map(day => {
+              if (day.dayNumber !== activeDay) return day;
+              return { ...day, exercises: copiedExercises };
+            }),
+          };
+        });
+        setProgram({ ...program, weeks: updatedWeeks });
+        setHasChanges(true);
+      }
+    }
+  }, [program?.id, activeWeek, activeDay, isNutrition, programType]);
 
   const [suggestionsEnabled, setSuggestionsEnabled] = useState(false);
   useEffect(() => {
@@ -2515,6 +2587,7 @@ export default function ProgramDetailScreen() {
               canEdit={isCoach || !isShared ? true : false}
               onUpdate={updateNutritionDay}
               colors={colors}
+              prevWeekDay={prevNutritionDay}
             />
           ) : (
             <View style={styles.emptyDay}>
