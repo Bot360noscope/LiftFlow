@@ -127,30 +127,11 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="chat"
-        listeners={{
-          tabPress: () => {
-            wsUnreadRef.current = false;
-          },
-        }}
         options={{
           title: "Chat",
-          tabBarIcon: ({ color, size, focused }) => (
-            <View>
-              <Ionicons name={focused ? "chatbubble" : "chatbubble-outline"} size={size} color={color} />
-              {hasUnreadChat && (
-                <View style={{
-                  position: 'absolute',
-                  top: -2,
-                  right: -4,
-                  width: 10,
-                  height: 10,
-                  borderRadius: 5,
-                  backgroundColor: colors.primary,
-                  borderWidth: 1.5,
-                  borderColor: colors.tabBar,
-                }} />
-              )}
-            </View>
+          href: null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubble-outline" size={size} color={color} />
           ),
         }}
       />

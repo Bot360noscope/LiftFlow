@@ -277,10 +277,15 @@ function ClientProgramCard({ program, colors }: { program: Program; colors: any 
             <Text style={{ fontSize: 11, fontFamily: 'Rubik_600SemiBold', color: statusColor, textTransform: 'uppercase', letterSpacing: 0.5 }}>
               {program.status === 'active' ? 'Active' : 'Paused'}
             </Text>
+            <View style={{ backgroundColor: program.programType === 'nutrition' ? '#4FC3F7' + '22' : program.programType === 'physio' ? '#FF9500' + '22' : colors.primary + '22', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+              <Text style={{ fontSize: 9, fontFamily: 'Rubik_600SemiBold', color: program.programType === 'nutrition' ? '#4FC3F7' : program.programType === 'physio' ? '#FF9500' : colors.primary, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                {program.programType === 'nutrition' ? 'Diet' : program.programType === 'physio' ? 'Physio' : 'Workout'}
+              </Text>
+            </View>
           </View>
           <Text style={[styles.clientProgTitle, { color: colors.text }]} numberOfLines={1}>{program.title}</Text>
           <Text style={{ fontSize: 12, fontFamily: 'Rubik_400Regular', color: colors.textMuted, marginTop: 2 }}>
-            {totalWeeks}W · {program.daysPerWeek}D/wk
+            Week {activeWeekNum} of {totalWeeks} · {program.daysPerWeek}D/wk
           </Text>
         </View>
         <View style={{ alignItems: 'center', gap: 3 }}>

@@ -1776,11 +1776,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const q = req.query.q as string;
       if (!q || !q.trim()) return res.json({ products: [] });
-      const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=product_name,nutriments,serving_size`;
-      const response = await fetch(url, {
-        headers: { 'User-Agent': 'LiftFlow/1.0 (fitness app)' },
+
+      const usdaUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=20&api_key=DEMO_KEY&dataType=Foundation,SR%20Legacy`;
+      const usdaRes = await fetch(usdaUrl, { headers: { 'Accept': 'application/json' } });
+      if (usdaRes.ok) {
+        const usdaData = await usdaRes.json() as any;
+        const products = (usdaData.foods || []).map((food: any) => {
+          const getNutrient = (id: number) => {
+            const n = food.foodNutrients?.find((fn: any) => fn.nutrientId === id);
+            return n ? Math.round(n.value || 0) : 0;
+          };
+          return {
+            product_name: food.description || food.lowercaseDescription || 'Unknown',
+            serving_size: food.servingSize ? `${food.servingSize}${food.servingSizeUnit || 'g'}` : '100g',
+            nutriments: {
+              'energy-kcal_100g': getNutrient(1008),
+              proteins_100g: getNutrient(1003),
+              carbohydrates_100g: getNutrient(1005),
+              fat_100g: getNutrient(1004),
+            },
+          };
+        });
+        return res.json({ products });
+      }
+
+      const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=product_name,nutriments,serving_size`;
+      const offRes = await fetch(offUrl, {
+        headers: {
+          'User-Agent': 'LiftFlow/1.0 (https://lift-flow.com; fitness coaching app)',
+          'Accept': 'application/json',
+        },
       });
-      const text = await response.text();
+      const text = await offRes.text();
       let data;
       try { data = JSON.parse(text); } catch { data = { products: [] }; }
       res.json(data);
