@@ -1582,6 +1582,9 @@ export default function ProgramDetailScreen() {
   const { uploads } = useUploads();
   const prevUploadStatusRef = useRef<Record<string, string>>({});
 
+  const programType: ProgramType = program?.programType || 'workout';
+  const isNutrition = programType === 'nutrition';
+
   // Watch uploads — apply video URL to program as soon as upload completes
   // (not just on focus, since the screen is already mounted during background uploads)
   useEffect(() => {
@@ -1985,9 +1988,6 @@ export default function ProgramDetailScreen() {
     const pw = program.publishedWeeks ?? (isShared ? 0 : program.weeks.length);
     return program.weeks.filter(w => w.weekNumber <= pw);
   }, [program, isCoach, isShared]);
-
-  const programType: ProgramType = program?.programType || 'workout';
-  const isNutrition = programType === 'nutrition';
 
   const currentWeek = program?.weeks.find(w => w.weekNumber === activeWeek);
   const currentDay = currentWeek?.days.find(d => d.dayNumber === activeDay);
