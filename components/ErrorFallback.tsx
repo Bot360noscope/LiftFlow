@@ -18,7 +18,8 @@ export type ErrorFallbackProps = {
   resetError: () => void;
 };
 
-const SUPPORT_EMAIL = "support@lift-flow.com";
+const SUPPORT_EMAIL = "lift-flowsupport@gmail.com";
+const WHATSAPP_NUMBER = "96103936999";
 
 export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
   const insets = useSafeAreaInsets();
@@ -33,12 +34,19 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
     }
   };
 
-  const handleContactSupport = () => {
+  const handleEmail = () => {
     const subject = encodeURIComponent("LiftFlow App Crash Report");
     const body = encodeURIComponent(
       `Hi LiftFlow Support,\n\nThe app crashed with the following error:\n\n${error.message}\n\nPlease help me resolve this issue.\n\nThank you.`
     );
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
+  };
+
+  const handleWhatsApp = () => {
+    const text = encodeURIComponent(
+      `Hi, I'm having an issue with the LiftFlow app. It crashed with this error: ${error.message}`
+    );
+    Linking.openURL(`https://wa.me/${WHATSAPP_NUMBER}?text=${text}`);
   };
 
   const formatErrorDetails = (): string => {
@@ -96,16 +104,31 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
           <Text style={styles.primaryButtonText}>Restart App</Text>
         </Pressable>
 
-        <Pressable
-          onPress={handleContactSupport}
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            { opacity: pressed ? 0.8 : 1 },
-          ]}
-        >
-          <Ionicons name="mail-outline" size={18} color="#999" style={{ marginRight: 8 }} />
-          <Text style={styles.secondaryButtonText}>Contact Support</Text>
-        </Pressable>
+        <Text style={styles.supportLabel}>If this keeps happening, contact support:</Text>
+
+        <View style={styles.supportRow}>
+          <Pressable
+            onPress={handleWhatsApp}
+            style={({ pressed }) => [
+              styles.supportButton,
+              { opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
+            <Text style={styles.supportButtonText}>WhatsApp</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleEmail}
+            style={({ pressed }) => [
+              styles.supportButton,
+              { opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Ionicons name="mail-outline" size={20} color="#999" />
+            <Text style={styles.supportButtonText}>Email</Text>
+          </Pressable>
+        </View>
       </View>
 
       {__DEV__ ? (
@@ -224,16 +247,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#FFF",
   },
-  secondaryButton: {
+  supportLabel: {
+    fontSize: 13,
+    color: "#666",
+    textAlign: "center" as const,
+    marginTop: 8,
+  },
+  supportRow: {
+    flexDirection: "row" as const,
+    gap: 16,
+  },
+  supportButton: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
-    justifyContent: "center" as const,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: "#1C1C1E",
   },
-  secondaryButtonText: {
-    fontWeight: "500" as const,
+  supportButtonText: {
     fontSize: 14,
+    fontWeight: "500" as const,
     color: "#999",
   },
   modalOverlay: {
