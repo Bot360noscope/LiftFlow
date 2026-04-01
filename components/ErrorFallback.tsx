@@ -7,31 +7,21 @@ import {
   ScrollView,
   Text,
   Modal,
-  useColorScheme,
+  Linking,
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 
 export type ErrorFallbackProps = {
   error: Error;
   resetError: () => void;
 };
 
+const SUPPORT_EMAIL = "support@lift-flow.com";
+
 export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const insets = useSafeAreaInsets();
-
-  const theme = {
-    background: isDark ? "#000000" : "#FFFFFF",
-    backgroundSecondary: isDark ? "#1C1C1E" : "#F2F2F7",
-    text: isDark ? "#FFFFFF" : "#000000",
-    textSecondary: isDark ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)",
-    link: "#007AFF",
-    buttonText: "#FFFFFF",
-  };
-
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const handleRestart = async () => {
@@ -41,6 +31,14 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
       console.error("Failed to restart app:", restartError);
       resetError();
     }
+  };
+
+  const handleContactSupport = () => {
+    const subject = encodeURIComponent("LiftFlow App Crash Report");
+    const body = encodeURIComponent(
+      `Hi LiftFlow Support,\n\nThe app crashed with the following error:\n\n${error.message}\n\nPlease help me resolve this issue.\n\nThank you.`
+    );
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
   };
 
   const formatErrorDetails = (): string => {
@@ -58,7 +56,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
   });
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
       {__DEV__ ? (
         <Pressable
           onPress={() => setIsModalVisible(true)}
@@ -68,38 +66,45 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
             styles.topButton,
             {
               top: insets.top + 16,
-              backgroundColor: theme.backgroundSecondary,
               opacity: pressed ? 0.8 : 1,
             },
           ]}
         >
-          <Feather name="alert-circle" size={20} color={theme.text} />
+          <Ionicons name="bug-outline" size={22} color="#999" />
         </Pressable>
       ) : null}
 
       <View style={styles.content}>
-        <Text style={[styles.title, { color: theme.text }]}>
-          Something went wrong
-        </Text>
+        <View style={styles.iconCircle}>
+          <Ionicons name="warning-outline" size={40} color="#FF9500" />
+        </View>
 
-        <Text style={[styles.message, { color: theme.textSecondary }]}>
-          Please reload the app to continue.
+        <Text style={styles.title}>Something went wrong</Text>
+
+        <Text style={styles.message}>
+          The app ran into an unexpected issue. Try restarting — if it keeps happening, reach out to support and we'll get it sorted.
         </Text>
 
         <Pressable
           onPress={handleRestart}
           style={({ pressed }) => [
-            styles.button,
-            {
-              backgroundColor: theme.link,
-              opacity: pressed ? 0.9 : 1,
-              transform: [{ scale: pressed ? 0.98 : 1 }],
-            },
+            styles.primaryButton,
+            { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
           ]}
         >
-          <Text style={[styles.buttonText, { color: theme.buttonText }]}>
-            Try Again
-          </Text>
+          <Ionicons name="refresh" size={20} color="#FFF" style={{ marginRight: 8 }} />
+          <Text style={styles.primaryButtonText}>Restart App</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={handleContactSupport}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            { opacity: pressed ? 0.8 : 1 },
+          ]}
+        >
+          <Ionicons name="mail-outline" size={18} color="#999" style={{ marginRight: 8 }} />
+          <Text style={styles.secondaryButtonText}>Contact Support</Text>
         </Pressable>
       </View>
 
@@ -111,25 +116,9 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
           onRequestClose={() => setIsModalVisible(false)}
         >
           <View style={styles.modalOverlay}>
-            <View
-              style={[
-                styles.modalContainer,
-                { backgroundColor: theme.background },
-              ]}
-            >
-              <View
-                style={[
-                  styles.modalHeader,
-                  {
-                    borderBottomColor: isDark
-                      ? "rgba(255, 255, 255, 0.1)"
-                      : "rgba(0, 0, 0, 0.1)",
-                  },
-                ]}
-              >
-                <Text style={[styles.modalTitle, { color: theme.text }]}>
-                  Error Details
-                </Text>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Error Details</Text>
                 <Pressable
                   onPress={() => setIsModalVisible(false)}
                   accessibilityLabel="Close error details"
@@ -139,7 +128,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
                     { opacity: pressed ? 0.6 : 1 },
                   ]}
                 >
-                  <Feather name="x" size={24} color={theme.text} />
+                  <Ionicons name="close" size={24} color="#FFF" />
                 </Pressable>
               </View>
 
@@ -151,20 +140,9 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
                 ]}
                 showsVerticalScrollIndicator
               >
-                <View
-                  style={[
-                    styles.errorContainer,
-                    { backgroundColor: theme.backgroundSecondary },
-                  ]}
-                >
+                <View style={styles.errorContainer}>
                   <Text
-                    style={[
-                      styles.errorText,
-                      {
-                        color: theme.text,
-                        fontFamily: monoFont,
-                      },
-                    ]}
+                    style={[styles.errorText, { fontFamily: monoFont }]}
                     selectable
                   >
                     {formatErrorDetails()}
@@ -187,84 +165,109 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
+    backgroundColor: "#0F0F0F",
   },
   content: {
     alignItems: "center",
     justifyContent: "center",
     gap: 16,
     width: "100%",
-    maxWidth: 600,
+    maxWidth: 340,
+  },
+  iconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255, 149, 0, 0.12)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "700",
-    textAlign: "center",
-    lineHeight: 40,
+    fontSize: 24,
+    fontWeight: "700" as const,
+    textAlign: "center" as const,
+    color: "#FFFFFF",
   },
   message: {
-    fontSize: 16,
-    textAlign: "center",
-    lineHeight: 24,
+    fontSize: 15,
+    textAlign: "center" as const,
+    lineHeight: 22,
+    color: "#999",
+    marginBottom: 8,
   },
   topButton: {
-    position: "absolute",
+    position: "absolute" as const,
     right: 16,
     width: 44,
     height: 44,
-    borderRadius: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    borderRadius: 22,
+    backgroundColor: "#1C1C1E",
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
     zIndex: 10,
   },
-  button: {
-    paddingVertical: 16,
-    borderRadius: 8,
+  primaryButton: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    paddingVertical: 14,
+    borderRadius: 12,
     paddingHorizontal: 24,
-    minWidth: 200,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    width: "100%",
+    backgroundColor: "#E8512F",
   },
-  buttonText: {
-    fontWeight: "600",
-    textAlign: "center",
+  primaryButtonText: {
+    fontWeight: "600" as const,
+    textAlign: "center" as const,
     fontSize: 16,
+    color: "#FFF",
+  },
+  secondaryButton: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  secondaryButtonText: {
+    fontWeight: "500" as const,
+    fontSize: 14,
+    color: "#999",
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "flex-end" as const,
   },
   modalContainer: {
     width: "100%",
     height: "90%",
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
+    backgroundColor: "#1C1C1E",
   },
   modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    alignItems: "center" as const,
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: "600",
+    fontWeight: "600" as const,
+    color: "#FFF",
   },
   closeButton: {
     width: 44,
     height: 44,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
   },
   modalScrollView: {
     flex: 1,
@@ -275,12 +278,14 @@ const styles = StyleSheet.create({
   errorContainer: {
     width: "100%",
     borderRadius: 8,
-    overflow: "hidden",
+    overflow: "hidden" as const,
     padding: 16,
+    backgroundColor: "#0F0F0F",
   },
   errorText: {
     fontSize: 12,
     lineHeight: 18,
     width: "100%",
+    color: "#FFF",
   },
 });
