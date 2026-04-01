@@ -17,6 +17,7 @@ import { getProgram, updateProgram, deleteProgram, getProfile, getCachedProfile,
 import { uploadVideo, getVideoUrl, getDirectVideoUrl, markVideoViewed } from "@/lib/api";
 import { trimResult } from "@/lib/trim-result";
 import { useUploads } from "@/lib/upload-context";
+import { getApiUrl } from "@/lib/query-client";
 
 function programPositionKey(programId: string) {
   return `liftflow_prog_pos_${programId}`;
@@ -360,10 +361,11 @@ function FoodSearchModal({ visible, onClose, onSelect, colors }: { visible: bool
     if (!query.trim()) return;
     setSearching(true);
     try {
-      const res = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=20&fields=product_name,nutriments,serving_size`);
+      const apiBase = getApiUrl();
+      const res = await fetch(`${apiBase}/api/food-search?q=${encodeURIComponent(query)}`);
       const data = await res.json();
       setResults((data.products || []).filter((p: any) => p.product_name));
-    } catch { setResults([]); }
+    } catch (e) { console.log('Food search error:', e); setResults([]); }
     setSearching(false);
   }, [query]);
 
@@ -532,9 +534,33 @@ function NutritionDayView({ day, canEdit, onUpdate, colors }: {
     setEditingItem(null);
   };
 
-  const addMeal = () => {
-    const newMeal: Meal = { id: Crypto.randomUUID(), name: `Meal ${day.meals.length + 1}`, items: [] };
+  const mealPresets = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Pre-Workout', 'Post-Workout'];
+  const [showMealPresets, setShowMealPresets] = useState(false);
+  const [editingMealName, setEditingMealName] = useState<string | null>(null);
+  const [mealNameValue, setMealNameValue] = useState('');
+
+  const addMeal = (presetName?: string) => {
+    const name = presetName || `Meal ${day.meals.length + 1}`;
+    const newMeal: Meal = { id: Crypto.randomUUID(), name, items: [] };
     onUpdate({ ...day, meals: [...day.meals, newMeal] });
+    setShowMealPresets(false);
+  };
+
+  const startEditMealName = (mealId: string, currentName: string) => {
+    setEditingMealName(mealId);
+    setMealNameValue(currentName);
+  };
+
+  const commitMealName = () => {
+    if (!editingMealName) return;
+    const trimmed = mealNameValue.trim();
+    if (trimmed) {
+      onUpdate({
+        ...day,
+        meals: day.meals.map(m => m.id === editingMealName ? { ...m, name: trimmed } : m),
+      });
+    }
+    setEditingMealName(null);
   };
 
   const removeMeal = (mealId: string) => {
@@ -564,7 +590,21 @@ function NutritionDayView({ day, canEdit, onUpdate, colors }: {
           <View key={meal.id} style={{ backgroundColor: colors.backgroundCard, borderRadius: 12, borderWidth: 1, borderColor: allChecked ? `${colors.success}44` : colors.border, overflow: 'hidden' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: meal.items.length > 0 ? 1 : 0, borderBottomColor: colors.border }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: allChecked ? colors.success : colors.text }}>{meal.name}</Text>
+                {canEdit && editingMealName === meal.id ? (
+                  <TextInput
+                    style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: colors.text, padding: 0, borderBottomWidth: 1, borderBottomColor: colors.primary }}
+                    value={mealNameValue}
+                    onChangeText={setMealNameValue}
+                    onBlur={commitMealName}
+                    onSubmitEditing={commitMealName}
+                    autoFocus
+                    selectTextOnFocus
+                  />
+                ) : (
+                  <Pressable onPress={() => canEdit && startEditMealName(meal.id, meal.name)}>
+                    <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: allChecked ? colors.success : colors.text }}>{meal.name}</Text>
+                  </Pressable>
+                )}
                 {meal.items.length > 0 && (
                   <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>{mealCal} cal · {mealP}g protein</Text>
                 )}
@@ -669,11 +709,39 @@ function NutritionDayView({ day, canEdit, onUpdate, colors }: {
         );
       })}
 
-      {canEdit && (
-        <Pressable onPress={addMeal} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }}>
+      {canEdit && !showMealPresets && (
+        <Pressable onPress={() => setShowMealPresets(true)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }}>
           <Ionicons name="add" size={16} color={colors.primary} />
           <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.primary }}>Add Meal</Text>
         </Pressable>
+      )}
+      {canEdit && showMealPresets && (
+        <View style={{ backgroundColor: colors.backgroundCard, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 12, gap: 8 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 13, color: colors.text }}>Choose a meal type</Text>
+            <Pressable onPress={() => setShowMealPresets(false)} hitSlop={8}>
+              <Ionicons name="close" size={18} color={colors.textMuted} />
+            </Pressable>
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {mealPresets.map(preset => (
+              <Pressable
+                key={preset}
+                onPress={() => addMeal(preset)}
+                style={{ backgroundColor: `${colors.primary}18`, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: `${colors.primary}33` }}
+              >
+                <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.primary }}>{preset}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Pressable
+            onPress={() => addMeal()}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', marginTop: 4 }}
+          >
+            <Ionicons name="create-outline" size={14} color={colors.textMuted} />
+            <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 12, color: colors.textMuted }}>Custom name</Text>
+          </Pressable>
+        </View>
       )}
 
       <FoodSearchModal

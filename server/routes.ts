@@ -1772,6 +1772,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
+  app.get("/api/food-search", async (req, res) => {
+    try {
+      const q = req.query.q as string;
+      if (!q || !q.trim()) return res.json({ products: [] });
+      const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=product_name,nutriments,serving_size`;
+      const response = await fetch(url, {
+        headers: { 'User-Agent': 'LiftFlow/1.0 (fitness app)' },
+      });
+      const text = await response.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { products: [] }; }
+      res.json(data);
+    } catch (e: any) {
+      console.error("Food search error:", e);
+      res.json({ products: [] });
+    }
+  });
+
   const httpServer = createServer(app);
 
   const { setupWebSocket } = await import("./websocket");
