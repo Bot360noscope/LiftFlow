@@ -916,22 +916,29 @@ export default function HomeScreen() {
                   <ClientProgramCard key={prog.id} program={prog} colors={colors} />
                 ))}
                 {(() => {
-                  const compactProgs = activePrograms.filter(p => p.programType === 'nutrition' || p.programType === 'physio');
+                  const dietProgs = activePrograms.filter(p => p.programType === 'nutrition').sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')).slice(0, 1);
+                  const physioProgs = activePrograms.filter(p => p.programType === 'physio').sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')).slice(0, 1);
+                  const compactProgs = [...dietProgs, ...physioProgs];
                   if (compactProgs.length === 0) return null;
-                  const pairs: Program[][] = [];
-                  for (let i = 0; i < compactProgs.length; i += 2) {
-                    pairs.push(compactProgs.slice(i, i + 2));
+                  if (compactProgs.length === 1) {
+                    const prog = compactProgs[0];
+                    return (
+                      <View key={`compact-solo`} style={{ marginBottom: 12 }}>
+                        {prog.programType === 'nutrition'
+                          ? <DietCompactCard key={prog.id} program={prog} colors={colors} />
+                          : <PhysioCompactCard key={prog.id} program={prog} colors={colors} />}
+                      </View>
+                    );
                   }
-                  return pairs.map((pair, pi) => (
-                    <View key={`compact-${pi}`} style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
-                      {pair.map(prog => (
+                  return (
+                    <View key="compact-pair" style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+                      {compactProgs.map(prog => (
                         prog.programType === 'nutrition'
                           ? <DietCompactCard key={prog.id} program={prog} colors={colors} />
                           : <PhysioCompactCard key={prog.id} program={prog} colors={colors} />
                       ))}
-                      {pair.length === 1 && <View style={{ flex: 1 }} />}
                     </View>
-                  ));
+                  );
                 })()}
               </>
             )}
