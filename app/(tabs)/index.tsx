@@ -17,6 +17,7 @@ import {
   deleteNotification, removeCachedNotification,
   getCachedProfile, getCachedPrograms, getCachedPRs, getCachedClients, getCachedNotifications, getCachedLatestMessages,
   type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification, type LatestMessages,
+  type NutritionWeek, type NutritionDay,
 } from "@/lib/storage";
 import { getAvatarUrl } from "@/lib/api";
 import { connectWebSocket, addWSListener } from "@/lib/websocket";
@@ -244,6 +245,185 @@ function DayCircle({ index, state, primaryColor, borderColor }: { index: number;
         {state === 'current' && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: primaryColor }} />}
       </View>
     </View>
+  );
+}
+
+// ─── MacroDonut ─────────────────────────────────────────────────────────────
+function MacroDonut({ protein, carbs, fat, calories, size = 80, strokeWidth = 8, colors }: {
+  protein: number; carbs: number; fat: number; calories: number; size?: number; strokeWidth?: number; colors: any;
+}) {
+  const cx = size / 2, cy = size / 2, r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+  const total = protein + carbs + fat;
+  const pPct = total > 0 ? protein / total : 0;
+  const cPct = total > 0 ? carbs / total : 0;
+  const fPct = total > 0 ? fat / total : 0;
+
+  const pLen = pPct * circ;
+  const cLen = cPct * circ;
+  const fLen = fPct * circ;
+  const gap = total > 0 ? 3 : 0;
+
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} style={StyleSheet.absoluteFill as any}>
+        <Circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(128,128,128,0.12)" strokeWidth={strokeWidth} />
+        {total > 0 && (
+          <>
+            <Circle cx={cx} cy={cy} r={r} fill="none" stroke="#4FC3F7" strokeWidth={strokeWidth}
+              strokeDasharray={`${Math.max(0, pLen - gap)} ${circ - Math.max(0, pLen - gap)}`}
+              strokeLinecap="round" transform={`rotate(-90, ${cx}, ${cy})`} />
+            <Circle cx={cx} cy={cy} r={r} fill="none" stroke={colors.gold || '#FFB800'} strokeWidth={strokeWidth}
+              strokeDasharray={`${Math.max(0, cLen - gap)} ${circ - Math.max(0, cLen - gap)}`}
+              strokeLinecap="round" transform={`rotate(${-90 + pPct * 360}, ${cx}, ${cy})`} />
+            <Circle cx={cx} cy={cy} r={r} fill="none" stroke="#FF8A65" strokeWidth={strokeWidth}
+              strokeDasharray={`${Math.max(0, fLen - gap)} ${circ - Math.max(0, fLen - gap)}`}
+              strokeLinecap="round" transform={`rotate(${-90 + (pPct + cPct) * 360}, ${cx}, ${cy})`} />
+          </>
+        )}
+      </Svg>
+      <View style={{ alignItems: 'center' }}>
+        <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: Math.floor(size * 0.2), color: colors.text, lineHeight: Math.floor(size * 0.24) }}>
+          {calories}
+        </Text>
+        <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: Math.floor(size * 0.11), color: colors.textMuted }}>cal</Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── DietCompactCard ─────────────────────────────────────────────────────────
+function DietCompactCard({ program, colors }: { program: Program; colors: any }) {
+  const activeWeekNum = getActiveWeekNumber(program);
+  const isNutrition = program.programType === 'nutrition';
+  const activeWeek = program.weeks.find(w => w.weekNumber === activeWeekNum) as NutritionWeek | undefined;
+
+  const todayDayNum = useMemo(() => {
+    if (!activeWeek) return 1;
+    for (const day of activeWeek.days) {
+      const d = day as NutritionDay;
+      const hasItems = d.meals?.some(m => m.items.length > 0);
+      const allChecked = d.meals?.every(m => m.items.length > 0 && m.items.every(i => i.checked));
+      if (hasItems && !allChecked) return d.dayNumber;
+    }
+    return activeWeek.days.length > 0 ? activeWeek.days[0].dayNumber : 1;
+  }, [activeWeek]);
+
+  const todayDay = activeWeek?.days.find(d => d.dayNumber === todayDayNum) as NutritionDay | undefined;
+  const macros = useMemo(() => {
+    if (!todayDay?.meals) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    let cal = 0, p = 0, c = 0, f = 0;
+    for (const meal of todayDay.meals) {
+      for (const item of meal.items) {
+        cal += item.calories || 0;
+        p += item.protein || 0;
+        c += item.carbs || 0;
+        f += item.fat || 0;
+      }
+    }
+    return { calories: cal, protein: Math.round(p), carbs: Math.round(c), fat: Math.round(f) };
+  }, [todayDay]);
+
+  const checkedCount = todayDay?.meals?.reduce((s, m) => s + m.items.filter(i => i.checked).length, 0) || 0;
+  const totalItems = todayDay?.meals?.reduce((s, m) => s + m.items.length, 0) || 0;
+
+  return (
+    <Pressable
+      style={({ pressed }) => [{ flex: 1, backgroundColor: colors.backgroundCard, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#4FC3F7' + '55' }, pressed && { opacity: 0.9 }]}
+      onPress={() => router.push({ pathname: `/program/${program.id}`, params: { initialWeek: activeWeekNum, initialDay: todayDayNum } })}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+        <Ionicons name="nutrition-outline" size={13} color="#4FC3F7" />
+        <View style={{ backgroundColor: '#4FC3F7' + '22', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+          <Text style={{ fontSize: 9, fontFamily: 'Rubik_600SemiBold', color: '#4FC3F7', textTransform: 'uppercase', letterSpacing: 0.3 }}>Diet</Text>
+        </View>
+      </View>
+      <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 14, color: colors.text, marginBottom: 8 }} numberOfLines={1}>{program.title}</Text>
+
+      <View style={{ alignItems: 'center', marginBottom: 8 }}>
+        <MacroDonut protein={macros.protein} carbs={macros.carbs} fat={macros.fat} calories={macros.calories} size={80} strokeWidth={7} colors={colors} />
+      </View>
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: '#4FC3F7' }}>{macros.protein}g</Text>
+          <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 9, color: colors.textMuted }}>Protein</Text>
+        </View>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.gold || '#FFB800' }}>{macros.carbs}g</Text>
+          <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 9, color: colors.textMuted }}>Carbs</Text>
+        </View>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: '#FF8A65' }}>{macros.fat}g</Text>
+          <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 9, color: colors.textMuted }}>Fat</Text>
+        </View>
+      </View>
+
+      {totalItems > 0 && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
+          <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.15)', overflow: 'hidden' }}>
+            <View style={{ width: `${totalItems > 0 ? (checkedCount / totalItems) * 100 : 0}%` as any, height: 3, borderRadius: 2, backgroundColor: '#4FC3F7' }} />
+          </View>
+          <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 9, color: colors.textMuted }}>{checkedCount}/{totalItems}</Text>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
+// ─── PhysioCompactCard ───────────────────────────────────────────────────────
+function PhysioCompactCard({ program, colors }: { program: Program; colors: any }) {
+  const activeWeekNum = getActiveWeekNumber(program);
+  const weekPct = getWeekCompletionPct(program, activeWeekNum);
+  const activeWeek = program.weeks.find(w => w.weekNumber === activeWeekNum);
+  const totalWeeks = program.weeks.length;
+
+  const todayDayNum = useMemo(() => {
+    if (!activeWeek) return 1;
+    for (const day of activeWeek.days) {
+      const d = day as any;
+      const exs = d.exercises || [];
+      const hasActivity = exs.some((e: any) => e.repsSets || e.isCompleted);
+      const allDone = exs.length > 0 && exs.every((e: any) => e.isCompleted);
+      if (hasActivity && !allDone) return d.dayNumber;
+    }
+    return activeWeek.days.length > 0 ? activeWeek.days[0].dayNumber : 1;
+  }, [activeWeek]);
+
+  const todayDay = activeWeek?.days.find(d => d.dayNumber === todayDayNum) as any;
+  const exercises = todayDay?.exercises || [];
+  const completedCount = exercises.filter((e: any) => e.isCompleted).length;
+
+  return (
+    <Pressable
+      style={({ pressed }) => [{ flex: 1, backgroundColor: colors.backgroundCard, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#FF9500' + '55' }, pressed && { opacity: 0.9 }]}
+      onPress={() => router.push({ pathname: `/program/${program.id}`, params: { initialWeek: activeWeekNum, initialDay: todayDayNum } })}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+        <Ionicons name="body-outline" size={13} color="#FF9500" />
+        <View style={{ backgroundColor: '#FF9500' + '22', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+          <Text style={{ fontSize: 9, fontFamily: 'Rubik_600SemiBold', color: '#FF9500', textTransform: 'uppercase', letterSpacing: 0.3 }}>Physio</Text>
+        </View>
+      </View>
+      <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 14, color: colors.text, marginBottom: 10 }} numberOfLines={1}>{program.title}</Text>
+
+      <View style={{ alignItems: 'center', marginBottom: 10 }}>
+        <WeekRing percent={weekPct} size={70} strokeWidth={6} color="#FF9500" textColor={colors.text} />
+      </View>
+
+      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, textAlign: 'center', marginBottom: 4 }}>
+        Week {activeWeekNum} of {totalWeeks}
+      </Text>
+
+      {exercises.length > 0 && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+          <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.15)', overflow: 'hidden' }}>
+            <View style={{ width: `${exercises.length > 0 ? (completedCount / exercises.length) * 100 : 0}%` as any, height: 3, borderRadius: 2, backgroundColor: '#FF9500' }} />
+          </View>
+          <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 9, color: colors.textMuted }}>{completedCount}/{exercises.length}</Text>
+        </View>
+      )}
+    </Pressable>
   );
 }
 
@@ -731,9 +911,29 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
             ) : (
-              activePrograms.map((prog) => (
-                <ClientProgramCard key={prog.id} program={prog} colors={colors} />
-              ))
+              <>
+                {activePrograms.filter(p => p.programType === 'workout').map((prog) => (
+                  <ClientProgramCard key={prog.id} program={prog} colors={colors} />
+                ))}
+                {(() => {
+                  const compactProgs = activePrograms.filter(p => p.programType === 'nutrition' || p.programType === 'physio');
+                  if (compactProgs.length === 0) return null;
+                  const pairs: Program[][] = [];
+                  for (let i = 0; i < compactProgs.length; i += 2) {
+                    pairs.push(compactProgs.slice(i, i + 2));
+                  }
+                  return pairs.map((pair, pi) => (
+                    <View key={`compact-${pi}`} style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+                      {pair.map(prog => (
+                        prog.programType === 'nutrition'
+                          ? <DietCompactCard key={prog.id} program={prog} colors={colors} />
+                          : <PhysioCompactCard key={prog.id} program={prog} colors={colors} />
+                      ))}
+                      {pair.length === 1 && <View style={{ flex: 1 }} />}
+                    </View>
+                  ));
+                })()}
+              </>
             )}
           </Animated.View>
 

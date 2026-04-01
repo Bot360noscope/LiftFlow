@@ -590,7 +590,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay }: {
         const allChecked = meal.items.length > 0 && meal.items.every(i => i.checked);
 
         return (
-          <View key={meal.id} style={{ backgroundColor: colors.backgroundCard, borderRadius: 12, borderWidth: 1, borderColor: allChecked ? `${colors.success}44` : colors.border, overflow: 'hidden' }}>
+          <View key={meal.id} style={{ backgroundColor: colors.backgroundCard, borderRadius: 12, borderWidth: 1, borderColor: meal.name === 'Extras' ? '#FF9500' + '44' : allChecked ? `${colors.success}44` : colors.border, overflow: 'hidden' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: meal.items.length > 0 ? 1 : 0, borderBottomColor: colors.border }}>
               <View style={{ flex: 1 }}>
                 {canEdit && editingMealName === meal.id ? (
@@ -605,24 +605,33 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay }: {
                   />
                 ) : (
                   <Pressable onPress={() => canEdit && startEditMealName(meal.id, meal.name)}>
-                    <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: allChecked ? colors.success : colors.text }}>{meal.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: meal.name === 'Extras' ? '#FF9500' : allChecked ? colors.success : colors.text }}>{meal.name}</Text>
+                      {meal.name === 'Extras' && (
+                        <View style={{ backgroundColor: '#FF9500' + '18', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 3 }}>
+                          <Text style={{ fontSize: 8, fontFamily: 'Rubik_600SemiBold', color: '#FF9500', textTransform: 'uppercase' }}>Off-plan</Text>
+                        </View>
+                      )}
+                    </View>
                   </Pressable>
                 )}
                 {meal.items.length > 0 && (
                   <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>{mealCal} cal · {mealP}g protein</Text>
                 )}
               </View>
-              {canEdit && (
+              {(canEdit || meal.name === 'Extras') && (
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <Pressable onPress={() => setSearchMealId(meal.id)} hitSlop={6}>
-                    <Ionicons name="search" size={18} color={colors.primary} />
+                    <Ionicons name="search" size={18} color={meal.name === 'Extras' ? '#FF9500' : colors.primary} />
                   </Pressable>
                   <Pressable onPress={() => addManualFood(meal.id)} hitSlop={6}>
-                    <Ionicons name="add-circle-outline" size={18} color={colors.accent} />
+                    <Ionicons name="add-circle-outline" size={18} color={meal.name === 'Extras' ? '#FF9500' : colors.accent} />
                   </Pressable>
-                  <Pressable onPress={() => removeMeal(meal.id)} hitSlop={6}>
-                    <Ionicons name="trash-outline" size={16} color={colors.textMuted} />
-                  </Pressable>
+                  {(canEdit || meal.name === 'Extras') && (
+                    <Pressable onPress={() => removeMeal(meal.id)} hitSlop={6}>
+                      <Ionicons name="trash-outline" size={16} color={colors.textMuted} />
+                    </Pressable>
+                  )}
                 </View>
               )}
             </View>
@@ -633,7 +642,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay }: {
                   <Ionicons name={item.checked ? "checkmark-circle" : "ellipse-outline"} size={18} color={item.checked ? colors.success : colors.textMuted} />
                 </Pressable>
                 <View style={{ flex: 1 }}>
-                  {canEdit && editingItem?.mealId === meal.id && editingItem?.itemId === item.id && editingItem?.field === 'name' ? (
+                  {(canEdit || meal.name === 'Extras') && editingItem?.mealId === meal.id && editingItem?.itemId === item.id && editingItem?.field === 'name' ? (
                     <TextInput
                       style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.text, padding: 0, borderBottomWidth: 1, borderBottomColor: colors.primary }}
                       value={editValue}
@@ -643,13 +652,13 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay }: {
                       autoFocus
                     />
                   ) : (
-                    <Pressable onPress={() => canEdit && startEdit(meal.id, item.id, 'name', item.name)}>
+                    <Pressable onPress={() => (canEdit || meal.name === 'Extras') && startEdit(meal.id, item.id, 'name', item.name)}>
                       <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: item.checked ? '#888' : colors.text, textDecorationLine: item.checked ? 'line-through' : 'none' }} numberOfLines={1}>
                         {item.name || 'Tap to name'}
                       </Text>
                     </Pressable>
                   )}
-                  {canEdit && editingItem?.mealId === meal.id && editingItem?.itemId === item.id && editingItem?.field === 'portion' ? (
+                  {(canEdit || meal.name === 'Extras') && editingItem?.mealId === meal.id && editingItem?.itemId === item.id && editingItem?.field === 'portion' ? (
                     <TextInput
                       style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, padding: 0, borderBottomWidth: 1, borderBottomColor: colors.primary, marginTop: 1 }}
                       value={editValue}
@@ -659,7 +668,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay }: {
                       autoFocus
                     />
                   ) : (
-                    <Pressable onPress={() => canEdit && startEdit(meal.id, item.id, 'portion', item.portion)}>
+                    <Pressable onPress={() => (canEdit || meal.name === 'Extras') && startEdit(meal.id, item.id, 'portion', item.portion)}>
                       <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
                         {item.portion || 'Tap for portion'}
                       </Text>
@@ -684,7 +693,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay }: {
                         autoFocus
                       />
                     ) : (
-                      <Pressable key={field} onPress={() => canEdit && startEdit(meal.id, item.id, field, val)}>
+                      <Pressable key={field} onPress={() => (canEdit || meal.name === 'Extras') && startEdit(meal.id, item.id, field, val)}>
                         <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: fieldColor }}>
                           {val}{label === 'cal' ? '' : 'g'}
                         </Text>
@@ -692,7 +701,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay }: {
                       </Pressable>
                     );
                   })}
-                  {canEdit && (
+                  {(canEdit || meal.name === 'Extras') && (
                     <Pressable onPress={() => removeFoodFromMeal(meal.id, item.id)} hitSlop={6}>
                       <Ionicons name="close" size={14} color={colors.textMuted} />
                     </Pressable>
@@ -711,6 +720,19 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay }: {
           </View>
         );
       })}
+
+      {!canEdit && !day.meals.some(m => m.name === 'Extras') && (
+        <Pressable
+          onPress={() => {
+            const extraMeal: Meal = { id: Crypto.randomUUID(), name: 'Extras', items: [] };
+            onUpdate({ ...day, meals: [...day.meals, extraMeal] });
+          }}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#FF9500' + '44', borderStyle: 'dashed', backgroundColor: '#FF9500' + '08' }}
+        >
+          <Ionicons name="fast-food-outline" size={15} color="#FF9500" />
+          <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: '#FF9500' }}>Log Off-Plan Food</Text>
+        </Pressable>
+      )}
 
       {canEdit && !showMealPresets && (
         <Pressable onPress={() => setShowMealPresets(true)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }}>
