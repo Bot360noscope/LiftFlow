@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Linking, ActivityIndicator, Modal, Alert, PanResponder } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Linking, ActivityIndicator, Modal, Alert, PanResponder, KeyboardAvoidingView } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { confirmAction, showAlert } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -373,14 +373,23 @@ function FoodSearchModal({ visible, onClose, onSelect, colors }: { visible: bool
 
   const selectProduct = (product: any) => {
     const n = product.nutriments || {};
+    const cal100 = n['energy-kcal_100g'] || n['energy-kcal'] || 0;
+    const p100 = n.proteins_100g || n.proteins || 0;
+    const c100 = n.carbohydrates_100g || n.carbohydrates || 0;
+    const f100 = n.fat_100g || n.fat || 0;
+    const grams = 100;
     onSelect({
       id: Crypto.randomUUID(),
       name: product.product_name || 'Unknown',
-      portion: product.serving_size || '100g',
-      calories: Math.round(n['energy-kcal_100g'] || n['energy-kcal'] || 0),
-      protein: Math.round(n.proteins_100g || n.proteins || 0),
-      carbs: Math.round(n.carbohydrates_100g || n.carbohydrates || 0),
-      fat: Math.round(n.fat_100g || n.fat || 0),
+      portion: String(grams),
+      calories: Math.round(cal100),
+      protein: Math.round(p100),
+      carbs: Math.round(c100),
+      fat: Math.round(f100),
+      cal100: Math.round(cal100),
+      p100: Math.round(p100),
+      c100: Math.round(c100),
+      f100: Math.round(f100),
     });
     onClose();
     setQuery('');
@@ -426,13 +435,13 @@ function FoodSearchModal({ visible, onClose, onSelect, colors }: { visible: bool
                   style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}
                 >
                   <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 14, color: colors.text }} numberOfLines={1}>{product.product_name}</Text>
-                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
+                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 4, alignItems: 'center' }}>
                     <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.primary }}>{Math.round(n['energy-kcal_100g'] || 0)} cal</Text>
                     <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>P: {Math.round(n.proteins_100g || 0)}g</Text>
                     <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>C: {Math.round(n.carbohydrates_100g || 0)}g</Text>
                     <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>F: {Math.round(n.fat_100g || 0)}g</Text>
+                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 9, color: colors.textMuted, opacity: 0.6 }}>per 100g</Text>
                   </View>
-                  {product.serving_size && <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 10, color: colors.textMuted, marginTop: 2 }}>Serving: {product.serving_size}</Text>}
                 </Pressable>
               );
             })}
@@ -535,8 +544,27 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
     if (!editingItem) return;
     const { mealId, itemId, field } = editingItem;
     const numFields = ['calories', 'protein', 'carbs', 'fat'];
-    const val = numFields.includes(field) ? Math.max(0, parseInt(editValue) || 0) : editValue;
-    updateFoodItem(mealId, itemId, { [field]: val });
+
+    if (field === 'portion') {
+      const grams = Math.max(0, parseInt(editValue) || 0);
+      const meal = day.meals.find(m => m.id === mealId);
+      const item = meal?.items.find(i => i.id === itemId);
+      if (item?.cal100 != null) {
+        const ratio = grams / 100;
+        updateFoodItem(mealId, itemId, {
+          portion: String(grams),
+          calories: Math.round((item.cal100 || 0) * ratio),
+          protein: Math.round((item.p100 || 0) * ratio),
+          carbs: Math.round((item.c100 || 0) * ratio),
+          fat: Math.round((item.f100 || 0) * ratio),
+        });
+      } else {
+        updateFoodItem(mealId, itemId, { portion: String(grams) });
+      }
+    } else {
+      const val = numFields.includes(field) ? Math.max(0, parseInt(editValue) || 0) : editValue;
+      updateFoodItem(mealId, itemId, { [field]: val });
+    }
     setEditingItem(null);
   };
 
@@ -662,18 +690,22 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                     </Pressable>
                   )}
                   {(canEdit || meal.name === 'Extras') && editingItem?.mealId === meal.id && editingItem?.itemId === item.id && editingItem?.field === 'portion' ? (
-                    <TextInput
-                      style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, padding: 0, borderBottomWidth: 1, borderBottomColor: colors.primary, marginTop: 1 }}
-                      value={editValue}
-                      onChangeText={setEditValue}
-                      onBlur={commitEdit}
-                      onSubmitEditing={commitEdit}
-                      autoFocus
-                    />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 1 }}>
+                      <TextInput
+                        style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, padding: 0, borderBottomWidth: 1, borderBottomColor: colors.primary, minWidth: 30 }}
+                        value={editValue}
+                        onChangeText={setEditValue}
+                        onBlur={commitEdit}
+                        onSubmitEditing={commitEdit}
+                        keyboardType="number-pad"
+                        autoFocus
+                      />
+                      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>g</Text>
+                    </View>
                   ) : (
                     <Pressable onPress={() => (canEdit || meal.name === 'Extras') && startEdit(meal.id, item.id, 'portion', item.portion)}>
                       <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
-                        {item.portion || 'Tap for portion'}
+                        {item.portion ? `${item.portion}g` : 'Tap for portion'}
                       </Text>
                     </Pressable>
                   )}
@@ -2623,8 +2655,10 @@ export default function ProgramDetailScreen() {
         </View>
       )}
 
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: insets.bottom + ((!isCoach && isShared) ? 90 : (hasChanges || saveError) ? 80 : 20) + (uploads.length > 0 ? 72 : 0), paddingHorizontal: 16, paddingTop: 8 }}
       >
         {isNutrition ? (
@@ -2701,6 +2735,7 @@ export default function ProgramDetailScreen() {
           </>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {(!isCoach && isShared) && (
         <View style={[styles.finishWorkoutBar, { paddingBottom: insets.bottom + 10, backgroundColor: 'rgba(15,15,15,0.97)', borderTopColor: colors.border }]}>

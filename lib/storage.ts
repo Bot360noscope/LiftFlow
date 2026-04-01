@@ -45,6 +45,10 @@ export interface NutritionItem {
   carbs: number;
   fat: number;
   checked?: boolean;
+  cal100?: number;
+  p100?: number;
+  c100?: number;
+  f100?: number;
 }
 
 export interface Meal {
