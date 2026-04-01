@@ -158,13 +158,22 @@ function generateCode(): string {
   return code;
 }
 
-async function sendPushNotification(targetProfileId: string, title: string, body: string, data?: Record<string, any>): Promise<void> {
+async function sendPushNotification(targetProfileId: string, title: string, body: string, data?: Record<string, any>, senderProfileId?: string): Promise<void> {
   try {
     const [profile] = await db.select().from(profiles).where(eq(profiles.id, targetProfileId));
     if (!profile?.pushToken || !profile.pushToken.startsWith('ExponentPushToken[')) {
       console.log("[PushNotif] No valid push token for profile:", targetProfileId);
       return;
     }
+
+    if (senderProfileId) {
+      const [senderProfile] = await db.select().from(profiles).where(eq(profiles.id, senderProfileId));
+      if (senderProfile?.pushToken && senderProfile.pushToken === profile.pushToken) {
+        console.log("[PushNotif] Skipping — sender and target share the same push token (same device)");
+        return;
+      }
+    }
+
     console.log("[PushNotif] Sending to:", profile.pushToken.substring(0, 30) + "...", "title:", title);
 
     const message = {
@@ -822,6 +831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: "Unauthorized" });
       const decoded = verifyToken(authHeader.slice(7));
       if (!decoded || decoded.profileId !== profileId) return res.status(403).json({ error: "Forbidden" });
+      await db.update(profiles).set({ pushToken: null }).where(and(eq(profiles.pushToken, pushToken), sql`${profiles.id} != ${profileId}`));
       await db.update(profiles).set({ pushToken }).where(eq(profiles.id, profileId));
       console.log("[PushToken] Token saved successfully for profile:", profileId);
       res.json({ ok: true });
@@ -999,7 +1009,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fromRole: senderRole,
       }).returning();
 
-      sendPushNotification(targetProfileId, chatNotifTitle, chatNotifBody, { type: 'chat', programId: coachId, programTitle: clientProfileId });
+      const senderProfileId = senderRole === 'coach' ? coachId : clientProfileId;
+      sendPushNotification(targetProfileId, chatNotifTitle, chatNotifBody, { type: 'chat', programId: coachId, programTitle: clientProfileId }, senderProfileId);
 
       broadcastToProfile(targetProfileId, {
         type: 'new_message',
