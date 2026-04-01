@@ -909,15 +909,25 @@ export default function HomeScreen() {
               <View style={[styles.emptyCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
                 <Ionicons name="barbell-outline" size={32} color={colors.textMuted} />
                 <Text style={[styles.emptyText, { color: colors.text }]}>No programs yet</Text>
-                <Text style={[styles.emptySubText, { color: colors.textMuted }]}>Connect with your coach to get started</Text>
-                <Pressable
-                  style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
-                  accessibilityLabel="Join a coach"
-                  accessibilityRole="button"
-                  onPress={() => router.push('/join-coach')}
-                >
-                  <Text style={styles.emptyBtnText}>Join Coach</Text>
-                </Pressable>
+                <Text style={[styles.emptySubText, { color: colors.textMuted }]}>Create your own program or connect with a coach</Text>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                  <Pressable
+                    style={[styles.emptyBtn, { backgroundColor: colors.primary, flex: 1 }]}
+                    accessibilityLabel="Create program"
+                    accessibilityRole="button"
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/create-program'); }}
+                  >
+                    <Text style={styles.emptyBtnText}>Create Program</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.emptyBtn, { backgroundColor: colors.backgroundCard, borderWidth: 1, borderColor: colors.border, flex: 1 }]}
+                    accessibilityLabel="Join a coach"
+                    accessibilityRole="button"
+                    onPress={() => router.push('/join-coach')}
+                  >
+                    <Text style={[styles.emptyBtnText, { color: colors.text }]}>Join Coach</Text>
+                  </Pressable>
+                </View>
               </View>
             ) : (
               <>
