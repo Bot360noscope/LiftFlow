@@ -10,7 +10,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { uploadToR2, getFromR2, deleteFromR2, getPresignedUploadUrl, getPresignedDownloadUrl, downloadFromR2 } from "./r2";
 import { execFile } from "child_process";
-import { promises as fs } from "fs";
+import { promises as fs, readFileSync } from "fs";
 import os from "os";
 import { broadcastToProfile } from "./websocket";
 
@@ -1772,45 +1772,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
-  app.get("/api/food-search", async (req, res) => {
+  const foodDbPath = path.join(__dirname, 'food-db.json');
+  let foodDb: { n: string; cal: number; p: number; c: number; f: number }[] = [];
+  try {
+    foodDb = JSON.parse(readFileSync(foodDbPath, 'utf8'));
+    console.log(`Loaded local food database: ${foodDb.length} foods`);
+  } catch { console.warn("food-db.json not found, food search will return empty results"); }
+
+  app.get("/api/food-search", (req, res) => {
     try {
-      const q = req.query.q as string;
-      if (!q || !q.trim()) return res.json({ products: [] });
+      const q = (req.query.q as string || '').trim().toLowerCase();
+      if (!q) return res.json({ products: [] });
 
-      const usdaUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=20&api_key=DEMO_KEY&dataType=Foundation,SR%20Legacy`;
-      const usdaRes = await fetch(usdaUrl, { headers: { 'Accept': 'application/json' } });
-      if (usdaRes.ok) {
-        const usdaData = await usdaRes.json() as any;
-        const products = (usdaData.foods || []).map((food: any) => {
-          const getNutrient = (id: number) => {
-            const n = food.foodNutrients?.find((fn: any) => fn.nutrientId === id);
-            return n ? Math.round(n.value || 0) : 0;
-          };
-          return {
-            product_name: food.description || food.lowercaseDescription || 'Unknown',
-            serving_size: food.servingSize ? `${food.servingSize}${food.servingSizeUnit || 'g'}` : '100g',
-            nutriments: {
-              'energy-kcal_100g': getNutrient(1008),
-              proteins_100g: getNutrient(1003),
-              carbohydrates_100g: getNutrient(1005),
-              fat_100g: getNutrient(1004),
-            },
-          };
-        });
-        return res.json({ products });
-      }
+      const terms = q.split(/\s+/);
+      const scored = foodDb
+        .filter(f => {
+          const ln = f.n.toLowerCase();
+          return terms.every(t => ln.includes(t));
+        })
+        .map(f => {
+          const ln = f.n.toLowerCase();
+          const startsWithBonus = ln.startsWith(q) ? 100 : terms[0] && ln.startsWith(terms[0]) ? 50 : 0;
+          const exactBonus = ln === q ? 200 : 0;
+          const lengthPenalty = f.n.length;
+          return { food: f, score: exactBonus + startsWithBonus - lengthPenalty };
+        })
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 25);
 
-      const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=product_name,nutriments,serving_size`;
-      const offRes = await fetch(offUrl, {
-        headers: {
-          'User-Agent': 'LiftFlow/1.0 (https://lift-flow.com; fitness coaching app)',
-          'Accept': 'application/json',
+      const products = scored.map(({ food }) => ({
+        product_name: food.n,
+        serving_size: '100g',
+        nutriments: {
+          'energy-kcal_100g': food.cal,
+          proteins_100g: food.p,
+          carbohydrates_100g: food.c,
+          fat_100g: food.f,
         },
-      });
-      const text = await offRes.text();
-      let data;
-      try { data = JSON.parse(text); } catch { data = { products: [] }; }
-      res.json(data);
+      }));
+
+      res.json({ products });
     } catch (e: any) {
       console.error("Food search error:", e);
       res.json({ products: [] });
