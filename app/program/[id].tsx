@@ -624,9 +624,11 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   suggestionsEnabled?: boolean;
 }) {
   const { colors } = useTheme();
+  const { addUpload } = useUploads();
   const hasPrevNotes = !!(prevWeekExercise?.clientNotes || prevWeekExercise?.coachComment || prevWeekExercise?.notes);
   const hasCurrentNotes = !!(exercise.clientNotes || exercise.coachComment || exercise.notes);
-  const hasVideo = isCoach && isShared && !!exercise.videoUrl;
+  const isPersonal = !isShared;
+  const hasVideo = (isCoach && isShared && !!exercise.videoUrl) || (isPersonal && !!exercise.videoUrl);
   const forceExpanded = isCoach && isShared && (hasCurrentNotes || hasPrevNotes || !!exercise.videoUrl);
   const [localExpanded, setLocalExpanded] = useState(initialExpanded || hasPrevNotes || hasCurrentNotes);
   const expanded = forceExpanded || (isExpandedProp !== undefined ? isExpandedProp : localExpanded);
@@ -785,9 +787,9 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
             <Ionicons name="close" size={15} color={colors.textMuted} />
           </Pressable>
         </View>
-        {isCoach && isShared && !!exercise.videoUrl && (
+        {hasVideo && (
           <View style={{ paddingVertical: 8 }}>
-            <VideoPlayerInline videoUrl={exercise.videoUrl} isCoach={true} />
+            <VideoPlayerInline videoUrl={exercise.videoUrl} isCoach={isShared} />
           </View>
         )}
         <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -834,6 +836,49 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
         </View>
         {expanded && (
           <View style={[styles.exerciseExpanded, { borderTopColor: colors.border, marginTop: 6, paddingBottom: 4 }]}>
+            {isPersonal && (
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+                <Pressable
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: colors.primary }}
+                  onPress={() => {
+                    if (Platform.OS === 'web') {
+                      ImagePicker.launchCameraAsync({ mediaTypes: ['videos'], allowsEditing: false }).then(result => {
+                        if (result.canceled || !result.assets?.[0]) return;
+                        const asset = result.assets[0];
+                        router.push({ pathname: '/trim-video', params: { videoUri: asset.uri, videoDuration: String(asset.duration || 0), programId, exerciseId: exercise.id, uploadedBy: profileId, coachId, exerciseName: exercise.name || 'Exercise' } });
+                      }).catch(() => {});
+                    } else {
+                      router.push({ pathname: '/record-video', params: { programId, exerciseId: exercise.id, uploadedBy: profileId, coachId, exerciseName: exercise.name || 'Exercise' } });
+                    }
+                  }}
+                >
+                  <Ionicons name="videocam-outline" size={14} color={colors.primary} />
+                  <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 11, color: colors.primary }}>Record</Text>
+                </Pressable>
+                <Pressable
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: colors.textSecondary }}
+                  onPress={async () => {
+                    try {
+                      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium, allowsEditing: false });
+                      if (result.canceled || !result.assets?.[0]) return;
+                      addUpload({ id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, uri: result.assets[0].uri, meta: { programId, exerciseId: exercise.id, uploadedBy: profileId, coachId }, exerciseName: exercise.name || 'Exercise' });
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    } catch {}
+                  }}
+                >
+                  <Ionicons name="cloud-upload-outline" size={14} color={colors.textSecondary} />
+                  <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 11, color: colors.textSecondary }}>Upload</Text>
+                </Pressable>
+                {!!exercise.videoUrl && (
+                  <Pressable
+                    style={{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: colors.danger }}
+                    onPress={() => confirmAction("Delete Video", "Remove this video?", () => { onUpdate({ videoUrl: '' }); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }, "Delete")}
+                  >
+                    <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                  </Pressable>
+                )}
+              </View>
+            )}
             {hasPrevNotes && (
               <View style={{ marginBottom: 6, padding: 6, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
