@@ -754,7 +754,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors }: {
   );
 }
 
-function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, programId, coachId, profileId }: {
+function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, programId, coachId, profileId, programType = 'workout' }: {
   exercise: Exercise;
   index: number;
   onUpdate: (updates: Partial<Exercise>) => void;
@@ -762,9 +762,11 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
   programId: string;
   coachId: string;
   profileId: string;
+  programType?: ProgramType;
 }) {
   const { colors } = useTheme();
   const { addUpload } = useUploads();
+  const isPhysio = programType === 'physio';
   const [isCompleted, setIsCompleted] = useState(exercise.isCompleted);
   const [clientNotes, setClientNotes] = useState(exercise.clientNotes || '');
   const [expanded, setExpanded] = useState(false);
@@ -915,33 +917,35 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
             </View>
           )}
 
-          {hasVideo && (
+          {!isPhysio && hasVideo && (
             <View style={{ marginBottom: 10 }}>
               <VideoPlayerInline videoUrl={exercise.videoUrl} />
             </View>
           )}
 
-          <View style={{ gap: 8, marginBottom: 10 }}>
-            <View style={styles.clientExActions}>
-              <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.primary, flex: 1 }]} onPress={(e) => { e.stopPropagation(); handleRecord(); }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
-                  <Ionicons name="videocam-outline" size={15} color={colors.primary} />
-                  <Text style={[styles.clientExUploadText, { color: colors.primary }]}>Record</Text>
-                </View>
-              </Pressable>
-              <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.textSecondary, flex: 1 }]} onPress={(e) => { e.stopPropagation(); handleUpload(); }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
-                  <Ionicons name="cloud-upload-outline" size={15} color={colors.textSecondary} />
-                  <Text style={[styles.clientExUploadText, { color: colors.textSecondary }]}>Upload</Text>
-                </View>
-              </Pressable>
-              {hasVideo && (
-                <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.danger, paddingHorizontal: 10 }]} onPress={(e) => { e.stopPropagation(); handleDeleteVideo(); }}>
-                  <Ionicons name="trash-outline" size={15} color={colors.danger} />
+          {!isPhysio && (
+            <View style={{ gap: 8, marginBottom: 10 }}>
+              <View style={styles.clientExActions}>
+                <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.primary, flex: 1 }]} onPress={(e) => { e.stopPropagation(); handleRecord(); }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
+                    <Ionicons name="videocam-outline" size={15} color={colors.primary} />
+                    <Text style={[styles.clientExUploadText, { color: colors.primary }]}>Record</Text>
+                  </View>
                 </Pressable>
-              )}
+                <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.textSecondary, flex: 1 }]} onPress={(e) => { e.stopPropagation(); handleUpload(); }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
+                    <Ionicons name="cloud-upload-outline" size={15} color={colors.textSecondary} />
+                    <Text style={[styles.clientExUploadText, { color: colors.textSecondary }]}>Upload</Text>
+                  </View>
+                </Pressable>
+                {hasVideo && (
+                  <Pressable style={[styles.clientExUploadBtn, { borderColor: colors.danger, paddingHorizontal: 10 }]} onPress={(e) => { e.stopPropagation(); handleDeleteVideo(); }}>
+                    <Ionicons name="trash-outline" size={15} color={colors.danger} />
+                  </Pressable>
+                )}
+              </View>
             </View>
-          </View>
+          )}
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 }}>
             <Ionicons name="chatbubble-outline" size={11} color={colors.textSecondary} />
@@ -1035,8 +1039,8 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   const hasPrevNotes = !!(prevWeekExercise?.clientNotes || prevWeekExercise?.coachComment || prevWeekExercise?.notes);
   const hasCurrentNotes = !!(exercise.clientNotes || exercise.coachComment || exercise.notes);
   const isPersonal = !isShared;
-  const hasVideo = (isCoach && isShared && !!exercise.videoUrl) || (isPersonal && !!exercise.videoUrl);
-  const forceExpanded = isCoach && isShared && (hasCurrentNotes || hasPrevNotes || !!exercise.videoUrl);
+  const hasVideo = !isPhysio && ((isCoach && isShared && !!exercise.videoUrl) || (isPersonal && !!exercise.videoUrl));
+  const forceExpanded = isCoach && isShared && (hasCurrentNotes || hasPrevNotes || (!isPhysio && !!exercise.videoUrl));
   const [localExpanded, setLocalExpanded] = useState(initialExpanded || hasPrevNotes || hasCurrentNotes);
   const expanded = forceExpanded || (isExpandedProp !== undefined ? isExpandedProp : localExpanded);
   const [seenContent, setSeenContent] = useState(false);
@@ -1243,7 +1247,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
         </View>
         {expanded && (
           <View style={[styles.exerciseExpanded, { borderTopColor: colors.border, marginTop: 6, paddingBottom: 4 }]}>
-            {isPersonal && (
+            {isPersonal && !isPhysio && (
               <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
                 <Pressable
                   style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: colors.primary }}
@@ -1430,7 +1434,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
         </View>
       </Pressable>
 
-      {isCoach && isShared && !!exercise.videoUrl && (
+      {isCoach && isShared && !isPhysio && !!exercise.videoUrl && (
         <View style={{ paddingHorizontal: 12, paddingBottom: 10 }}>
           <VideoPlayerInline videoUrl={exercise.videoUrl} isCoach={true} />
         </View>
@@ -1586,7 +1590,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
             </>
           )}
 
-          {!isCoach && isShared && (
+          {!isCoach && isShared && !isPhysio && (
             <VideoRecordButton
               exercise={exercise}
               programId={programId}
@@ -2539,6 +2543,7 @@ export default function ProgramDetailScreen() {
                       programId={program.id}
                       coachId={program.coachId}
                       profileId={profileId}
+                      programType={programType}
                     />
                   ) : (
                     <ExerciseRow

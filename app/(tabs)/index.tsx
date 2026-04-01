@@ -726,7 +726,7 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
             ) : (
-              activePrograms.slice(0, 2).map((prog) => (
+              activePrograms.map((prog) => (
                 <ClientProgramCard key={prog.id} program={prog} colors={colors} />
               ))
             )}
