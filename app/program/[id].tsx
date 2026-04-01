@@ -2125,9 +2125,9 @@ export default function ProgramDetailScreen() {
   const prevNutritionDay = isNutrition ? (prevWeekDay as NutritionDay | null) : null;
 
   useEffect(() => {
-    if (!program || activeWeek <= 1 || !prevWeekDay || planLocked) return;
+    if (!program || planLocked) return;
 
-    if (isNutrition) {
+    if (isNutrition && activeWeek > 1 && prevWeekDay) {
       const nutDay = currentNutritionDay;
       const prevNut = prevWeekDay as NutritionDay;
       const currentHasItems = nutDay?.meals?.some(m => m.items.length > 0) ?? false;
@@ -2153,28 +2153,40 @@ export default function ProgramDetailScreen() {
       }
     } else if (programType === 'physio') {
       const curExercises = (currentDay as WorkoutDay)?.exercises || [];
-      const prevExercises = (prevWeekDay as WorkoutDay)?.exercises || [];
-      if (curExercises.length === 0 && prevExercises.length > 0) {
-        const copiedExercises = prevExercises.map(ex => ({
-          ...ex,
-          id: Crypto.randomUUID(),
-          isCompleted: false,
-          clientNotes: '',
-          coachComment: '',
-          videoUrl: undefined,
-        }));
-        const updatedWeeks = program.weeks.map(week => {
-          if (week.weekNumber !== activeWeek) return week;
-          return {
-            ...week,
-            days: week.days.map(day => {
-              if (day.dayNumber !== activeDay) return day;
-              return { ...day, exercises: copiedExercises };
-            }),
-          };
-        });
-        setProgram({ ...program, weeks: updatedWeeks });
-        setHasChanges(true);
+      if (curExercises.length === 0) {
+        let sourceExercises: Exercise[] = [];
+        if (activeDay > 1) {
+          const prevDayInWeek = currentWeek?.days.find(d => d.dayNumber === activeDay - 1) as WorkoutDay | undefined;
+          if (prevDayInWeek?.exercises?.length > 0) {
+            sourceExercises = prevDayInWeek.exercises;
+          }
+        }
+        if (sourceExercises.length === 0 && activeWeek > 1 && prevWeekDay) {
+          const prevExercises = (prevWeekDay as WorkoutDay)?.exercises || [];
+          if (prevExercises.length > 0) sourceExercises = prevExercises;
+        }
+        if (sourceExercises.length > 0) {
+          const copiedExercises = sourceExercises.map(ex => ({
+            ...ex,
+            id: Crypto.randomUUID(),
+            isCompleted: false,
+            clientNotes: '',
+            coachComment: '',
+            videoUrl: undefined,
+          }));
+          const updatedWeeks = program.weeks.map(week => {
+            if (week.weekNumber !== activeWeek) return week;
+            return {
+              ...week,
+              days: week.days.map(day => {
+                if (day.dayNumber !== activeDay) return day;
+                return { ...day, exercises: copiedExercises };
+              }),
+            };
+          });
+          setProgram({ ...program, weeks: updatedWeeks });
+          setHasChanges(true);
+        }
       }
     }
   }, [program?.id, activeWeek, activeDay, isNutrition, programType]);
