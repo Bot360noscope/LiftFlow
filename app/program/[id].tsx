@@ -452,12 +452,15 @@ function MacroBar({ label, value, color, colorsTheme }: { label: string; value: 
   );
 }
 
-function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay }: {
+function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId, programId, programTitle }: {
   day: NutritionDay;
   canEdit: boolean;
   onUpdate: (updated: NutritionDay) => void;
   colors: any;
   prevWeekDay?: NutritionDay | null;
+  coachId?: string;
+  programId?: string;
+  programTitle?: string;
 }) {
   const [searchMealId, setSearchMealId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<{ mealId: string; itemId: string; field: string } | null>(null);
@@ -726,6 +729,16 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay }: {
           onPress={() => {
             const extraMeal: Meal = { id: Crypto.randomUUID(), name: 'Extras', items: [] };
             onUpdate({ ...day, meals: [...day.meals, extraMeal] });
+            if (coachId && programId) {
+              addNotification({
+                targetProfileId: coachId,
+                type: 'update',
+                title: 'Off-Plan Food Logged',
+                message: `Client logged off-plan food on Day ${day.dayNumber}`,
+                programId,
+                programTitle: programTitle || '',
+              });
+            }
           }}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#FF9500' + '44', borderStyle: 'dashed', backgroundColor: '#FF9500' + '08' }}
         >
@@ -2581,7 +2594,7 @@ export default function ProgramDetailScreen() {
         </ScrollView>
       </View>
 
-      {(!isCoach && isShared) && dayTotal > 0 && (
+      {(!isCoach && isShared) && dayTotal > 0 && !isNutrition && programType !== 'physio' && (
         <View style={[styles.dayProgressBar, { borderBottomColor: colors.border }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
             <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: '#888' }}>{dayCompleted} of {dayTotal} exercises</Text>
@@ -2610,6 +2623,9 @@ export default function ProgramDetailScreen() {
               onUpdate={updateNutritionDay}
               colors={colors}
               prevWeekDay={prevNutritionDay}
+              coachId={program.coachId}
+              programId={program.id}
+              programTitle={program.title}
             />
           ) : (
             <View style={styles.emptyDay}>

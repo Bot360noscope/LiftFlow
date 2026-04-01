@@ -324,9 +324,6 @@ function DietCompactCard({ program, colors }: { program: Program; colors: any })
     return { calories: cal, protein: Math.round(p), carbs: Math.round(c), fat: Math.round(f) };
   }, [todayDay]);
 
-  const checkedCount = todayDay?.meals?.reduce((s, m) => s + m.items.filter(i => i.checked).length, 0) || 0;
-  const totalItems = todayDay?.meals?.reduce((s, m) => s + m.items.length, 0) || 0;
-
   return (
     <Pressable
       style={({ pressed }) => [{ flex: 1, backgroundColor: colors.backgroundCard, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#4FC3F7' + '55' }, pressed && { opacity: 0.9 }]}
@@ -359,14 +356,6 @@ function DietCompactCard({ program, colors }: { program: Program; colors: any })
         </View>
       </View>
 
-      {totalItems > 0 && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
-          <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.15)', overflow: 'hidden' }}>
-            <View style={{ width: `${totalItems > 0 ? (checkedCount / totalItems) * 100 : 0}%` as any, height: 3, borderRadius: 2, backgroundColor: '#4FC3F7' }} />
-          </View>
-          <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 9, color: colors.textMuted }}>{checkedCount}/{totalItems}</Text>
-        </View>
-      )}
     </Pressable>
   );
 }
@@ -390,10 +379,6 @@ function PhysioCompactCard({ program, colors }: { program: Program; colors: any 
     return activeWeek.days.length > 0 ? activeWeek.days[0].dayNumber : 1;
   }, [activeWeek]);
 
-  const todayDay = activeWeek?.days.find(d => d.dayNumber === todayDayNum) as any;
-  const exercises = todayDay?.exercises || [];
-  const completedCount = exercises.filter((e: any) => e.isCompleted).length;
-
   return (
     <Pressable
       style={({ pressed }) => [{ flex: 1, backgroundColor: colors.backgroundCard, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#FF9500' + '55' }, pressed && { opacity: 0.9 }]}
@@ -415,14 +400,6 @@ function PhysioCompactCard({ program, colors }: { program: Program; colors: any 
         Week {activeWeekNum} of {totalWeeks}
       </Text>
 
-      {exercises.length > 0 && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-          <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.15)', overflow: 'hidden' }}>
-            <View style={{ width: `${exercises.length > 0 ? (completedCount / exercises.length) * 100 : 0}%` as any, height: 3, borderRadius: 2, backgroundColor: '#FF9500' }} />
-          </View>
-          <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 9, color: colors.textMuted }}>{completedCount}/{exercises.length}</Text>
-        </View>
-      )}
     </Pressable>
   );
 }
@@ -940,6 +917,16 @@ export default function HomeScreen() {
                     </View>
                   );
                 })()}
+
+                {activePrograms.every(p => !p.coachId || p.coachId === profile?.id) && (
+                  <Pressable
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/create-program'); }}
+                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', marginBottom: 12 }}
+                  >
+                    <Ionicons name="add" size={16} color={colors.primary} />
+                    <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.primary }}>Create Program</Text>
+                  </Pressable>
+                )}
               </>
             )}
           </Animated.View>
