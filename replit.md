@@ -47,9 +47,15 @@ LiftFlow is a mobile fitness coaching app built with Expo + Express. It centers 
 - POST /api/webhooks/payment (Stripe webhook for subscription updates)
 
 ## Key Data Model
-- **Program exercises**: Stored as JSONB array of WorkoutWeek → WorkoutDay → Exercise objects
+- **Program Types**: Three types via `program_type` column (default 'workout'):
+  - **Workout**: WorkoutWeek → WorkoutDay → Exercise (standard training programs)
+  - **Nutrition**: NutritionWeek → NutritionDay → Meal → NutritionItem (meal plans with macros)
+  - **Physio**: Same structure as Workout but with relabeled fields (Weight→Resistance, RPE→Pain Level)
 - **Exercise**: exerciseName, prescription, weight, rpe, videoUrl, isCompleted, clientNotes, coachComment
-- **Client editing**: Clients can only modify weight, completion, notes, and videos; exercise prescription is coach-controlled
+- **NutritionItem**: name, portion, calories, protein, carbs, fat, checked (for client tracking)
+- **Meal**: name, items (array of NutritionItem)
+- **Food Search**: Uses Open Food Facts API (free, no key) for food lookup with macro data
+- **Client editing**: Clients can only modify weight, completion, notes, and videos; exercise prescription is coach-controlled. For nutrition: clients can check off food items
 
 ## Core Screens
 - **Home** (tabs/index.tsx): Role-based dashboard, coach code display, stats, recent programs, client cards

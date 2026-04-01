@@ -7,10 +7,16 @@ import * as Haptics from "expo-haptics";
 import * as Crypto from "expo-crypto";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
-import { addProgram, getProfile, getClients, type Exercise, type WorkoutWeek, type WorkoutDay, type ClientInfo } from "@/lib/storage";
+import {
+  addProgram, getProfile, getClients,
+  type Exercise, type WorkoutWeek, type WorkoutDay,
+  type NutritionWeek, type NutritionDay, type Meal,
+  type ClientInfo, type ProgramType,
+} from "@/lib/storage";
 
+const DEFAULT_MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
-function buildWeeks(numWeeks: number, numDays: number, numExercises: number): WorkoutWeek[] {
+function buildWorkoutWeeks(numWeeks: number, numDays: number, numExercises: number): WorkoutWeek[] {
   const programWeeks: WorkoutWeek[] = [];
   for (let w = 1; w <= numWeeks; w++) {
     const days: WorkoutDay[] = [];
@@ -19,15 +25,8 @@ function buildWeeks(numWeeks: number, numDays: number, numExercises: number): Wo
       for (let e = 0; e < numExercises; e++) {
         exercises.push({
           id: Crypto.randomUUID(),
-          name: '',
-          weight: '',
-          repsSets: '',
-          rpe: '',
-          isCompleted: false,
-          notes: '',
-          clientNotes: '',
-          coachComment: '',
-          videoUrl: '',
+          name: '', weight: '', repsSets: '', rpe: '',
+          isCompleted: false, notes: '', clientNotes: '', coachComment: '', videoUrl: '',
         });
       }
       days.push({ dayNumber: d, exercises });
@@ -35,6 +34,26 @@ function buildWeeks(numWeeks: number, numDays: number, numExercises: number): Wo
     programWeeks.push({ weekNumber: w, days });
   }
   return programWeeks;
+}
+
+function buildNutritionWeeks(numWeeks: number, numDays: number, numMeals: number): NutritionWeek[] {
+  const weeks: NutritionWeek[] = [];
+  for (let w = 1; w <= numWeeks; w++) {
+    const days: NutritionDay[] = [];
+    for (let d = 1; d <= numDays; d++) {
+      const meals: Meal[] = [];
+      for (let m = 0; m < numMeals; m++) {
+        meals.push({
+          id: Crypto.randomUUID(),
+          name: DEFAULT_MEALS[m] || `Meal ${m + 1}`,
+          items: [],
+        });
+      }
+      days.push({ dayNumber: d, meals });
+    }
+    weeks.push({ weekNumber: w, days });
+  }
+  return weeks;
 }
 
 function Counter({ label, value, onChange, min, max }: { label: string; value: string; onChange: (v: string) => void; min: number; max: number }) {
@@ -55,15 +74,23 @@ function Counter({ label, value, onChange, min, max }: { label: string; value: s
   );
 }
 
+const TYPE_OPTIONS: { key: ProgramType; icon: string; label: string; desc: string }[] = [
+  { key: 'workout', icon: 'barbell-outline', label: 'Workout', desc: 'Exercises, sets, reps & weight' },
+  { key: 'nutrition', icon: 'nutrition-outline', label: 'Nutrition', desc: 'Meals, macros & food plans' },
+  { key: 'physio', icon: 'body-outline', label: 'Physio', desc: 'Rehab exercises & recovery' },
+];
+
 export default function CreateProgramScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { clientId, clientName } = useLocalSearchParams<{ clientId?: string; clientName?: string }>();
+  const [programType, setProgramType] = useState<ProgramType>('workout');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [weeks, setWeeks] = useState('1');
   const [daysPerWeek, setDaysPerWeek] = useState('3');
   const [exercisesPerDay, setExercisesPerDay] = useState('4');
+  const [mealsPerDay, setMealsPerDay] = useState('4');
   const [saving, setSaving] = useState(false);
   const [profileId, setProfileId] = useState('');
   const [role, setRole] = useState<'coach' | 'client'>('coach');
@@ -85,20 +112,34 @@ export default function CreateProgramScreen() {
     if (!title.trim()) return;
     setSaving(true);
 
-    const numWeeks = parseInt(weeks) || 4;
+    const numWeeks = parseInt(weeks) || 1;
     const numDays = parseInt(daysPerWeek) || 3;
-    const numExercises = parseInt(exercisesPerDay) || 4;
-    const programWeeks = buildWeeks(numWeeks, numDays, numExercises);
+
+    let programWeeks: WorkoutWeek[] | NutritionWeek[];
+    let descFallback: string;
+
+    if (programType === 'nutrition') {
+      const numMeals = parseInt(mealsPerDay) || 4;
+      programWeeks = buildNutritionWeeks(numWeeks, numDays, numMeals);
+      descFallback = `${numWeeks}-week nutrition plan`;
+    } else {
+      const numExercises = parseInt(exercisesPerDay) || 4;
+      programWeeks = buildWorkoutWeeks(numWeeks, numDays, numExercises);
+      descFallback = programType === 'physio'
+        ? `${numWeeks}-week rehab program`
+        : `${numWeeks}-week training program`;
+    }
 
     try {
       await addProgram({
         title: title.trim(),
-        description: description.trim() || `${numWeeks}-week training program`,
+        description: description.trim() || descFallback,
         weeks: programWeeks,
         daysPerWeek: numDays,
         coachId: profileId,
         clientId: selectedClientId || null,
         status: 'active',
+        programType,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
@@ -106,7 +147,7 @@ export default function CreateProgramScreen() {
       Alert.alert("Error", "Failed to create program. Please try again.");
       setSaving(false);
     }
-  }, [title, description, weeks, daysPerWeek, exercisesPerDay, profileId, selectedClientId]);
+  }, [title, description, weeks, daysPerWeek, exercisesPerDay, mealsPerDay, profileId, selectedClientId, programType]);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const isCoach = role === 'coach';
@@ -115,6 +156,22 @@ export default function CreateProgramScreen() {
     : isCoach
       ? 'New Program'
       : 'My Program';
+
+  const placeholderByType = {
+    workout: { name: "e.g., Hypertrophy Block 1", desc: "e.g., Focus on volume and muscle growth" },
+    nutrition: { name: "e.g., Cut Phase Diet", desc: "e.g., High protein, calorie deficit" },
+    physio: { name: "e.g., Shoulder Rehab", desc: "e.g., Post-surgery recovery protocol" },
+  };
+
+  const infoText = programType === 'nutrition'
+    ? `Creates a ${weeks}-week meal plan with ${daysPerWeek} days/week and ${mealsPerDay} meals/day.${selectedClientName ? ` Assigned to ${selectedClientName}.` : ''} You can add foods and set macros after creation.`
+    : programType === 'physio'
+      ? `Creates a ${weeks}-week rehab plan with ${daysPerWeek} days/week and ${exercisesPerDay} exercises/day.${selectedClientName ? ` Assigned to ${selectedClientName}.` : ''} You can set exercises, resistance, and pain tracking after creation.`
+      : isCoach
+        ? `Creates a ${weeks}-week program with ${daysPerWeek} days/week and ${exercisesPerDay} exercises/day.${selectedClientName ? ` Assigned to ${selectedClientName}.` : ''} You can edit exercises after creation.`
+        : `This creates a ${weeks}-week program with ${daysPerWeek} training days per week and ${exercisesPerDay} exercises per day. You can fill in exercises, track weights, and log your progress.`;
+
+  const buttonIcon = programType === 'nutrition' ? 'restaurant' : programType === 'physio' ? 'body' : isCoach ? 'grid' : 'add-circle';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset, backgroundColor: colors.background }]}>
@@ -127,12 +184,36 @@ export default function CreateProgramScreen() {
       </View>
 
       <ScrollView style={styles.scrollContent} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
-        <Text style={[styles.label, { color: colors.textSecondary }]}>{isCoach ? 'Program Name' : 'What do you want to call it?'}</Text>
+        <Text style={[styles.label, { color: colors.textSecondary, marginTop: 4 }]}>Program Type</Text>
+        <View style={styles.typeRow}>
+          {TYPE_OPTIONS.map(opt => {
+            const selected = programType === opt.key;
+            return (
+              <Pressable
+                key={opt.key}
+                style={[
+                  styles.typeCard,
+                  { backgroundColor: colors.backgroundCard, borderColor: selected ? colors.primary : colors.border },
+                  selected && { backgroundColor: 'rgba(232, 81, 47, 0.08)' },
+                ]}
+                onPress={() => { setProgramType(opt.key); Haptics.selectionAsync(); }}
+              >
+                <Ionicons name={opt.icon as any} size={22} color={selected ? colors.primary : colors.textMuted} />
+                <Text style={[styles.typeLabel, { color: selected ? colors.primary : colors.text }]}>{opt.label}</Text>
+                <Text style={[styles.typeDesc, { color: colors.textMuted }]} numberOfLines={2}>{opt.desc}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text style={[styles.label, { color: colors.textSecondary }]}>
+          {programType === 'nutrition' ? 'Plan Name' : isCoach ? 'Program Name' : 'What do you want to call it?'}
+        </Text>
         <TextInput
           style={[styles.input, { color: colors.text, backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
           value={title}
           onChangeText={setTitle}
-          placeholder={isCoach ? "e.g., Hypertrophy Block 1" : "e.g., My Strength Plan"}
+          placeholder={isCoach ? placeholderByType[programType].name : "e.g., My Strength Plan"}
           placeholderTextColor={colors.textMuted}
         />
 
@@ -141,7 +222,7 @@ export default function CreateProgramScreen() {
           style={[styles.input, { minHeight: 70, color: colors.text, backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
           value={description}
           onChangeText={setDescription}
-          placeholder={isCoach ? "e.g., Focus on volume and muscle growth" : "e.g., Building strength over 4 weeks"}
+          placeholder={isCoach ? placeholderByType[programType].desc : "e.g., Building strength over 4 weeks"}
           placeholderTextColor={colors.textMuted}
           multiline
           textAlignVertical="top"
@@ -150,7 +231,11 @@ export default function CreateProgramScreen() {
         <View style={styles.row}>
           <Counter label="Weeks" value={weeks} onChange={setWeeks} min={1} max={16} />
           <Counter label="Days/Wk" value={daysPerWeek} onChange={setDaysPerWeek} min={1} max={7} />
-          <Counter label="Exercises" value={exercisesPerDay} onChange={setExercisesPerDay} min={1} max={20} />
+          {programType === 'nutrition' ? (
+            <Counter label="Meals" value={mealsPerDay} onChange={setMealsPerDay} min={1} max={8} />
+          ) : (
+            <Counter label="Exercises" value={exercisesPerDay} onChange={setExercisesPerDay} min={1} max={20} />
+          )}
         </View>
 
         {isCoach && !clientId && clientList.length > 0 && (
@@ -179,12 +264,7 @@ export default function CreateProgramScreen() {
 
         <View style={[styles.infoBox, { backgroundColor: colors.surfaceLight }]}>
           <Ionicons name="information-circle" size={18} color={colors.textSecondary} />
-          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-            {isCoach
-              ? `Creates a ${weeks}-week program with ${daysPerWeek} days/week and ${exercisesPerDay} exercises/day.${selectedClientName ? ` Assigned to ${selectedClientName}.` : ''} You can edit exercises after creation.`
-              : `This creates a ${weeks}-week program with ${daysPerWeek} training days per week and ${exercisesPerDay} exercises per day. You can fill in exercises, track weights, and log your progress.`
-            }
-          </Text>
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>{infoText}</Text>
         </View>
 
         <Pressable
@@ -192,8 +272,8 @@ export default function CreateProgramScreen() {
           onPress={handleCreate}
           disabled={!title.trim() || saving}
         >
-          <Ionicons name={isCoach ? "grid" : "add-circle"} size={20} color="#fff" />
-          <Text style={styles.createButtonText}>{saving ? 'Creating...' : isCoach ? 'Create Program' : 'Start Program'}</Text>
+          <Ionicons name={buttonIcon as any} size={20} color="#fff" />
+          <Text style={styles.createButtonText}>{saving ? 'Creating...' : 'Create Program'}</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -205,6 +285,14 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16 },
   headerTitle: { fontFamily: 'Rubik_700Bold', fontSize: 20, color: Colors.colors.text },
   scrollContent: { paddingHorizontal: 20 },
+  typeRow: { flexDirection: 'row', gap: 10 },
+  typeCard: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4,
+    paddingVertical: 14, paddingHorizontal: 6, borderRadius: 12,
+    borderWidth: 1.5, borderColor: Colors.colors.border,
+  },
+  typeLabel: { fontFamily: 'Rubik_600SemiBold', fontSize: 13 },
+  typeDesc: { fontFamily: 'Rubik_400Regular', fontSize: 10, textAlign: 'center', lineHeight: 13 },
   sectionTitle: { fontFamily: 'Rubik_700Bold', fontSize: 16, color: Colors.colors.text, marginTop: 20, marginBottom: 8 },
   assignHint: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: Colors.colors.textMuted, marginBottom: 8 },
   clientChipScroll: { marginBottom: 4 },

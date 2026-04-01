@@ -36,17 +36,51 @@ export interface WorkoutWeek {
   days: WorkoutDay[];
 }
 
+export interface NutritionItem {
+  id: string;
+  name: string;
+  portion: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  checked?: boolean;
+}
+
+export interface Meal {
+  id: string;
+  name: string;
+  items: NutritionItem[];
+}
+
+export interface NutritionDay {
+  dayNumber: number;
+  targetCalories?: number;
+  targetProtein?: number;
+  targetCarbs?: number;
+  targetFat?: number;
+  meals: Meal[];
+}
+
+export interface NutritionWeek {
+  weekNumber: number;
+  days: NutritionDay[];
+}
+
+export type ProgramType = 'workout' | 'nutrition' | 'physio';
+
 export interface Program {
   id: string;
   title: string;
   description: string;
-  weeks: WorkoutWeek[];
+  weeks: WorkoutWeek[] | NutritionWeek[];
   createdAt: string;
   daysPerWeek: number;
   shareCode: string;
   coachId: string;
   clientId: string | null;
   status: 'draft' | 'active' | 'completed';
+  programType?: ProgramType;
   publishedWeeks?: number | null;
   updatedAt?: string;
   updatedBy?: 'coach' | 'client';
@@ -370,13 +404,14 @@ function mapProgram(p: any): Program {
     id: p.id,
     title: p.title,
     description: p.description,
-    weeks: p.weeks as WorkoutWeek[],
+    weeks: p.weeks as WorkoutWeek[] | NutritionWeek[],
     createdAt: p.createdAt || p.created_at,
     daysPerWeek: p.daysPerWeek || p.days_per_week,
     shareCode: p.shareCode || p.share_code,
     coachId: p.coachId || p.coach_id,
     clientId: p.clientId || p.client_id || null,
     status: (p.status || 'active') as 'draft' | 'active' | 'completed',
+    programType: (p.programType || p.program_type || 'workout') as ProgramType,
     publishedWeeks: p.publishedWeeks ?? p.published_weeks ?? null,
     updatedAt: p.updatedAt || p.updated_at || p.createdAt || p.created_at,
     updatedBy: (p.updatedBy || p.updated_by || 'coach') as 'coach' | 'client',
@@ -434,18 +469,20 @@ export async function addProgram(program: Omit<Program, 'id' | 'createdAt' | 'sh
     coachId: program.coachId,
     clientId: program.clientId,
     status: program.status,
+    programType: program.programType || 'workout',
   });
   return {
     id: p.id,
     title: p.title,
     description: p.description,
-    weeks: p.weeks as WorkoutWeek[],
+    weeks: p.weeks as WorkoutWeek[] | NutritionWeek[],
     createdAt: p.createdAt || p.created_at,
     daysPerWeek: p.daysPerWeek || p.days_per_week,
     shareCode: p.shareCode || p.share_code,
     coachId: p.coachId || p.coach_id,
     clientId: p.clientId || p.client_id || null,
     status: (p.status || 'active') as 'draft' | 'active' | 'completed',
+    programType: (p.programType || p.program_type || 'workout') as ProgramType,
   };
 }
 
@@ -521,16 +558,7 @@ export async function updateProgram(program: Program): Promise<void> {
 
 export async function assignProgramToClient(programId: string, clientId: string): Promise<Program> {
   const result = await apiPost<any>(`/api/programs/${programId}/assign`, { clientId });
-  return {
-    id: result.id,
-    title: result.title,
-    description: result.description || '',
-    weeks: result.weeks || [],
-    daysPerWeek: result.daysPerWeek || result.days_per_week || 3,
-    coachId: result.coachId || result.coach_id || '',
-    clientId: result.clientId || result.client_id || null,
-    status: result.status || 'active',
-  };
+  return mapProgram(result);
 }
 
 export async function deleteProgram(id: string): Promise<void> {

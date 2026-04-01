@@ -524,7 +524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/programs", async (req, res) => {
     try {
-      const { title, description, weeks, daysPerWeek, coachId, clientId, status } = req.body;
+      const { title, description, weeks, daysPerWeek, coachId, clientId, status, programType } = req.body;
       if (coachId && clientId) {
         const check = await isCoachOverLimit(coachId);
         if (check.overLimit) {
@@ -541,6 +541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         coachId,
         clientId: clientId || null,
         status: status || 'active',
+        programType: programType || 'workout',
         publishedWeeks: clientId ? 0 : null,
       }).returning();
       res.json(program);
@@ -631,6 +632,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         coachId: original.coachId,
         clientId,
         status: 'active',
+        programType: original.programType || 'workout',
         publishedWeeks: 0,
       }).returning();
       res.json(copy);
@@ -1705,7 +1707,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: programs.id, title: programs.title, description: programs.description,
         weeks: programs.weeks, daysPerWeek: programs.daysPerWeek, shareCode: programs.shareCode,
         coachId: programs.coachId, clientId: programs.clientId, status: programs.status,
-        publishedWeeks: programs.publishedWeeks,
+        publishedWeeks: programs.publishedWeeks, programType: programs.programType,
         updatedAt: programs.updatedAt, updatedBy: programs.updatedBy, createdAt: programs.createdAt,
       };
 

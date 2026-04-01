@@ -13,7 +13,7 @@ import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import * as Crypto from "expo-crypto";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getProgram, updateProgram, deleteProgram, getProfile, getCachedProfile, getClients, addNotification, markNotificationsReadByProgram, assignProgramToClient, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type UserProfile, type ClientInfo } from "@/lib/storage";
+import { getProgram, updateProgram, deleteProgram, getProfile, getCachedProfile, getClients, addNotification, markNotificationsReadByProgram, assignProgramToClient, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type NutritionWeek, type NutritionDay, type NutritionItem, type Meal, type UserProfile, type ClientInfo, type ProgramType } from "@/lib/storage";
 import { uploadVideo, getVideoUrl, getDirectVideoUrl, markVideoViewed } from "@/lib/api";
 import { trimResult } from "@/lib/trim-result";
 import { useUploads } from "@/lib/upload-context";
@@ -351,6 +351,341 @@ function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programI
   );
 }
 
+function FoodSearchModal({ visible, onClose, onSelect, colors }: { visible: boolean; onClose: () => void; onSelect: (item: NutritionItem) => void; colors: any }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  const search = useCallback(async () => {
+    if (!query.trim()) return;
+    setSearching(true);
+    try {
+      const res = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=20&fields=product_name,nutriments,serving_size`);
+      const data = await res.json();
+      setResults((data.products || []).filter((p: any) => p.product_name));
+    } catch { setResults([]); }
+    setSearching(false);
+  }, [query]);
+
+  const selectProduct = (product: any) => {
+    const n = product.nutriments || {};
+    onSelect({
+      id: Crypto.randomUUID(),
+      name: product.product_name || 'Unknown',
+      portion: product.serving_size || '100g',
+      calories: Math.round(n['energy-kcal_100g'] || n['energy-kcal'] || 0),
+      protein: Math.round(n.proteins_100g || n.proteins || 0),
+      carbs: Math.round(n.carbohydrates_100g || n.carbohydrates || 0),
+      fat: Math.round(n.fat_100g || n.fat || 0),
+    });
+    onClose();
+    setQuery('');
+    setResults([]);
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
+        <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%', paddingTop: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12 }}>
+            <Text style={{ flex: 1, fontFamily: 'Rubik_700Bold', fontSize: 18, color: colors.text }}>Search Foods</Text>
+            <Pressable onPress={() => { onClose(); setQuery(''); setResults([]); }} hitSlop={8}>
+              <Ionicons name="close" size={24} color={colors.textMuted} />
+            </Pressable>
+          </View>
+          <View style={{ flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 12 }}>
+            <TextInput
+              style={{ flex: 1, fontFamily: 'Rubik_400Regular', fontSize: 15, color: colors.text, backgroundColor: colors.backgroundCard, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: colors.border }}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search foods..."
+              placeholderTextColor={colors.textMuted}
+              onSubmitEditing={search}
+              returnKeyType="search"
+              autoFocus
+            />
+            <Pressable onPress={search} style={{ backgroundColor: colors.primary, borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' }}>
+              <Ionicons name="search" size={18} color="#fff" />
+            </Pressable>
+          </View>
+          <ScrollView style={{ paddingHorizontal: 16 }} contentContainerStyle={{ paddingBottom: 40 }}>
+            {searching && <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />}
+            {!searching && results.length === 0 && query.trim() !== '' && (
+              <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 13, color: colors.textMuted, textAlign: 'center', marginTop: 20 }}>No results found</Text>
+            )}
+            {results.map((product, i) => {
+              const n = product.nutriments || {};
+              return (
+                <Pressable
+                  key={i}
+                  onPress={() => selectProduct(product)}
+                  style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}
+                >
+                  <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 14, color: colors.text }} numberOfLines={1}>{product.product_name}</Text>
+                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
+                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.primary }}>{Math.round(n['energy-kcal_100g'] || 0)} cal</Text>
+                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>P: {Math.round(n.proteins_100g || 0)}g</Text>
+                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>C: {Math.round(n.carbohydrates_100g || 0)}g</Text>
+                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>F: {Math.round(n.fat_100g || 0)}g</Text>
+                  </View>
+                  {product.serving_size && <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 10, color: colors.textMuted, marginTop: 2 }}>Serving: {product.serving_size}</Text>}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function MacroBar({ label, value, color, colorsTheme }: { label: string; value: number; color: string; colorsTheme: any }) {
+  return (
+    <View style={{ alignItems: 'center', gap: 2 }}>
+      <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 14, color }}>{value}</Text>
+      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 10, color: colorsTheme.textMuted }}>{label}</Text>
+    </View>
+  );
+}
+
+function NutritionDayView({ day, canEdit, onUpdate, colors }: {
+  day: NutritionDay;
+  canEdit: boolean;
+  onUpdate: (updated: NutritionDay) => void;
+  colors: any;
+}) {
+  const [searchMealId, setSearchMealId] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<{ mealId: string; itemId: string; field: string } | null>(null);
+  const [editValue, setEditValue] = useState('');
+
+  const totals = useMemo(() => {
+    let cal = 0, p = 0, c = 0, f = 0;
+    for (const meal of day.meals) {
+      for (const item of meal.items) {
+        cal += item.calories || 0;
+        p += item.protein || 0;
+        c += item.carbs || 0;
+        f += item.fat || 0;
+      }
+    }
+    return { calories: cal, protein: p, carbs: c, fat: f };
+  }, [day]);
+
+  const addFoodToMeal = (mealId: string, food: NutritionItem) => {
+    const updated = {
+      ...day,
+      meals: day.meals.map(m => m.id === mealId ? { ...m, items: [...m.items, food] } : m),
+    };
+    onUpdate(updated);
+  };
+
+  const removeFoodFromMeal = (mealId: string, itemId: string) => {
+    const updated = {
+      ...day,
+      meals: day.meals.map(m => m.id === mealId ? { ...m, items: m.items.filter(i => i.id !== itemId) } : m),
+    };
+    onUpdate(updated);
+  };
+
+  const toggleFoodChecked = (mealId: string, itemId: string) => {
+    const updated = {
+      ...day,
+      meals: day.meals.map(m => m.id === mealId ? {
+        ...m,
+        items: m.items.map(i => i.id === itemId ? { ...i, checked: !i.checked } : i),
+      } : m),
+    };
+    onUpdate(updated);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const updateFoodItem = (mealId: string, itemId: string, updates: Partial<NutritionItem>) => {
+    const updated = {
+      ...day,
+      meals: day.meals.map(m => m.id === mealId ? {
+        ...m,
+        items: m.items.map(i => i.id === itemId ? { ...i, ...updates } : i),
+      } : m),
+    };
+    onUpdate(updated);
+  };
+
+  const addManualFood = (mealId: string) => {
+    const newItem: NutritionItem = {
+      id: Crypto.randomUUID(),
+      name: '', portion: '', calories: 0, protein: 0, carbs: 0, fat: 0,
+    };
+    addFoodToMeal(mealId, newItem);
+  };
+
+  const startEdit = (mealId: string, itemId: string, field: string, currentValue: string | number) => {
+    setEditingItem({ mealId, itemId, field });
+    setEditValue(String(currentValue));
+  };
+
+  const commitEdit = () => {
+    if (!editingItem) return;
+    const { mealId, itemId, field } = editingItem;
+    const numFields = ['calories', 'protein', 'carbs', 'fat'];
+    const val = numFields.includes(field) ? Math.max(0, parseInt(editValue) || 0) : editValue;
+    updateFoodItem(mealId, itemId, { [field]: val });
+    setEditingItem(null);
+  };
+
+  const addMeal = () => {
+    const newMeal: Meal = { id: Crypto.randomUUID(), name: `Meal ${day.meals.length + 1}`, items: [] };
+    onUpdate({ ...day, meals: [...day.meals, newMeal] });
+  };
+
+  const removeMeal = (mealId: string) => {
+    confirmAction("Remove Meal", "Delete this meal and all its items?", () => {
+      onUpdate({ ...day, meals: day.meals.filter(m => m.id !== mealId) });
+    }, "Delete");
+  };
+
+  return (
+    <View style={{ gap: 12 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-around', backgroundColor: colors.backgroundCard, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 8, borderWidth: 1, borderColor: colors.border }}>
+        <MacroBar label="Calories" value={totals.calories} color={colors.primary} colorsTheme={colors} />
+        <View style={{ width: 1, backgroundColor: colors.border }} />
+        <MacroBar label="Protein" value={totals.protein} color="#4FC3F7" colorsTheme={colors} />
+        <View style={{ width: 1, backgroundColor: colors.border }} />
+        <MacroBar label="Carbs" value={totals.carbs} color={colors.gold} colorsTheme={colors} />
+        <View style={{ width: 1, backgroundColor: colors.border }} />
+        <MacroBar label="Fat" value={totals.fat} color="#FF8A65" colorsTheme={colors} />
+      </View>
+
+      {day.meals.map(meal => {
+        const mealCal = meal.items.reduce((s, i) => s + (i.calories || 0), 0);
+        const mealP = meal.items.reduce((s, i) => s + (i.protein || 0), 0);
+        const allChecked = meal.items.length > 0 && meal.items.every(i => i.checked);
+
+        return (
+          <View key={meal.id} style={{ backgroundColor: colors.backgroundCard, borderRadius: 12, borderWidth: 1, borderColor: allChecked ? `${colors.success}44` : colors.border, overflow: 'hidden' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: meal.items.length > 0 ? 1 : 0, borderBottomColor: colors.border }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: allChecked ? colors.success : colors.text }}>{meal.name}</Text>
+                {meal.items.length > 0 && (
+                  <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>{mealCal} cal · {mealP}g protein</Text>
+                )}
+              </View>
+              {canEdit && (
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Pressable onPress={() => setSearchMealId(meal.id)} hitSlop={6}>
+                    <Ionicons name="search" size={18} color={colors.primary} />
+                  </Pressable>
+                  <Pressable onPress={() => addManualFood(meal.id)} hitSlop={6}>
+                    <Ionicons name="add-circle-outline" size={18} color={colors.accent} />
+                  </Pressable>
+                  <Pressable onPress={() => removeMeal(meal.id)} hitSlop={6}>
+                    <Ionicons name="trash-outline" size={16} color={colors.textMuted} />
+                  </Pressable>
+                </View>
+              )}
+            </View>
+
+            {meal.items.map(item => (
+              <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' }}>
+                <Pressable onPress={() => toggleFoodChecked(meal.id, item.id)} hitSlop={6} style={{ marginRight: 8 }}>
+                  <Ionicons name={item.checked ? "checkmark-circle" : "ellipse-outline"} size={18} color={item.checked ? colors.success : colors.textMuted} />
+                </Pressable>
+                <View style={{ flex: 1 }}>
+                  {canEdit && editingItem?.mealId === meal.id && editingItem?.itemId === item.id && editingItem?.field === 'name' ? (
+                    <TextInput
+                      style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.text, padding: 0, borderBottomWidth: 1, borderBottomColor: colors.primary }}
+                      value={editValue}
+                      onChangeText={setEditValue}
+                      onBlur={commitEdit}
+                      onSubmitEditing={commitEdit}
+                      autoFocus
+                    />
+                  ) : (
+                    <Pressable onPress={() => canEdit && startEdit(meal.id, item.id, 'name', item.name)}>
+                      <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: item.checked ? '#888' : colors.text, textDecorationLine: item.checked ? 'line-through' : 'none' }} numberOfLines={1}>
+                        {item.name || 'Tap to name'}
+                      </Text>
+                    </Pressable>
+                  )}
+                  {canEdit && editingItem?.mealId === meal.id && editingItem?.itemId === item.id && editingItem?.field === 'portion' ? (
+                    <TextInput
+                      style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, padding: 0, borderBottomWidth: 1, borderBottomColor: colors.primary, marginTop: 1 }}
+                      value={editValue}
+                      onChangeText={setEditValue}
+                      onBlur={commitEdit}
+                      onSubmitEditing={commitEdit}
+                      autoFocus
+                    />
+                  ) : (
+                    <Pressable onPress={() => canEdit && startEdit(meal.id, item.id, 'portion', item.portion)}>
+                      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
+                        {item.portion || 'Tap for portion'}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                  {['calories', 'protein', 'carbs', 'fat'].map(field => {
+                    const val = (item as any)[field] || 0;
+                    const label = field === 'calories' ? 'cal' : field === 'protein' ? 'P' : field === 'carbs' ? 'C' : 'F';
+                    const fieldColor = field === 'calories' ? colors.primary : field === 'protein' ? '#4FC3F7' : field === 'carbs' ? colors.gold : '#FF8A65';
+                    const isEditing = editingItem?.mealId === meal.id && editingItem?.itemId === item.id && editingItem?.field === field;
+                    return isEditing ? (
+                      <TextInput
+                        key={field}
+                        style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: fieldColor, width: 30, textAlign: 'center', padding: 0, borderBottomWidth: 1, borderBottomColor: fieldColor }}
+                        value={editValue}
+                        onChangeText={setEditValue}
+                        onBlur={commitEdit}
+                        onSubmitEditing={commitEdit}
+                        keyboardType="number-pad"
+                        autoFocus
+                      />
+                    ) : (
+                      <Pressable key={field} onPress={() => canEdit && startEdit(meal.id, item.id, field, val)}>
+                        <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: fieldColor }}>
+                          {val}{label === 'cal' ? '' : 'g'}
+                        </Text>
+                        <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 8, color: colors.textMuted, textAlign: 'center' }}>{label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                  {canEdit && (
+                    <Pressable onPress={() => removeFoodFromMeal(meal.id, item.id)} hitSlop={6}>
+                      <Ionicons name="close" size={14} color={colors.textMuted} />
+                    </Pressable>
+                  )}
+                </View>
+              </View>
+            ))}
+
+            {meal.items.length === 0 && (
+              <View style={{ padding: 16, alignItems: 'center' }}>
+                <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 12, color: colors.textMuted }}>
+                  {canEdit ? 'Tap + or search to add foods' : 'No foods added yet'}
+                </Text>
+              </View>
+            )}
+          </View>
+        );
+      })}
+
+      {canEdit && (
+        <Pressable onPress={addMeal} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }}>
+          <Ionicons name="add" size={16} color={colors.primary} />
+          <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.primary }}>Add Meal</Text>
+        </Pressable>
+      )}
+
+      <FoodSearchModal
+        visible={!!searchMealId}
+        onClose={() => setSearchMealId(null)}
+        onSelect={(item) => { if (searchMealId) addFoodToMeal(searchMealId, item); }}
+        colors={colors}
+      />
+    </View>
+  );
+}
+
 function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, programId, coachId, profileId }: {
   exercise: Exercise;
   index: number;
@@ -606,7 +941,7 @@ function computeRpeSuggestion(prevExercise: Exercise | null | undefined): string
   return `${suggested}${unit ? unit : ''}`;
 }
 
-function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId, initialExpanded, planLocked, isExpanded: isExpandedProp, onToggle, suggestionsEnabled }: {
+function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId, initialExpanded, planLocked, isExpanded: isExpandedProp, onToggle, suggestionsEnabled, programType = 'workout' }: {
   exercise: Exercise;
   index: number;
   isCoach: boolean;
@@ -622,7 +957,11 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   isExpanded?: boolean;
   onToggle?: () => void;
   suggestionsEnabled?: boolean;
+  programType?: ProgramType;
 }) {
+  const isPhysio = programType === 'physio';
+  const weightLabel = isPhysio ? 'Resistance' : 'Weight';
+  const rpeLabel = isPhysio ? 'Pain' : 'RPE';
   const { colors } = useTheme();
   const { addUpload } = useUploads();
   const hasPrevNotes = !!(prevWeekExercise?.clientNotes || prevWeekExercise?.coachComment || prevWeekExercise?.notes);
@@ -807,7 +1146,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
               value={weight}
               onChangeText={setWeight}
               onBlur={saveChanges}
-              placeholder={prevWeekExercise?.weight || "Weight"}
+              placeholder={prevWeekExercise?.weight || weightLabel}
               placeholderTextColor={prevWeekExercise?.weight ? colors.textGhost : colors.textMuted}
             />
             {suggestionsEnabled && !weight && (() => {
@@ -829,7 +1168,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
             value={rpe}
             onChangeText={setRpe}
             onBlur={saveChanges}
-            placeholder={prevWeekExercise?.rpe || "RPE"}
+            placeholder={prevWeekExercise?.rpe || rpeLabel}
             placeholderTextColor={prevWeekExercise?.rpe ? colors.textGhost : colors.textMuted}
             keyboardType="decimal-pad"
           />
@@ -993,9 +1332,9 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
                 <Text style={[styles.exerciseMeta, { color: colors.textGhost, fontStyle: 'italic' }]}>@ {prevWeekExercise.weight}</Text>
               ) : null}
               {exercise.rpe ? (
-                <Text style={[styles.exerciseMeta, { color: colors.textSecondary }]}>RPE {exercise.rpe}</Text>
+                <Text style={[styles.exerciseMeta, { color: colors.textSecondary }]}>{rpeLabel} {exercise.rpe}</Text>
               ) : prevWeekExercise?.rpe ? (
-                <Text style={[styles.exerciseMeta, { color: colors.textGhost, fontStyle: 'italic' }]}>RPE {prevWeekExercise.rpe}</Text>
+                <Text style={[styles.exerciseMeta, { color: colors.textGhost, fontStyle: 'italic' }]}>{rpeLabel} {prevWeekExercise.rpe}</Text>
               ) : null}
             </View>
           </View>
@@ -1070,14 +1409,14 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
               )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Weight</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{weightLabel}</Text>
               {canEditAll ? (
                 <TextInput
                   style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !weight && prevWeekExercise?.weight ? styles.ghostedInput : null]}
                   value={weight}
                   onChangeText={setWeight}
                   onBlur={saveChanges}
-                  placeholder={prevWeekExercise?.weight || "e.g., 100kg"}
+                  placeholder={prevWeekExercise?.weight || (isPhysio ? "e.g., Band" : "e.g., 100kg")}
                   placeholderTextColor={prevWeekExercise?.weight ? colors.textGhost : colors.textMuted}
                 />
               ) : (
@@ -1102,14 +1441,14 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
               })()}
             </View>
             <View style={{ width: 70 }}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>RPE</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{rpeLabel}</Text>
               {canEditAll ? (
                 <TextInput
                   style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }, !rpe && prevWeekExercise?.rpe ? styles.ghostedInput : null]}
                   value={rpe}
                   onChangeText={setRpe}
                   onBlur={saveChanges}
-                  placeholder={prevWeekExercise?.rpe || "7"}
+                  placeholder={prevWeekExercise?.rpe || (isPhysio ? "1-10" : "7")}
                   placeholderTextColor={prevWeekExercise?.rpe ? colors.textGhost : colors.textMuted}
                   keyboardType="decimal-pad"
                 />
@@ -1256,13 +1595,13 @@ export default function ProgramDetailScreen() {
           trimResult.videoUrl = null;
           trimResult.exerciseId = null;
           const base = latestProgramRef.current;
-          if (base) {
+          if (base && base.programType !== 'nutrition') {
             let exName = '';
             const updatedWeeks = base.weeks.map(week => ({
               ...week,
               days: week.days.map(day => ({
                 ...day,
-                exercises: day.exercises.map(ex => {
+                exercises: (day as WorkoutDay).exercises.map(ex => {
                   if (ex.id === exId) { exName = ex.name || ''; return { ...ex, videoUrl: url }; }
                   return ex;
                 }),
@@ -1314,12 +1653,12 @@ export default function ProgramDetailScreen() {
             }
             setHighlightedExerciseId(highlightExerciseId);
             setExpandedExerciseId(highlightExerciseId);
-          } else if (highlightExercise) {
+          } else if (highlightExercise && (p.programType || 'workout') !== 'nutrition') {
             let matched = false;
             for (const week of [...p.weeks].reverse()) {
               if (matched) break;
               for (const day of week.days) {
-                const found = day.exercises.find(
+                const found = (day as WorkoutDay).exercises?.find(
                   ex => ex.name && ex.name.toLowerCase() === highlightExercise.toLowerCase()
                 );
                 if (found) {
@@ -1365,13 +1704,15 @@ export default function ProgramDetailScreen() {
           AsyncStorage.getItem('liftflow_seen_exercises').then(stored => {
             const map: Record<string, string> = stored ? JSON.parse(stored) : {};
             let updated = false;
-            for (const week of p.weeks) {
-              for (const day of week.days) {
-                for (const ex of day.exercises) {
-                  const ck = `${ex.clientNotes || ''}::${ex.videoUrl || ''}`;
-                  if (ck !== '::' && map[ex.id] !== ck) {
-                    map[ex.id] = ck;
-                    updated = true;
+            if ((p.programType || 'workout') !== 'nutrition') {
+              for (const week of p.weeks) {
+                for (const day of week.days) {
+                  for (const ex of (day as WorkoutDay).exercises) {
+                    const ck = `${ex.clientNotes || ''}::${ex.videoUrl || ''}`;
+                    if (ck !== '::' && map[ex.id] !== ck) {
+                      map[ex.id] = ck;
+                      updated = true;
+                    }
                   }
                 }
               }
@@ -1395,7 +1736,7 @@ export default function ProgramDetailScreen() {
   }, [id]);
 
   useFocusEffect(useCallback(() => {
-    if (trimResult.videoUrl && trimResult.exerciseId && program) {
+    if (trimResult.videoUrl && trimResult.exerciseId && program && !isNutrition) {
       const url = trimResult.videoUrl;
       const exId = trimResult.exerciseId;
       trimResult.videoUrl = null;
@@ -1405,7 +1746,7 @@ export default function ProgramDetailScreen() {
         ...week,
         days: week.days.map(day => ({
           ...day,
-          exercises: day.exercises.map(ex =>
+          exercises: (day as WorkoutDay).exercises.map(ex =>
             ex.id === exId ? { ...ex, videoUrl: url } : ex
           ),
         })),
@@ -1478,12 +1819,13 @@ export default function ProgramDetailScreen() {
         targetProfileId = clientRecord?.clientProfileId;
       }
 
+      if (program.programType === 'nutrition') return;
       for (const week of program.weeks) {
         for (const day of week.days) {
-          for (const ex of day.exercises) {
+          for (const ex of (day as WorkoutDay).exercises) {
             const oldWeek = oldProgram.weeks.find(w => w.weekNumber === week.weekNumber);
             const oldDay = oldWeek?.days.find(d => d.dayNumber === day.dayNumber);
-            const oldEx = oldDay?.exercises.find(e => e.id === ex.id);
+            const oldEx = (oldDay as WorkoutDay)?.exercises?.find(e => e.id === ex.id);
             if (!oldEx || !ex.name) continue;
 
             if (!isCoach) {
@@ -1538,30 +1880,46 @@ export default function ProgramDetailScreen() {
     if (!program || planLocked) return;
     const lastWeek = program.weeks[program.weeks.length - 1];
     const newWeekNumber = lastWeek ? lastWeek.weekNumber + 1 : 1;
-    const daysPerWeek = lastWeek ? lastWeek.days.length : program.daysPerWeek;
-    const newDays: WorkoutDay[] = [];
-    for (let d = 1; d <= daysPerWeek; d++) {
-      const templateDay = lastWeek?.days.find(day => day.dayNumber === d);
-      newDays.push({
-        dayNumber: d,
-        exercises: templateDay
-          ? templateDay.exercises.map(ex => ({
-              id: Crypto.randomUUID(),
-              name: ex.name,
-              repsSets: '',
-              weight: '',
-              rpe: '',
-              isCompleted: false,
-              notes: '',
-              clientNotes: '',
-              coachComment: '',
-              videoUrl: '',
-            }))
-          : [],
-      });
+    const dpw = lastWeek ? lastWeek.days.length : program.daysPerWeek;
+
+    let newWeek: WorkoutWeek | NutritionWeek;
+    if (isNutrition) {
+      const nutritionDays: NutritionDay[] = [];
+      for (let d = 1; d <= dpw; d++) {
+        const templateDay = (lastWeek as NutritionWeek)?.days.find(day => day.dayNumber === d);
+        nutritionDays.push({
+          dayNumber: d,
+          meals: templateDay
+            ? templateDay.meals.map(m => ({ id: Crypto.randomUUID(), name: m.name, items: [] }))
+            : [{ id: Crypto.randomUUID(), name: 'Breakfast', items: [] }, { id: Crypto.randomUUID(), name: 'Lunch', items: [] }, { id: Crypto.randomUUID(), name: 'Dinner', items: [] }],
+        });
+      }
+      newWeek = { weekNumber: newWeekNumber, days: nutritionDays };
+    } else {
+      const newDays: WorkoutDay[] = [];
+      for (let d = 1; d <= dpw; d++) {
+        const templateDay = (lastWeek as WorkoutWeek)?.days.find(day => day.dayNumber === d);
+        newDays.push({
+          dayNumber: d,
+          exercises: templateDay
+            ? templateDay.exercises.map(ex => ({
+                id: Crypto.randomUUID(),
+                name: ex.name,
+                repsSets: '',
+                weight: '',
+                rpe: '',
+                isCompleted: false,
+                notes: '',
+                clientNotes: '',
+                coachComment: '',
+                videoUrl: '',
+              }))
+            : [],
+        });
+      }
+      newWeek = { weekNumber: newWeekNumber, days: newDays };
     }
-    const newWeek: WorkoutWeek = { weekNumber: newWeekNumber, days: newDays };
-    const currentWeekCount = program.weeks.length;
+
     const updated = { ...program, weeks: [...program.weeks, newWeek] };
     if (isShared) {
       updated.publishedWeeks = program.publishedWeeks ?? 0;
@@ -1570,7 +1928,7 @@ export default function ProgramDetailScreen() {
     setActiveWeek(newWeekNumber);
     setHasChanges(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }, [program, isShared]);
+  }, [program, isShared, isNutrition]);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
@@ -1628,9 +1986,13 @@ export default function ProgramDetailScreen() {
     return program.weeks.filter(w => w.weekNumber <= pw);
   }, [program, isCoach, isShared]);
 
+  const programType: ProgramType = program?.programType || 'workout';
+  const isNutrition = programType === 'nutrition';
+
   const currentWeek = program?.weeks.find(w => w.weekNumber === activeWeek);
   const currentDay = currentWeek?.days.find(d => d.dayNumber === activeDay);
-  const exercises = currentDay?.exercises || [];
+  const exercises = isNutrition ? [] : ((currentDay as WorkoutDay)?.exercises || []);
+  const currentNutritionDay = isNutrition ? (currentDay as NutritionDay) : null;
 
   const prevWeekDay = useMemo(() => {
     if (!program || activeWeek <= 1) return null;
@@ -1673,17 +2035,32 @@ export default function ProgramDetailScreen() {
     if (!currentWeek) return 0;
     let total = 0;
     let completed = 0;
-    for (const day of currentWeek.days) {
-      for (const ex of day.exercises) {
-        total++;
-        if (ex.isCompleted) completed++;
+    if (isNutrition) {
+      for (const day of (currentWeek as NutritionWeek).days) {
+        for (const meal of day.meals) {
+          for (const item of meal.items) {
+            total++;
+            if (item.checked) completed++;
+          }
+        }
+      }
+    } else {
+      for (const day of (currentWeek as WorkoutWeek).days) {
+        for (const ex of day.exercises) {
+          total++;
+          if (ex.isCompleted) completed++;
+        }
       }
     }
     return total > 0 ? Math.round((completed / total) * 100) : 0;
   })();
 
-  const dayTotal = exercises.length;
-  const dayCompleted = exercises.filter(ex => ex.isCompleted).length;
+  const dayTotal = isNutrition
+    ? (currentNutritionDay?.meals.reduce((s, m) => s + m.items.length, 0) || 0)
+    : exercises.length;
+  const dayCompleted = isNutrition
+    ? (currentNutritionDay?.meals.reduce((s, m) => s + m.items.filter(i => i.checked).length, 0) || 0)
+    : exercises.filter(ex => ex.isCompleted).length;
   const dayPct = dayTotal > 0 ? Math.round((dayCompleted / dayTotal) * 100) : 0;
 
   const updateExercise = useCallback((exerciseId: string, updates: Partial<Exercise>) => {
@@ -1846,6 +2223,19 @@ export default function ProgramDetailScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [program, activeWeek, activeDay]);
 
+  const updateNutritionDay = useCallback((updated: NutritionDay) => {
+    if (!program || planLocked) return;
+    const updatedWeeks = (program.weeks as NutritionWeek[]).map(week => {
+      if (week.weekNumber !== activeWeek) return week;
+      return {
+        ...week,
+        days: week.days.map(day => day.dayNumber === activeDay ? updated : day),
+      };
+    });
+    setProgram({ ...program, weeks: updatedWeeks });
+    setHasChanges(true);
+  }, [program, activeWeek, activeDay, planLocked]);
+
   if (!program) {
     return (
       <View style={[styles.container, { paddingTop: insets.top, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }]}>
@@ -1989,8 +2379,9 @@ export default function ProgramDetailScreen() {
       <View style={[styles.daySelector, { borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayScrollContent}>
           {(currentWeek?.days || []).map(day => {
-            const dayExercises = day.exercises || [];
-            const allDone = dayExercises.length > 0 && dayExercises.every(e => e.isCompleted);
+            const allDone = isNutrition
+              ? ((day as NutritionDay).meals?.length > 0 && (day as NutritionDay).meals.every(m => m.items.length > 0 && m.items.every(i => i.checked)))
+              : (((day as WorkoutDay).exercises || []).length > 0 && ((day as WorkoutDay).exercises || []).every(e => e.isCompleted));
             return (
             <View key={day.dayNumber} style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Pressable
@@ -2045,52 +2436,73 @@ export default function ProgramDetailScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + ((!isCoach && isShared) ? 90 : (hasChanges || saveError) ? 80 : 20) + (uploads.length > 0 ? 72 : 0), paddingHorizontal: 16, paddingTop: 8 }}
       >
-        {exercises.length === 0 ? (
-          <View style={styles.emptyDay}>
-            <Ionicons name="barbell-outline" size={32} color={colors.textMuted} />
-            <Text style={[styles.emptyDayText, { color: colors.textMuted }]}>No exercises for this day</Text>
-          </View>
+        {isNutrition ? (
+          currentNutritionDay ? (
+            <NutritionDayView
+              day={currentNutritionDay}
+              canEdit={isCoach || !isShared ? true : false}
+              onUpdate={updateNutritionDay}
+              colors={colors}
+            />
+          ) : (
+            <View style={styles.emptyDay}>
+              <Ionicons name="nutrition-outline" size={32} color={colors.textMuted} />
+              <Text style={[styles.emptyDayText, { color: colors.textMuted }]}>No meals for this day</Text>
+            </View>
+          )
         ) : (
-          exercises.map((ex, idx) => (
-            <Animated.View key={ex.id} entering={FadeInDown.delay(idx * 40).duration(250)}>
-              {(!isCoach && isShared) ? (
-                <ClientExerciseCard
-                  exercise={ex}
-                  index={idx}
-                  onUpdate={(updates) => updateExercise(ex.id, updates)}
-                  prevWeekExercise={prevWeekDay?.exercises[idx] || null}
-                  programId={program.id}
-                  coachId={program.coachId}
-                  profileId={profileId}
-                />
-              ) : (
-                <ExerciseRow
-                  exercise={ex}
-                  index={idx}
-                  isCoach={isCoach ?? false}
-                  isShared={isShared}
-                  onUpdate={(updates) => updateExercise(ex.id, updates)}
-                  onDelete={() => deleteExercise(ex.id)}
-                  prevWeekExercise={prevWeekDay?.exercises[idx] || null}
-                  programId={program.id}
-                  coachId={program.coachId}
-                  profileId={profileId}
-                  initialExpanded={false}
-                  planLocked={false}
-                  isExpanded={expandedExerciseId === ex.id}
-                  onToggle={() => setExpandedExerciseId(prev => prev === ex.id ? null : ex.id)}
-                  suggestionsEnabled={suggestionsEnabled}
-                />
-              )}
-            </Animated.View>
-          ))
-        )}
+          <>
+            {exercises.length === 0 ? (
+              <View style={styles.emptyDay}>
+                <Ionicons name={programType === 'physio' ? 'body-outline' : 'barbell-outline'} size={32} color={colors.textMuted} />
+                <Text style={[styles.emptyDayText, { color: colors.textMuted }]}>
+                  {programType === 'physio' ? 'No exercises for this session' : 'No exercises for this day'}
+                </Text>
+              </View>
+            ) : (
+              exercises.map((ex, idx) => (
+                <Animated.View key={ex.id} entering={FadeInDown.delay(idx * 40).duration(250)}>
+                  {(!isCoach && isShared) ? (
+                    <ClientExerciseCard
+                      exercise={ex}
+                      index={idx}
+                      onUpdate={(updates) => updateExercise(ex.id, updates)}
+                      prevWeekExercise={(prevWeekDay as WorkoutDay)?.exercises[idx] || null}
+                      programId={program.id}
+                      coachId={program.coachId}
+                      profileId={profileId}
+                    />
+                  ) : (
+                    <ExerciseRow
+                      exercise={ex}
+                      index={idx}
+                      isCoach={isCoach ?? false}
+                      isShared={isShared}
+                      onUpdate={(updates) => updateExercise(ex.id, updates)}
+                      onDelete={() => deleteExercise(ex.id)}
+                      prevWeekExercise={(prevWeekDay as WorkoutDay)?.exercises[idx] || null}
+                      programId={program.id}
+                      coachId={program.coachId}
+                      profileId={profileId}
+                      initialExpanded={false}
+                      planLocked={false}
+                      isExpanded={expandedExerciseId === ex.id}
+                      onToggle={() => setExpandedExerciseId(prev => prev === ex.id ? null : ex.id)}
+                      suggestionsEnabled={suggestionsEnabled}
+                      programType={programType}
+                    />
+                  )}
+                </Animated.View>
+              ))
+            )}
 
-        {(isCoach || !isShared) && (
-          <Pressable style={[styles.addExerciseBtn, { borderColor: colors.border }]} onPress={addExercise}>
-            <Ionicons name="add" size={16} color={colors.primary} />
-            <Text style={[styles.addExerciseText, { color: colors.primary }]}>Add Exercise</Text>
-          </Pressable>
+            {(isCoach || !isShared) && (
+              <Pressable style={[styles.addExerciseBtn, { borderColor: colors.border }]} onPress={addExercise}>
+                <Ionicons name="add" size={16} color={colors.primary} />
+                <Text style={[styles.addExerciseText, { color: colors.primary }]}>Add Exercise</Text>
+              </Pressable>
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -2108,7 +2520,9 @@ export default function ProgramDetailScreen() {
               end={{ x: 1, y: 0 }}
               style={styles.finishWorkoutBtn}
             >
-              <Text style={styles.finishWorkoutText}>Finish Workout</Text>
+              <Text style={styles.finishWorkoutText}>
+                {isNutrition ? 'Done' : programType === 'physio' ? 'Finish Session' : 'Finish Workout'}
+              </Text>
             </LinearGradient>
           </Pressable>
         </View>
