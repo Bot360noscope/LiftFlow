@@ -1772,12 +1772,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) { console.error(e); res.status(500).json({ error: 'Internal server error' }); }
   });
 
-  const foodDbPath = path.join(__dirname, 'food-db.json');
   let foodDb: { n: string; cal: number; p: number; c: number; f: number }[] = [];
-  try {
-    foodDb = JSON.parse(readFileSync(foodDbPath, 'utf8'));
-    console.log(`Loaded local food database: ${foodDb.length} foods`);
-  } catch { console.warn("food-db.json not found, food search will return empty results"); }
+  const foodDbCandidates = [
+    path.join(process.cwd(), 'server', 'food-db.json'),
+    path.join(process.cwd(), 'server_dist', 'food-db.json'),
+  ];
+  if (typeof __dirname !== 'undefined') {
+    foodDbCandidates.unshift(path.join(__dirname, 'food-db.json'));
+  } else {
+    try {
+      foodDbCandidates.unshift(path.join(path.dirname(new URL(import.meta.url).pathname), 'food-db.json'));
+    } catch {}
+  }
+  for (const candidate of foodDbCandidates) {
+    try {
+      foodDb = JSON.parse(readFileSync(candidate, 'utf8'));
+      console.log(`Loaded local food database: ${foodDb.length} foods from ${candidate}`);
+      break;
+    } catch {}
+  }
+  if (foodDb.length === 0) console.warn("food-db.json not found, food search will return empty results");
 
   app.get("/api/food-search", (req, res) => {
     try {
