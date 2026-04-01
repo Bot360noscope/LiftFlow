@@ -478,12 +478,12 @@ function ClientExerciseCard({ exercise, index, onUpdate, prevWeekExercise, progr
           {isCompleted && <Ionicons name="checkmark" size={13} color={colors.success} />}
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.clientExName, { color: isCompleted ? '#888' : colors.text, textDecorationLine: isCompleted ? 'line-through' : 'none' }]} numberOfLines={1}>
+          <Text style={[styles.clientExName, { color: isCompleted ? '#888' : colors.text, textDecorationLine: isCompleted ? 'line-through' : 'none' }]}>
             {name}
           </Text>
           {meta ? <Text style={[styles.clientExMeta, { color: '#666' }]}>{meta}</Text> : null}
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 8 }}>
           {hasVideo && (
             <View style={[styles.clientExVideoBadge, { backgroundColor: `${colors.primary}22` }]}>
               <Ionicons name="videocam" size={10} color={colors.primary} />
