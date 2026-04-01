@@ -51,12 +51,13 @@ function ClientCard({ client, programs, hasUnread, colors }: { client: ClientInf
   const clientPrograms = programs.filter(p => p.clientId === client.id);
   let totalEx = 0, completedEx = 0;
   for (const prog of clientPrograms) {
+    const isNut = prog.programType === 'nutrition';
     for (const week of prog.weeks) {
       for (const day of week.days) {
-        for (const ex of day.exercises) {
-          if (!ex.name) continue;
-          totalEx++;
-          if (ex.isCompleted) completedEx++;
+        if (isNut) {
+          for (const item of getDayNutritionItems(day)) { totalEx++; if (item.checked) completedEx++; }
+        } else {
+          for (const ex of getDayExercises(day)) { if (!ex.name) continue; totalEx++; if (ex.isCompleted) completedEx++; }
         }
       }
     }
@@ -99,18 +100,32 @@ function ClientCard({ client, programs, hasUnread, colors }: { client: ClientInf
 }
 
 function ProgramCard({ program, colors }: { program: Program; colors: any }) {
-  let totalExercises = 0;
-  let completedExercises = 0;
+  const isNutrition = program.programType === 'nutrition';
+  let totalItems = 0;
+  let completedItems = 0;
   for (const week of program.weeks) {
     for (const day of week.days) {
-      for (const ex of day.exercises) {
-        if (!ex.name) continue;
-        totalExercises++;
-        if (ex.isCompleted) completedExercises++;
+      if (isNutrition) {
+        const nd = day as any;
+        if (nd.meals) {
+          for (const meal of nd.meals) {
+            for (const item of (meal.items || [])) {
+              totalItems++;
+              if (item.checked) completedItems++;
+            }
+          }
+        }
+      } else {
+        const wd = day as any;
+        for (const ex of (wd.exercises || [])) {
+          if (!ex.name) continue;
+          totalItems++;
+          if (ex.isCompleted) completedItems++;
+        }
       }
     }
   }
-  const progress = totalExercises > 0 ? Math.round((completedExercises / totalExercises) * 100) : 0;
+  const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
   return (
     <Pressable
@@ -137,36 +152,63 @@ function ProgramCard({ program, colors }: { program: Program; colors: any }) {
 }
 
 // ─── Week helpers ────────────────────────────────────────────────────────────
+function getDayExercises(day: any): any[] {
+  return day.exercises || [];
+}
+function getDayNutritionItems(day: any): any[] {
+  if (!day.meals) return [];
+  return day.meals.flatMap((m: any) => m.items || []);
+}
+function isDayComplete(day: any, isNutrition: boolean): boolean {
+  if (isNutrition) {
+    const items = getDayNutritionItems(day);
+    return items.length > 0 && items.every((i: any) => i.checked);
+  }
+  const exs = getDayExercises(day);
+  return exs.length > 0 && exs.every((e: any) => e.isCompleted);
+}
+function isDayStarted(day: any, isNutrition: boolean): boolean {
+  if (isNutrition) {
+    return getDayNutritionItems(day).some((i: any) => i.checked);
+  }
+  return getDayExercises(day).some((e: any) => e.isCompleted || e.clientNotes || e.videoUrl);
+}
+function isDayEmpty(day: any, isNutrition: boolean): boolean {
+  if (isNutrition) return getDayNutritionItems(day).length === 0;
+  return getDayExercises(day).length === 0;
+}
+
 function getActiveWeekNumber(program: Program): number {
+  const isNutrition = program.programType === 'nutrition';
   let maxActive = 1;
   for (const week of program.weeks) {
-    const hasActivity = week.days.some(d => d.exercises.some(e => e.isCompleted || e.clientNotes || e.videoUrl));
+    const hasActivity = week.days.some(d => isDayStarted(d, isNutrition));
     if (hasActivity) maxActive = Math.max(maxActive, week.weekNumber);
   }
   return maxActive;
 }
 type DayState = 'done' | 'current' | 'upcoming';
 function getWeekDayStates(program: Program, weekNumber: number): DayState[] {
+  const isNutrition = program.programType === 'nutrition';
   const week = program.weeks.find(w => w.weekNumber === weekNumber);
   if (!week) return [];
   const results: DayState[] = [];
   let foundCurrent = false;
   for (const day of week.days) {
-    const exs = day.exercises;
-    if (exs.length === 0) { results.push('upcoming'); continue; }
-    const allDone = exs.every(e => e.isCompleted);
-    if (allDone) { results.push('done'); continue; }
+    if (isDayEmpty(day, isNutrition)) { results.push('upcoming'); continue; }
+    if (isDayComplete(day, isNutrition)) { results.push('done'); continue; }
     if (!foundCurrent) { results.push('current'); foundCurrent = true; }
     else results.push('upcoming');
   }
   return results.length > 0 ? results : week.days.map(() => 'upcoming' as DayState);
 }
 function getWeekCompletionPct(program: Program, weekNumber: number): number {
+  const isNutrition = program.programType === 'nutrition';
   const week = program.weeks.find(w => w.weekNumber === weekNumber);
   if (!week) return 0;
-  const days = week.days.filter(d => d.exercises.length > 0);
+  const days = week.days.filter(d => !isDayEmpty(d, isNutrition));
   if (!days.length) return 0;
-  const done = days.filter(d => d.exercises.every(e => e.isCompleted)).length;
+  const done = days.filter(d => isDayComplete(d, isNutrition)).length;
   return Math.round((done / days.length) * 100);
 }
 
@@ -387,17 +429,23 @@ export default function HomeScreen() {
   const getWeeklyAdh = (progs: Program[]) => {
     let totalEx = 0, totalCompleted = 0;
     for (const prog of progs) {
+      const isNut = prog.programType === 'nutrition';
       let maxActiveWeek = 0;
       for (const week of (prog.weeks || [])) {
-        const exercises = week.days.flatMap(d => d.exercises);
-        if (exercises.some(e => e.isCompleted || e.clientNotes || e.videoUrl)) maxActiveWeek = Math.max(maxActiveWeek, week.weekNumber);
+        if (week.days.some(d => isDayStarted(d, isNut))) maxActiveWeek = Math.max(maxActiveWeek, week.weekNumber);
       }
       if (maxActiveWeek === 0) maxActiveWeek = 1;
       for (const week of (prog.weeks || [])) {
         if (week.weekNumber > maxActiveWeek) continue;
-        const exercises = week.days.flatMap(d => d.exercises);
-        totalEx += exercises.length;
-        totalCompleted += exercises.filter(e => e.isCompleted).length;
+        if (isNut) {
+          const items = week.days.flatMap(d => getDayNutritionItems(d));
+          totalEx += items.length;
+          totalCompleted += items.filter((i: any) => i.checked).length;
+        } else {
+          const exercises = week.days.flatMap(d => getDayExercises(d));
+          totalEx += exercises.length;
+          totalCompleted += exercises.filter((e: any) => e.isCompleted).length;
+        }
       }
     }
     return totalEx > 0 ? Math.round((totalCompleted / totalEx) * 100) : 0;
@@ -412,11 +460,11 @@ export default function HomeScreen() {
   // Pending reviews — count exercises with video/notes but no coach comment (from program data, not notifications)
   const pendingReviewItems: { id: string; clientName: string; exerciseName: string; programId: string; videoUrl?: string; updatedAt?: string; weekNumber: number; dayNumber: number }[] = [];
   for (const prog of programs) {
-    if (!prog.clientId) continue;
+    if (!prog.clientId || prog.programType === 'nutrition') continue;
     const client = clients.find(c => c.id === prog.clientId);
     for (const week of (prog.weeks || [])) {
       for (const day of week.days) {
-        for (const ex of day.exercises) {
+        for (const ex of getDayExercises(day)) {
           if ((ex.videoUrl || ex.clientNotes) && !ex.coachComment) {
             const contentKey = `${ex.clientNotes || ''}::${ex.videoUrl || ''}`;
             if (seenMap[ex.id] !== contentKey) {
@@ -575,7 +623,7 @@ export default function HomeScreen() {
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     const prog = programs.find(p => p.id === item.programId);
-                    const ex = prog?.weeks.flatMap(w => w.days.flatMap(d => d.exercises)).find(e => e.id === item.id);
+                    const ex = prog?.weeks.flatMap(w => w.days.flatMap(d => getDayExercises(d))).find(e => e.id === item.id);
                     if (ex) {
                       const contentKey = `${ex.clientNotes || ''}::${ex.videoUrl || ''}`;
                       setSeenMap(prev => ({ ...prev, [item.id]: contentKey }));

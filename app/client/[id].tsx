@@ -18,14 +18,19 @@ import { addWSListener } from "@/lib/websocket";
 
 function ProgramCard({ program }: { program: Program }) {
   const { colors } = useTheme();
+  const isNutrition = program.programType === 'nutrition';
   let totalExercises = 0;
   let completedExercises = 0;
   for (const week of program.weeks) {
     for (const day of week.days) {
-      for (const ex of day.exercises) {
-        if (!ex.name) continue;
-        totalExercises++;
-        if (ex.isCompleted) completedExercises++;
+      if (isNutrition) {
+        const nd = day as any;
+        for (const meal of (nd.meals || [])) {
+          for (const item of (meal.items || [])) { totalExercises++; if (item.checked) completedExercises++; }
+        }
+      } else {
+        const wd = day as any;
+        for (const ex of (wd.exercises || [])) { if (!ex.name) continue; totalExercises++; if (ex.isCompleted) completedExercises++; }
       }
     }
   }

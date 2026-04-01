@@ -152,25 +152,31 @@ export default function ProgramsScreen() {
           let completedExercises = 0;
           let hasComments = false;
           let hasVideos = false;
+          const isNut = prog.programType === 'nutrition';
           for (const week of prog.weeks) {
             for (const day of week.days) {
-              for (const ex of day.exercises) {
-                if (!ex.name) continue;
-                totalExercises++;
-                if (ex.isCompleted) completedExercises++;
-                if (role === 'coach') {
-                  // Coach sees indicator for client content they haven't reviewed
-                  const coachContentKey = `${ex.clientNotes || ''}::${ex.videoUrl || ''}`;
-                  const alreadySeen = seenMap[ex.id] === coachContentKey;
-                  if (!alreadySeen) {
-                    if (ex.clientNotes) hasComments = true;
-                    if (ex.videoUrl) hasVideos = true;
+              if (isNut) {
+                const nd = day as any;
+                for (const meal of (nd.meals || [])) {
+                  for (const item of (meal.items || [])) { totalExercises++; if (item.checked) completedExercises++; }
+                }
+              } else {
+                const wd = day as any;
+                for (const ex of (wd.exercises || [])) {
+                  if (!ex.name) continue;
+                  totalExercises++;
+                  if (ex.isCompleted) completedExercises++;
+                  if (role === 'coach') {
+                    const coachContentKey = `${ex.clientNotes || ''}::${ex.videoUrl || ''}`;
+                    const alreadySeen = seenMap[ex.id] === coachContentKey;
+                    if (!alreadySeen) {
+                      if (ex.clientNotes) hasComments = true;
+                      if (ex.videoUrl) hasVideos = true;
+                    }
+                  } else {
+                    const clientContentKey = `${ex.coachComment || ''}`;
+                    if (ex.coachComment && seenMap[ex.id] !== clientContentKey) hasComments = true;
                   }
-                } else {
-                  // Client sees indicator only for new coach feedback they haven't read
-                  const clientContentKey = `${ex.coachComment || ''}`;
-                  if (ex.coachComment && seenMap[ex.id] !== clientContentKey) hasComments = true;
-                  // Never show video icon for client — they uploaded it themselves
                 }
               }
             }

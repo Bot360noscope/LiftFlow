@@ -62,10 +62,10 @@ function getWeeklyAdherence(programs: Program[]): number {
 function getPendingReviews(programs: Program[], seenMap: Record<string, string>): number {
   let count = 0;
   for (const prog of programs) {
-    if (!prog.clientId) continue;
+    if (!prog.clientId || prog.programType === 'nutrition') continue;
     for (const week of (prog.weeks || [])) {
       for (const day of week.days) {
-        for (const ex of day.exercises) {
+        for (const ex of ((day as any).exercises || [])) {
           if ((ex.videoUrl || ex.clientNotes) && !ex.coachComment) {
             const key = `${ex.clientNotes || ''}::${ex.videoUrl || ''}`;
             if (seenMap[ex.id] !== key) count++;
@@ -107,18 +107,31 @@ function getStatus(adherence: number, lastActive: Date | null): 'green' | 'yello
 function getOverallAdherence(programs: Program[]): { pct: number; done: number; total: number } {
   let done = 0, total = 0;
   for (const prog of programs) {
+    const isNut = prog.programType === 'nutrition';
     let maxActiveWeek = 0;
     for (const week of (prog.weeks || [])) {
-      const exercises = week.days.flatMap(d => d.exercises.filter(e => e.name));
-      if (exercises.some(e => e.isCompleted || e.clientNotes || e.videoUrl)) maxActiveWeek = Math.max(maxActiveWeek, week.weekNumber);
+      const hasActivity = week.days.some(d => {
+        if (isNut) {
+          const items = (d as any).meals?.flatMap((m: any) => m.items || []) || [];
+          return items.some((i: any) => i.checked);
+        }
+        return ((d as any).exercises || []).some((e: any) => e.isCompleted || e.clientNotes || e.videoUrl);
+      });
+      if (hasActivity) maxActiveWeek = Math.max(maxActiveWeek, week.weekNumber);
     }
     if (maxActiveWeek === 0) maxActiveWeek = 1;
     for (const week of (prog.weeks || [])) {
       if (week.weekNumber > maxActiveWeek) continue;
       for (const day of week.days) {
-        const named = day.exercises.filter(e => e.name);
-        total += named.length;
-        done += named.filter(e => e.isCompleted).length;
+        if (isNut) {
+          const items = (day as any).meals?.flatMap((m: any) => m.items || []) || [];
+          total += items.length;
+          done += items.filter((i: any) => i.checked).length;
+        } else {
+          const named = ((day as any).exercises || []).filter((e: any) => e.name);
+          total += named.length;
+          done += named.filter((e: any) => e.isCompleted).length;
+        }
       }
     }
   }
