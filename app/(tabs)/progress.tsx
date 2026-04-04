@@ -282,6 +282,11 @@ export default function ProgressScreen() {
     return ({ red: 0, yellow: 1, green: 2 })[aS] - ({ red: 0, yellow: 1, green: 2 })[bS];
   }), [clients, programs]);
 
+  const unassignedPrograms = useMemo(() =>
+    programs.filter(p => !p.clientId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [programs]
+  );
+
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + webTopInset + 16 }}>
@@ -321,11 +326,47 @@ export default function ProgressScreen() {
           Clients{needsAttention > 0 && <Text style={{ color: colors.warning }}> · {needsAttention} gone quiet</Text>}
         </Text>
         {sortedClients.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="people-outline" size={40} color={colors.textMuted} />
-            <Text style={[styles.emptyText, { color: colors.text }]}>No clients yet</Text>
-            <Text style={[styles.emptyDesc, { color: colors.textMuted }]}>Share your coach code with clients to start tracking their progress</Text>
-          </View>
+          <>
+            {unassignedPrograms.length > 0 && (
+              <>
+                <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 0 }]}>Your Programs</Text>
+                {unassignedPrograms.map((prog, idx) => (
+                  <Animated.View key={prog.id} entering={FadeInDown.delay(idx * 60).duration(400)}>
+                    <Pressable
+                      style={({ pressed }) => [styles.programCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, pressed && { opacity: 0.85 }]}
+                      onPress={() => router.push(`/program/${prog.id}`)}
+                    >
+                      <View style={[styles.programTypeIcon, { backgroundColor: `${colors.primary}18` }]}>
+                        <Ionicons
+                          name={prog.programType === 'nutrition' ? 'nutrition' : prog.programType === 'physio' ? 'body' : 'barbell'}
+                          size={20}
+                          color={colors.primary}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.programCardTitle, { color: colors.text }]} numberOfLines={1}>{prog.title || 'Untitled Program'}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                          <Text style={[styles.programCardMeta, { color: colors.textMuted }]}>
+                            {(prog.programType || 'workout').charAt(0).toUpperCase() + (prog.programType || 'workout').slice(1)}
+                          </Text>
+                          <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: colors.textMuted }} />
+                          <Text style={[styles.programCardMeta, { color: colors.textMuted }]}>
+                            {new Date(prog.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </Text>
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                    </Pressable>
+                  </Animated.View>
+                ))}
+              </>
+            )}
+            <View style={[styles.coachCodeBanner, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+              <Ionicons name="people-outline" size={28} color={colors.textMuted} />
+              <Text style={[styles.emptyText, { color: colors.text }]}>No clients yet</Text>
+              <Text style={[styles.emptyDesc, { color: colors.textMuted }]}>Share your coach code with clients to start tracking their progress</Text>
+            </View>
+          </>
         ) : (
           sortedClients.map((client, idx) => (
             <ClientProgressCard key={client.id} client={client} programs={programs} delay={idx * 60} colors={colors} seenMap={seenMap} />
@@ -522,4 +563,11 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
   emptyText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15 },
   emptyDesc: { fontFamily: 'Rubik_400Regular', fontSize: 13, textAlign: 'center', paddingHorizontal: 20 },
+
+  // Unassigned program cards
+  programCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, padding: 14, borderWidth: 1, marginBottom: 10, gap: 12 },
+  programTypeIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  programCardTitle: { fontFamily: 'Rubik_600SemiBold', fontSize: 15 },
+  programCardMeta: { fontFamily: 'Rubik_400Regular', fontSize: 12 },
+  coachCodeBanner: { alignItems: 'center', paddingVertical: 24, gap: 8, borderRadius: 14, borderWidth: 1, marginTop: 16 },
 });
