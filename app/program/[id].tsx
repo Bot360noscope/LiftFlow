@@ -2438,6 +2438,33 @@ export default function ProgramDetailScreen() {
     );
   }, [program, activeWeek, activeDay, planLocked]);
 
+  const addDay = useCallback(() => {
+    if (!program || planLocked) return;
+    const currentWeekData = program.weeks.find(w => w.weekNumber === activeWeek);
+    if (!currentWeekData) return;
+    const newDayNumber = currentWeekData.days.length + 1;
+    const updatedWeeks = program.weeks.map(week => {
+      if (week.weekNumber !== activeWeek) return week;
+      if (isNutrition) {
+        const newDay: NutritionDay = {
+          dayNumber: newDayNumber,
+          meals: [{ id: Crypto.randomUUID(), name: 'Breakfast', items: [] }, { id: Crypto.randomUUID(), name: 'Lunch', items: [] }, { id: Crypto.randomUUID(), name: 'Dinner', items: [] }],
+        };
+        return { ...week, days: [...week.days, newDay] };
+      } else {
+        const newDay: WorkoutDay = {
+          dayNumber: newDayNumber,
+          exercises: [],
+        };
+        return { ...week, days: [...week.days, newDay] };
+      }
+    });
+    setProgram({ ...program, weeks: updatedWeeks });
+    setActiveDay(newDayNumber);
+    setHasChanges(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [program, activeWeek, isNutrition, planLocked]);
+
   const addExercise = useCallback(() => {
     if (!program || planLocked) return;
     const newExercise: Exercise = {
@@ -2656,6 +2683,16 @@ export default function ProgramDetailScreen() {
               )}
             </View>
           ); })}
+          {(isCoach || !isShared) && !planLocked && (
+            <Pressable
+              style={[styles.dayChip, { backgroundColor: 'transparent', borderColor: colors.primary, borderStyle: 'dashed' }]}
+              onPress={addDay}
+              accessibilityLabel="Add day"
+              accessibilityRole="button"
+            >
+              <Ionicons name="add" size={14} color={colors.primary} />
+            </Pressable>
+          )}
         </ScrollView>
       </View>
 
