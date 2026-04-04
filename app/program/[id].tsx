@@ -1282,6 +1282,18 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
             placeholder={prevWeekExercise?.repsSets || "Sets×Reps"}
             placeholderTextColor={prevWeekExercise?.repsSets ? colors.textGhost : colors.textMuted}
           />
+          {isPhysio && (
+            <View style={{ flex: 2 }}>
+              <TextInput
+                style={[styles.compactFieldInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, fontSize: 11 }]}
+                value={isCoach && isShared ? coachComment : clientNotes}
+                onChangeText={isCoach && isShared ? setCoachComment : setClientNotes}
+                onBlur={saveChanges}
+                placeholder={isCoach && isShared ? "Add comment..." : "Notes..."}
+                placeholderTextColor={colors.textMuted}
+              />
+            </View>
+          )}
           {!isPhysio && (
             <View style={{ flex: 1 }}>
               <TextInput
@@ -1511,6 +1523,15 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
       {isCoach && isShared && !isPhysio && !!exercise.videoUrl && (
         <View style={{ paddingHorizontal: 12, paddingBottom: 10 }}>
           <VideoPlayerInline videoUrl={exercise.videoUrl} isCoach={true} />
+        </View>
+      )}
+
+      {isPhysio && !expanded && (isCoach && isShared ? !!exercise.clientNotes : !!exercise.coachComment) && (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 5, paddingHorizontal: 12, paddingBottom: 8 }}>
+          <Ionicons name={isCoach ? "chatbubble" : "megaphone-outline"} size={11} color={colors.accent} style={{ marginTop: 1 }} />
+          <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.accent, flex: 1 }} numberOfLines={1}>
+            {isCoach && isShared ? exercise.clientNotes : exercise.coachComment}
+          </Text>
         </View>
       )}
 
