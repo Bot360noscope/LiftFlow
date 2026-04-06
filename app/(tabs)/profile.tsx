@@ -1,12 +1,11 @@
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, ActivityIndicator, Image } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, ActivityIndicator, Image, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import * as WebBrowser from "expo-web-browser";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
@@ -300,7 +299,7 @@ function ProfileScreenInner() {
                 <Pressable
                   style={styles.upgradeBtnSmall}
                   onPress={() => {
-                    WebBrowser.openBrowserAsync('https://liftflow-paysite.onrender.com/pricing');
+                    Linking.openURL('https://liftflow-paysite.onrender.com/pricing');
                   }}
                 >
                   <Text style={[styles.upgradeBtnSmallText, { color: colors.primary }]}>{profile.plan === 'free' ? 'Upgrade' : 'Manage'}</Text>
