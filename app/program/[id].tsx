@@ -594,22 +594,29 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
   };
 
   const [editingInUnits, setEditingInUnits] = useState(false);
+  const editingInUnitsRef = useRef(false);
+  const editValueRef = useRef('');
 
-  const commitEdit = () => {
+  useEffect(() => { editingInUnitsRef.current = editingInUnits; }, [editingInUnits]);
+  useEffect(() => { editValueRef.current = editValue; }, [editValue]);
+
+  const commitEdit = useCallback(() => {
     if (!editingItem) return;
     const { mealId, itemId, field } = editingItem;
     const numFields = ['calories', 'protein', 'carbs', 'fat'];
+    const currentEditValue = editValueRef.current;
+    const currentInUnits = editingInUnitsRef.current;
 
     if (field === 'portion') {
       const meal = day.meals.find(m => m.id === mealId);
       const item = meal?.items.find(i => i.id === itemId);
 
       let grams: number;
-      if (editingInUnits && item?.unitGrams) {
-        const units = Math.max(0, parseFloat(editValue) || 0);
+      if (currentInUnits && item?.unitGrams) {
+        const units = Math.max(0, parseFloat(currentEditValue) || 0);
         grams = Math.round(units * item.unitGrams);
       } else {
-        grams = Math.max(0, parseInt(editValue) || 0);
+        grams = Math.max(0, parseInt(currentEditValue) || 0);
       }
 
       if (item?.cal100 != null) {
@@ -626,11 +633,11 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
       }
       setEditingInUnits(false);
     } else {
-      const val = numFields.includes(field) ? Math.max(0, parseInt(editValue) || 0) : editValue;
+      const val = numFields.includes(field) ? Math.max(0, parseInt(currentEditValue) || 0) : currentEditValue;
       updateFoodItem(mealId, itemId, { [field]: val });
     }
     setEditingItem(null);
-  };
+  }, [editingItem, day.meals]);
 
   const mealPresets = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Pre-Workout', 'Post-Workout'];
   const [showMealPresets, setShowMealPresets] = useState(false);
@@ -733,8 +740,8 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
 
             {meal.items.map(item => (
               <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' }}>
-                <Pressable onPress={() => toggleFoodChecked(meal.id, item.id)} hitSlop={6} style={{ marginRight: 8 }}>
-                  <Ionicons name={item.checked ? "checkmark-circle" : "ellipse-outline"} size={18} color={item.checked ? colors.success : colors.textMuted} />
+                <Pressable onPress={() => !canEdit && toggleFoodChecked(meal.id, item.id)} hitSlop={6} style={{ marginRight: 8 }}>
+                  <Ionicons name={item.checked ? "checkmark-circle" : "ellipse-outline"} size={18} color={item.checked ? colors.success : colors.textMuted} style={canEdit ? { opacity: 0.4 } : undefined} />
                 </Pressable>
                 <View style={{ flex: 1 }}>
                   {(canEdit || meal.name === 'Extras') && editingItem?.mealId === meal.id && editingItem?.itemId === item.id && editingItem?.field === 'name' ? (
@@ -759,7 +766,6 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                         style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, padding: 0, borderBottomWidth: 1, borderBottomColor: colors.primary, minWidth: 30 }}
                         value={editValue}
                         onChangeText={setEditValue}
-                        onBlur={commitEdit}
                         onSubmitEditing={commitEdit}
                         keyboardType={editingInUnits ? 'decimal-pad' : 'number-pad'}
                         autoFocus
@@ -786,6 +792,9 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                       ) : (
                         <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>g</Text>
                       )}
+                      <Pressable onPress={commitEdit} style={{ backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, marginLeft: 2 }}>
+                        <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: '#fff' }}>OK</Text>
+                      </Pressable>
                     </View>
                   ) : (
                     <Pressable onPress={() => {
