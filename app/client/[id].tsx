@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Image, Modal, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -138,7 +139,7 @@ function ProgramCard({ program }: { program: Program }) {
   );
 }
 
-export default function ClientDetailScreen() {
+function ClientDetailScreenInner() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { id, name: clientName } = useLocalSearchParams<{ id: string; name?: string }>();
@@ -445,3 +446,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.colors.background,
   },
 });
+
+export default function ClientDetailScreen() {
+  return (
+    <ErrorBoundary pageName="Client Detail">
+      <ClientDetailScreenInner />
+    </ErrorBoundary>
+  );
+}

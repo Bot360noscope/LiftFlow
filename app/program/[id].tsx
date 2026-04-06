@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Linking, ActivityIndicator, Modal, Alert, PanResponder, KeyboardAvoidingView } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { confirmAction, showAlert } from "@/lib/confirm";
@@ -1724,7 +1725,7 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
   );
 }
 
-export default function ProgramDetailScreen() {
+function ProgramDetailScreenInner() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { id, highlightExercise, highlightExerciseId, initialWeek, initialDay } = useLocalSearchParams<{ id: string; highlightExercise?: string; highlightExerciseId?: string; initialWeek?: string; initialDay?: string }>();
@@ -3136,3 +3137,11 @@ const styles = StyleSheet.create({
   },
   finishWorkoutText: { fontFamily: 'Rubik_700Bold', fontSize: 15, color: '#fff', letterSpacing: 0.3 },
 });
+
+export default function ProgramDetailScreen() {
+  return (
+    <ErrorBoundary pageName="Program Editor">
+      <ProgramDetailScreenInner />
+    </ErrorBoundary>
+  );
+}

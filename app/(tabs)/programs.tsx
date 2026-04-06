@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform, ActivityIndicator, Modal, TextInput } from "react-native";
 import { showAlert } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,7 +14,7 @@ import { ProgramsSkeleton } from "@/components/SkeletonLoader";
 import { getPrograms, deleteProgram, getProfile, getDashboard, getCachedPrograms, getCachedProfile, invalidateProgramsCache, type Program } from "@/lib/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export default function ProgramsScreen() {
+function ProgramsScreenInner() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [programs, setPrograms] = useState<Program[]>(getCachedPrograms());
@@ -343,3 +344,11 @@ const styles = StyleSheet.create({
   modalDeleteBtnDisabled: { opacity: 0.4 },
   modalDeleteText: { fontFamily: 'Rubik_600SemiBold', fontSize: 15, color: '#fff' },
 });
+
+export default function ProgramsScreen() {
+  return (
+    <ErrorBoundary pageName="Programs">
+      <ProgramsScreenInner />
+    </ErrorBoundary>
+  );
+}

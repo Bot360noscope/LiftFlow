@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, Keyboard, ActivityIndicator } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,7 +11,7 @@ import { useTheme } from "@/lib/theme-context";
 import { getProfile, getMessages, sendMessage, getMyCoach, getNotifications, markNotificationRead, getClients, appendMessageToCache, type ChatMessage, type UserProfile } from "@/lib/storage";
 import { addWSListener } from "@/lib/websocket";
 
-export default function ChatScreen() {
+function ChatScreenInner() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const params = useLocalSearchParams<{ clientId?: string; clientName?: string; clientProfileId?: string; coachId?: string }>();
@@ -377,3 +378,11 @@ const styles = StyleSheet.create({
   loadMoreBtn: { alignItems: 'center', paddingVertical: 12 },
   loadMoreText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: Colors.colors.primary },
 });
+
+export default function ChatScreen() {
+  return (
+    <ErrorBoundary pageName="Conversation">
+      <ChatScreenInner />
+    </ErrorBoundary>
+  );
+}

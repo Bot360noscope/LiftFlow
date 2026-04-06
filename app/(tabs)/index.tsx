@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform, ActivityIndicator, Image } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -529,7 +530,7 @@ function ClientProgramCard({ program, colors }: { program: Program; colors: any 
   );
 }
 
-export default function HomeScreen() {
+function HomeScreenInner() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
@@ -1203,3 +1204,11 @@ const styles = StyleSheet.create({
   continueBtnText: { fontFamily: 'Rubik_700Bold', fontSize: 14, color: '#fff' },
   weekStatusBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 10, paddingVertical: 10, borderWidth: 1, marginTop: 14 },
 });
+
+export default function HomeScreen() {
+  return (
+    <ErrorBoundary pageName="Dashboard">
+      <HomeScreenInner />
+    </ErrorBoundary>
+  );
+}

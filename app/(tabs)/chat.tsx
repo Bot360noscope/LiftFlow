@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { StyleSheet, Text, View, FlatList, Pressable, Platform, TextInput, Keyboard, ActivityIndicator, Image, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -25,7 +26,7 @@ function formatTime(dateStr: string): string {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-export default function ChatTab() {
+function ChatTabInner() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
@@ -464,3 +465,11 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
 });
+
+export default function ChatTab() {
+  return (
+    <ErrorBoundary pageName="Chat">
+      <ChatTabInner />
+    </ErrorBoundary>
+  );
+}

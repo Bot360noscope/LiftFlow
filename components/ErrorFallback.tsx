@@ -12,18 +12,42 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 
 export type ErrorFallbackProps = {
   error: Error;
   resetError: () => void;
+  pageName?: string;
 };
 
 const SUPPORT_EMAIL = "lift-flowsupport@gmail.com";
 const WHATSAPP_NUMBER = "96103936999";
 
-export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
+const PAGE_LABELS: Record<string, string> = {
+  Dashboard: "Dashboard",
+  Programs: "Programs",
+  "Client Progress": "Client Progress",
+  Chat: "Chat",
+  Profile: "Profile",
+  "Program Editor": "Program Editor",
+  "Client Detail": "Client Detail",
+  Conversation: "Conversation",
+  "Create Program": "Create Program",
+  "Add PR": "Add PR",
+  "Record Video": "Record Video",
+  "Trim Video": "Trim Video",
+  "Join Coach": "Join Coach",
+};
+
+export function ErrorFallback({ error, resetError, pageName }: ErrorFallbackProps) {
   const insets = useSafeAreaInsets();
   const [isModalVisible, setIsModalVisible] = useState(false);
+
+  const displayName = pageName ? (PAGE_LABELS[pageName] || pageName) : undefined;
+
+  const crashContext = displayName
+    ? `crashed on the "${displayName}" page`
+    : "crashed";
 
   const handleRestart = async () => {
     try {
@@ -34,23 +58,40 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
     }
   };
 
+  const handleGoHome = () => {
+    resetError();
+    try {
+      router.replace("/");
+    } catch {
+      resetError();
+    }
+  };
+
   const handleEmail = () => {
-    const subject = encodeURIComponent("LiftFlow App Crash Report");
+    const subject = encodeURIComponent(
+      displayName
+        ? `LiftFlow Crash Report — ${displayName}`
+        : "LiftFlow App Crash Report"
+    );
     const body = encodeURIComponent(
-      `Hi LiftFlow Support,\n\nThe app crashed with the following error:\n\n${error.message}\n\nPlease help me resolve this issue.\n\nThank you.`
+      `Hi LiftFlow Support,\n\nThe app ${crashContext} with the following error:\n\n${error.message || "Unknown error"}\n\nPlease help me resolve this issue.\n\nThank you.`
     );
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
   };
 
   const handleWhatsApp = () => {
     const text = encodeURIComponent(
-      `Hi, I'm having an issue with the LiftFlow app. It crashed with this error: ${error.message}`
+      `Hi, I'm having an issue with the LiftFlow app. It ${crashContext} with this error: ${error.message || "Unknown error"}`
     );
     Linking.openURL(`https://wa.me/${WHATSAPP_NUMBER}?text=${text}`);
   };
 
   const formatErrorDetails = (): string => {
-    let details = `Error: ${error.message}\n\n`;
+    let details = "";
+    if (displayName) {
+      details += `Page: ${displayName}\n\n`;
+    }
+    details += `Error: ${error.message}\n\n`;
     if (error.stack) {
       details += `Stack Trace:\n${error.stack}`;
     }
@@ -62,6 +103,8 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
     android: "monospace",
     default: "monospace",
   });
+
+  const showGoHome = !!pageName;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
@@ -89,19 +132,38 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
 
         <Text style={styles.title}>Something went wrong</Text>
 
+        {displayName ? (
+          <Text style={styles.pageLabel}>{displayName}</Text>
+        ) : null}
+
         <Text style={styles.message}>
-          The app ran into an unexpected issue. Try restarting — if it keeps happening, reach out to support and we'll get it sorted.
+          {displayName
+            ? `The ${displayName} page ran into an unexpected issue. You can go back to the home screen or restart the app.`
+            : "The app ran into an unexpected issue. Try restarting — if it keeps happening, reach out to support and we'll get it sorted."}
         </Text>
+
+        {showGoHome && (
+          <Pressable
+            onPress={handleGoHome}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
+            ]}
+          >
+            <Ionicons name="home-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
+            <Text style={styles.primaryButtonText}>Go Home</Text>
+          </Pressable>
+        )}
 
         <Pressable
           onPress={handleRestart}
           style={({ pressed }) => [
-            styles.primaryButton,
+            showGoHome ? styles.secondaryButton : styles.primaryButton,
             { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
           ]}
         >
-          <Ionicons name="refresh" size={20} color="#FFF" style={{ marginRight: 8 }} />
-          <Text style={styles.primaryButtonText}>Restart App</Text>
+          <Ionicons name="refresh" size={20} color={showGoHome ? "#E8512F" : "#FFF"} style={{ marginRight: 8 }} />
+          <Text style={[showGoHome ? styles.secondaryButtonText : styles.primaryButtonText]}>Restart App</Text>
         </Pressable>
 
         <Text style={styles.supportLabel}>If this keeps happening, contact support:</Text>
@@ -212,6 +274,17 @@ const styles = StyleSheet.create({
     textAlign: "center" as const,
     color: "#FFFFFF",
   },
+  pageLabel: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: "#E8512F",
+    textAlign: "center" as const,
+    backgroundColor: "rgba(232, 81, 47, 0.12)",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 8,
+    overflow: "hidden" as const,
+  },
   message: {
     fontSize: 15,
     textAlign: "center" as const,
@@ -246,6 +319,24 @@ const styles = StyleSheet.create({
     textAlign: "center" as const,
     fontSize: 16,
     color: "#FFF",
+  },
+  secondaryButton: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    paddingVertical: 14,
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    width: "100%",
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#E8512F",
+  },
+  secondaryButtonText: {
+    fontWeight: "600" as const,
+    textAlign: "center" as const,
+    fontSize: 16,
+    color: "#E8512F",
   },
   supportLabel: {
     fontSize: 13,

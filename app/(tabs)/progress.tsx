@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -204,7 +205,7 @@ function ClientProgressCard({ client, programs, delay, colors, seenMap }: {
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
-export default function ProgressScreen() {
+function ProgressScreenInner() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
@@ -570,3 +571,11 @@ const styles = StyleSheet.create({
   programCardMeta: { fontFamily: 'Rubik_400Regular', fontSize: 12 },
   coachCodeBanner: { alignItems: 'center', paddingVertical: 24, gap: 8, borderRadius: 14, borderWidth: 1, marginTop: 16 },
 });
+
+export default function ProgressScreen() {
+  return (
+    <ErrorBoundary pageName="Client Progress">
+      <ProgressScreenInner />
+    </ErrorBoundary>
+  );
+}

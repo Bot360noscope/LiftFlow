@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, ActivityIndicator, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -53,7 +54,7 @@ function CoachCodeCard({ coachCode, onReset }: { coachCode: string; onReset: () 
   );
 }
 
-export default function ProfileScreen() {
+function ProfileScreenInner() {
   const insets = useSafeAreaInsets();
   const { logout: authLogout } = useAuth();
   const { colors } = useTheme();
@@ -731,3 +732,11 @@ const styles = StyleSheet.create({
   bwInput: { fontFamily: 'Rubik_600SemiBold', fontSize: 16, width: 64, textAlign: 'center', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
   bwUnit: { fontFamily: 'Rubik_400Regular', fontSize: 14 },
 });
+
+export default function ProfileScreen() {
+  return (
+    <ErrorBoundary pageName="Profile">
+      <ProfileScreenInner />
+    </ErrorBoundary>
+  );
+}

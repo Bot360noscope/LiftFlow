@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { StyleSheet, Text, View, Pressable, Platform, TextInput, ScrollView, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -80,7 +81,7 @@ const TYPE_OPTIONS: { key: ProgramType; icon: string; label: string; desc: strin
   { key: 'physio', icon: 'body-outline', label: 'Physio', desc: 'Rehab exercises & recovery' },
 ];
 
-export default function CreateProgramScreen() {
+function CreateProgramScreenInner() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { clientId, clientName } = useLocalSearchParams<{ clientId?: string; clientName?: string }>();
@@ -330,3 +331,11 @@ const styles = StyleSheet.create({
   createButtonDisabled: { opacity: 0.5 },
   createButtonText: { fontFamily: 'Rubik_700Bold', fontSize: 16, color: '#fff' },
 });
+
+export default function CreateProgramScreen() {
+  return (
+    <ErrorBoundary pageName="Create Program">
+      <CreateProgramScreenInner />
+    </ErrorBoundary>
+  );
+}
