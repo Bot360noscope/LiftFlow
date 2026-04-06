@@ -593,15 +593,25 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
     setEditValue(String(currentValue));
   };
 
+  const [editingInUnits, setEditingInUnits] = useState(false);
+
   const commitEdit = () => {
     if (!editingItem) return;
     const { mealId, itemId, field } = editingItem;
     const numFields = ['calories', 'protein', 'carbs', 'fat'];
 
     if (field === 'portion') {
-      const grams = Math.max(0, parseInt(editValue) || 0);
       const meal = day.meals.find(m => m.id === mealId);
       const item = meal?.items.find(i => i.id === itemId);
+
+      let grams: number;
+      if (editingInUnits && item?.unitGrams) {
+        const units = Math.max(0, parseFloat(editValue) || 0);
+        grams = Math.round(units * item.unitGrams);
+      } else {
+        grams = Math.max(0, parseInt(editValue) || 0);
+      }
+
       if (item?.cal100 != null) {
         const ratio = grams / 100;
         updateFoodItem(mealId, itemId, {
@@ -614,6 +624,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
       } else {
         updateFoodItem(mealId, itemId, { portion: String(grams) });
       }
+      setEditingInUnits(false);
     } else {
       const val = numFields.includes(field) ? Math.max(0, parseInt(editValue) || 0) : editValue;
       updateFoodItem(mealId, itemId, { [field]: val });
@@ -743,22 +754,53 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                     </Pressable>
                   )}
                   {(canEdit || meal.name === 'Extras') && editingItem?.mealId === meal.id && editingItem?.itemId === item.id && editingItem?.field === 'portion' ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 }}>
                       <TextInput
                         style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, padding: 0, borderBottomWidth: 1, borderBottomColor: colors.primary, minWidth: 30 }}
                         value={editValue}
                         onChangeText={setEditValue}
                         onBlur={commitEdit}
                         onSubmitEditing={commitEdit}
-                        keyboardType="number-pad"
+                        keyboardType={editingInUnits ? 'decimal-pad' : 'number-pad'}
                         autoFocus
                       />
-                      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>g</Text>
+                      {item.unit && item.unitGrams ? (
+                        <Pressable
+                          onPress={() => {
+                            if (editingInUnits) {
+                              const units = parseFloat(editValue) || 1;
+                              setEditValue(String(Math.round(units * (item.unitGrams || 100))));
+                              setEditingInUnits(false);
+                            } else {
+                              const grams = parseInt(editValue) || 0;
+                              setEditValue(String(Math.round((grams / (item.unitGrams || 100)) * 10) / 10));
+                              setEditingInUnits(true);
+                            }
+                          }}
+                          style={{ backgroundColor: 'rgba(232,81,47,0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}
+                        >
+                          <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: colors.primary }}>
+                            {editingInUnits ? 'units' : 'g'}
+                          </Text>
+                        </Pressable>
+                      ) : (
+                        <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>g</Text>
+                      )}
                     </View>
                   ) : (
-                    <Pressable onPress={() => (canEdit || meal.name === 'Extras') && startEdit(meal.id, item.id, 'portion', item.portion)}>
+                    <Pressable onPress={() => {
+                      if (!(canEdit || meal.name === 'Extras')) return;
+                      if (item.unit && item.unitGrams) {
+                        const units = Math.round((parseInt(item.portion) || 0) / item.unitGrams * 10) / 10;
+                        setEditingInUnits(true);
+                        startEdit(meal.id, item.id, 'portion', String(units));
+                      } else {
+                        setEditingInUnits(false);
+                        startEdit(meal.id, item.id, 'portion', item.portion);
+                      }
+                    }}>
                       <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
-                        {item.portion ? (item.unit ? `${item.portion}g (${item.unit})` : `${item.portion}g`) : 'Tap for portion'}
+                        {item.portion ? (item.unit ? `${item.unit}` : `${item.portion}g`) : 'Tap for portion'}
                       </Text>
                     </Pressable>
                   )}
