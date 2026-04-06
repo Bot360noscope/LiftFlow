@@ -39,21 +39,19 @@ function getWeeklyAdherence(programs: Program[]): number {
   let totalNamed = 0;
   let totalCompleted = 0;
   for (const prog of programs) {
-    // Find highest week number with any client activity, so future un-started
-    // weeks don't unfairly drag the score to zero.
+    if (prog.programType === 'nutrition') continue;
     let maxActiveWeek = 0;
     for (const week of (prog.weeks || [])) {
-      const exercises = week.days.flatMap(d => d.exercises.filter(e => e.name));
-      const hasActivity = exercises.some(e => e.isCompleted || e.clientNotes || e.videoUrl);
+      const exercises = week.days.flatMap(d => ((d as any).exercises || []).filter((e: any) => e.name));
+      const hasActivity = exercises.some((e: any) => e.isCompleted || e.clientNotes || e.videoUrl);
       if (hasActivity) maxActiveWeek = Math.max(maxActiveWeek, week.weekNumber);
     }
-    // If nothing started yet, count from week 1 so a brand-new program shows 0%
     if (maxActiveWeek === 0) maxActiveWeek = 1;
     for (const week of (prog.weeks || [])) {
       if (week.weekNumber > maxActiveWeek) continue;
-      const exercises = week.days.flatMap(d => d.exercises.filter(e => e.name));
+      const exercises = week.days.flatMap(d => ((d as any).exercises || []).filter((e: any) => e.name));
       totalNamed += exercises.length;
-      totalCompleted += exercises.filter(e => e.isCompleted).length;
+      totalCompleted += exercises.filter((e: any) => e.isCompleted).length;
     }
   }
   return totalNamed > 0 ? Math.round((totalCompleted / totalNamed) * 100) : 0;
@@ -66,6 +64,7 @@ function getPendingReviews(programs: Program[], seenMap: Record<string, string>)
     for (const week of (prog.weeks || [])) {
       for (const day of week.days) {
         for (const ex of ((day as any).exercises || [])) {
+          if (!ex) continue;
           if ((ex.videoUrl || ex.clientNotes) && !ex.coachComment) {
             const key = `${ex.clientNotes || ''}::${ex.videoUrl || ''}`;
             if (seenMap[ex.id] !== key) count++;
