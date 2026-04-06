@@ -1868,11 +1868,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
 
+          const dataType = f.dataType || '';
+          let priority = 3;
+          if (dataType === 'Foundation' || dataType === 'SR Legacy') priority = 1;
+          else if (dataType === 'Survey (FNDDS)') priority = 2;
+
           return {
             product_name: `${displayName}${brand}`,
             serving_size: servingSize,
             serving_grams: servingGrams,
             source: 'usda',
+            _priority: priority,
             nutriments: {
               'energy-kcal_100g': Math.round(nutrients.cal || 0),
               proteins_100g: Math.round((nutrients.protein || 0) * 10) / 10,
@@ -1882,6 +1888,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         })
         .filter(Boolean)
+        .sort((a: any, b: any) => a._priority - b._priority)
+        .map((item: any) => { delete item._priority; return item; })
         .slice(0, 25);
       console.log(`[FoodSearch] USDA: ${raw.length} raw, ${filtered.length} filtered for "${q}"`);
       return filtered.length > 0 ? filtered : null;
