@@ -13,6 +13,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import Constants from "expo-constants";
+
+const APP_VERSION = Constants.expoConfig?.version || "0.0.0";
 
 export type ErrorFallbackProps = {
   error: Error;
@@ -74,20 +77,20 @@ export function ErrorFallback({ error, resetError, pageName }: ErrorFallbackProp
         : "LiftFlow App Crash Report"
     );
     const body = encodeURIComponent(
-      `Hi LiftFlow Support,\n\nThe app ${crashContext} with the following error:\n\n${error.message || "Unknown error"}\n\nPlease help me resolve this issue.\n\nThank you.`
+      `Hi LiftFlow Support,\n\nThe app ${crashContext} with the following error:\n\n${error.message || "Unknown error"}\n\nApp version: ${APP_VERSION}\nPlatform: ${Platform.OS}\n\nPlease help me resolve this issue.\n\nThank you.`
     );
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
   };
 
   const handleWhatsApp = () => {
     const text = encodeURIComponent(
-      `Hi, I'm having an issue with the LiftFlow app. It ${crashContext} with this error: ${error.message || "Unknown error"}`
+      `Hi, I'm having an issue with the LiftFlow app (v${APP_VERSION}, ${Platform.OS}). It ${crashContext} with this error: ${error.message || "Unknown error"}`
     );
     Linking.openURL(`https://wa.me/${WHATSAPP_NUMBER}?text=${text}`);
   };
 
   const formatErrorDetails = (): string => {
-    let details = "";
+    let details = `App Version: ${APP_VERSION}\nPlatform: ${Platform.OS}\n\n`;
     if (displayName) {
       details += `Page: ${displayName}\n\n`;
     }

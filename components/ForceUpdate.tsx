@@ -23,6 +23,7 @@ function compareVersions(a: string, b: string): number {
 export default function ForceUpdate({ children }: { children: React.ReactNode }) {
   const [blocked, setBlocked] = useState(false);
   const [message, setMessage] = useState("");
+  const [requiredVersion, setRequiredVersion] = useState("");
 
   useEffect(() => {
     if (Platform.OS === "web") return;
@@ -36,6 +37,7 @@ export default function ForceUpdate({ children }: { children: React.ReactNode })
         const needsUpdate = compareVersions(APP_VERSION, data.minVersion) < 0;
         if (needsUpdate || data.forceUpdate) {
           setMessage(data.updateMessage || "Please update LiftFlow to continue.");
+          setRequiredVersion(data.latestVersion || data.minVersion);
           setBlocked(true);
         }
       } catch {}
@@ -44,6 +46,9 @@ export default function ForceUpdate({ children }: { children: React.ReactNode })
   }, []);
 
   if (blocked) {
+    const storeName = Platform.OS === "ios" ? "App Store" : "Google Play";
+    const storeUrl = Platform.OS === "ios" ? IOS_STORE_URL : ANDROID_STORE_URL;
+
     return (
       <View style={styles.container}>
         <View style={styles.card}>
@@ -52,15 +57,30 @@ export default function ForceUpdate({ children }: { children: React.ReactNode })
           </View>
           <Text style={styles.title}>Update Required</Text>
           <Text style={styles.message}>{message}</Text>
+
+          <View style={styles.versionRow}>
+            <View style={styles.versionBox}>
+              <Text style={styles.versionLabel}>Your Version</Text>
+              <Text style={styles.versionOld}>{APP_VERSION}</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={20} color="#555" />
+            <View style={styles.versionBox}>
+              <Text style={styles.versionLabel}>Latest</Text>
+              <Text style={styles.versionNew}>{requiredVersion}</Text>
+            </View>
+          </View>
+
           <Pressable
             style={styles.button}
-            onPress={() => {
-              const url = Platform.OS === "ios" ? IOS_STORE_URL : ANDROID_STORE_URL;
-              Linking.openURL(url);
-            }}
+            onPress={() => Linking.openURL(storeUrl)}
           >
-            <Text style={styles.buttonText}>Update Now</Text>
+            <Ionicons name={Platform.OS === "ios" ? "logo-apple" : "logo-google-playstore"} size={20} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.buttonText}>Update on {storeName}</Text>
           </Pressable>
+
+          <Text style={styles.hint}>
+            After updating, re-open the app.
+          </Text>
         </View>
       </View>
     );
@@ -102,19 +122,61 @@ const styles = StyleSheet.create({
     color: "#999",
     textAlign: "center",
     lineHeight: 20,
-    marginBottom: 28,
+    marginBottom: 20,
+  },
+  versionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    marginBottom: 24,
+    backgroundColor: "#111",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "#2A2A2A",
+  },
+  versionBox: {
+    alignItems: "center",
+    gap: 4,
+  },
+  versionLabel: {
+    fontFamily: "Rubik_400Regular",
+    fontSize: 11,
+    color: "#666",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  versionOld: {
+    fontFamily: "Rubik_700Bold",
+    fontSize: 18,
+    color: "#FF3B30",
+  },
+  versionNew: {
+    fontFamily: "Rubik_700Bold",
+    fontSize: 18,
+    color: "#34C759",
   },
   button: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#E8512F",
     paddingVertical: 14,
-    paddingHorizontal: 40,
+    paddingHorizontal: 24,
     borderRadius: 12,
     width: "100%",
-    alignItems: "center",
   },
   buttonText: {
     fontFamily: "Rubik_600SemiBold",
     fontSize: 16,
     color: "#fff",
+  },
+  hint: {
+    fontFamily: "Rubik_400Regular",
+    fontSize: 12,
+    color: "#555",
+    marginTop: 16,
+    textAlign: "center",
   },
 });
