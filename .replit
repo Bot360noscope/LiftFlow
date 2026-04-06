@@ -97,6 +97,7 @@ ensurePreviewReachable = "/status"
 [userenv]
 
 [userenv.shared]
+USDA_API_KEY = "er1I7VVNCHeyFv1fshHT8Yh1eneH1wIibwb83N5o"
 
 [postMerge]
 path = "scripts/post-merge.sh"

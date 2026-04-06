@@ -1827,7 +1827,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
     try {
-      const usdaUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=40&dataType=Branded,Foundation,SR%20Legacy&api_key=DEMO_KEY`;
+      const usdaKey = process.env.USDA_API_KEY || 'DEMO_KEY';
+      const usdaUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=40&dataType=Branded,Foundation,SR%20Legacy&api_key=${usdaKey}`;
       const usdaRes = await fetch(usdaUrl, { signal: controller.signal });
       clearTimeout(timeout);
       if (!usdaRes.ok) {
