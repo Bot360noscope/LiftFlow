@@ -49,6 +49,8 @@ export interface NutritionItem {
   p100?: number;
   c100?: number;
   f100?: number;
+  unit?: string;
+  unitGrams?: number;
 }
 
 export interface Meal {

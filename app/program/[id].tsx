@@ -354,23 +354,33 @@ function VideoRecordButton({ exercise, onVideoRecorded, onVideoDeleted, programI
 }
 
 function FoodSearchModal({ visible, onClose, onSelect, colors }: { visible: boolean; onClose: () => void; onSelect: (item: NutritionItem) => void; colors: any }) {
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const search = useCallback(async () => {
-    if (!query.trim()) return;
+  const doSearch = useCallback(async (q: string) => {
+    if (!q.trim()) { setResults([]); setHasSearched(false); return; }
     setSearching(true);
+    setHasSearched(true);
     try {
       const apiBase = getApiUrl().replace(/\/+$/, '');
-      const res = await fetch(`${apiBase}/api/food-search?q=${encodeURIComponent(query)}`);
+      const res = await fetch(`${apiBase}/api/food-search?q=${encodeURIComponent(q)}`);
       const text = await res.text();
       let data;
       try { data = JSON.parse(text); } catch { data = { products: [] }; }
       setResults((data.products || []).filter((p: any) => p.product_name));
     } catch (e) { console.log('Food search error:', e); setResults([]); }
     setSearching(false);
-  }, [query]);
+  }, []);
+
+  const onChangeQuery = useCallback((text: string) => {
+    setQuery(text);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => doSearch(text), 400);
+  }, [doSearch]);
 
   const selectProduct = (product: any) => {
     const n = product.nutriments || {};
@@ -378,76 +388,118 @@ function FoodSearchModal({ visible, onClose, onSelect, colors }: { visible: bool
     const p100 = n.proteins_100g || n.proteins || 0;
     const c100 = n.carbohydrates_100g || n.carbohydrates || 0;
     const f100 = n.fat_100g || n.fat || 0;
-    const grams = 100;
+
+    const servingSize = product.serving_size || '100g';
+    const servingGrams = product.serving_grams || 100;
+    const isUnit = servingSize && !/^\d+\s*g$/i.test(servingSize) && servingGrams !== 100;
+
+    const useGrams = isUnit ? servingGrams : 100;
+    const ratio = useGrams / 100;
+
     onSelect({
       id: Crypto.randomUUID(),
       name: product.product_name || 'Unknown',
-      portion: String(grams),
-      calories: Math.round(cal100),
-      protein: Math.round(p100),
-      carbs: Math.round(c100),
-      fat: Math.round(f100),
+      portion: String(Math.round(useGrams)),
+      calories: Math.round(cal100 * ratio),
+      protein: Math.round(p100 * ratio),
+      carbs: Math.round(c100 * ratio),
+      fat: Math.round(f100 * ratio),
       cal100: Math.round(cal100),
       p100: Math.round(p100),
       c100: Math.round(c100),
       f100: Math.round(f100),
+      unit: isUnit ? servingSize : undefined,
+      unitGrams: isUnit ? Math.round(servingGrams) : undefined,
     });
     onClose();
     setQuery('');
     setResults([]);
+    setHasSearched(false);
+  };
+
+  const handleClose = () => {
+    onClose();
+    setQuery('');
+    setResults([]);
+    setHasSearched(false);
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
-        <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%', paddingTop: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12 }}>
-            <Text style={{ flex: 1, fontFamily: 'Rubik_700Bold', fontSize: 18, color: colors.text }}>Search Foods</Text>
-            <Pressable onPress={() => { onClose(); setQuery(''); setResults([]); }} hitSlop={8}>
-              <Ionicons name="close" size={24} color={colors.textMuted} />
-            </Pressable>
-          </View>
-          <View style={{ flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 12 }}>
+    <Modal visible={visible} animationType="slide" transparent={false}>
+      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: Platform.OS === 'web' ? 67 : insets.top }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <Pressable onPress={handleClose} hitSlop={8} style={{ marginRight: 12 }}>
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </Pressable>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.backgroundCard, borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border }}>
+            <Ionicons name="search" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
             <TextInput
-              style={{ flex: 1, fontFamily: 'Rubik_400Regular', fontSize: 15, color: colors.text, backgroundColor: colors.backgroundCard, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: colors.border }}
+              style={{ flex: 1, fontFamily: 'Rubik_400Regular', fontSize: 15, color: colors.text, paddingVertical: Platform.OS === 'ios' ? 10 : 8 }}
               value={query}
-              onChangeText={setQuery}
-              placeholder="Search foods..."
+              onChangeText={onChangeQuery}
+              placeholder="Search foods (e.g. chicken, egg, rice)..."
               placeholderTextColor={colors.textMuted}
-              onSubmitEditing={search}
+              onSubmitEditing={() => doSearch(query)}
               returnKeyType="search"
               autoFocus
             />
-            <Pressable onPress={search} style={{ backgroundColor: colors.primary, borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' }}>
-              <Ionicons name="search" size={18} color="#fff" />
-            </Pressable>
-          </View>
-          <ScrollView style={{ paddingHorizontal: 16 }} contentContainerStyle={{ paddingBottom: 40 }}>
-            {searching && <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />}
-            {!searching && results.length === 0 && query.trim() !== '' && (
-              <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 13, color: colors.textMuted, textAlign: 'center', marginTop: 20 }}>No results found</Text>
+            {query.length > 0 && (
+              <Pressable onPress={() => { setQuery(''); setResults([]); setHasSearched(false); }} hitSlop={8}>
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              </Pressable>
             )}
-            {results.map((product, i) => {
-              const n = product.nutriments || {};
-              return (
-                <Pressable
-                  key={i}
-                  onPress={() => selectProduct(product)}
-                  style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}
-                >
-                  <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 14, color: colors.text }} numberOfLines={1}>{product.product_name}</Text>
-                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 4, alignItems: 'center' }}>
-                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.primary }}>{Math.round(n['energy-kcal_100g'] || 0)} cal</Text>
-                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>P: {Math.round(n.proteins_100g || 0)}g</Text>
-                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>C: {Math.round(n.carbohydrates_100g || 0)}g</Text>
-                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>F: {Math.round(n.fat_100g || 0)}g</Text>
-                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 9, color: colors.textMuted, opacity: 0.6 }}>per 100g</Text>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          </View>
         </View>
+
+        {!hasSearched && !searching && (
+          <View style={{ padding: 32, alignItems: 'center' }}>
+            <Ionicons name="nutrition-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4, marginBottom: 12 }} />
+            <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 14, color: colors.textMuted, textAlign: 'center' }}>
+              Search millions of foods with nutritional info
+            </Text>
+          </View>
+        )}
+
+        {searching && <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />}
+
+        {!searching && hasSearched && results.length === 0 && (
+          <View style={{ padding: 32, alignItems: 'center' }}>
+            <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 14, color: colors.textMuted, textAlign: 'center' }}>
+              No results found for "{query}"
+            </Text>
+          </View>
+        )}
+
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 16 }} keyboardShouldPersistTaps="handled">
+          {results.map((product, i) => {
+            const n = product.nutriments || {};
+            const servingLabel = product.serving_size && product.serving_size !== '100g' ? product.serving_size : null;
+            return (
+              <Pressable
+                key={i}
+                onPress={() => selectProduct(product)}
+                style={({ pressed }) => ({ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 })}
+              >
+                <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 14, color: colors.text }} numberOfLines={2}>{product.product_name}</Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 5, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <View style={{ backgroundColor: 'rgba(232,81,47,0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                    <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.primary }}>{Math.round(n['energy-kcal_100g'] || 0)} cal</Text>
+                  </View>
+                  <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: '#4FC3F7' }}>P: {Math.round(n.proteins_100g || 0)}g</Text>
+                  <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.gold || '#FFB800' }}>C: {Math.round(n.carbohydrates_100g || 0)}g</Text>
+                  <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: '#FF8A65' }}>F: {Math.round(n.fat_100g || 0)}g</Text>
+                  <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 9, color: colors.textMuted, opacity: 0.6 }}>per 100g</Text>
+                </View>
+                {servingLabel && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                    <Ionicons name="scale-outline" size={11} color={colors.textMuted} />
+                    <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>Serving: {servingLabel}</Text>
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -706,7 +758,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                   ) : (
                     <Pressable onPress={() => (canEdit || meal.name === 'Extras') && startEdit(meal.id, item.id, 'portion', item.portion)}>
                       <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
-                        {item.portion ? `${item.portion}g` : 'Tap for portion'}
+                        {item.portion ? (item.unit ? `${item.portion}g (${item.unit})` : `${item.portion}g`) : 'Tap for portion'}
                       </Text>
                     </Pressable>
                   )}

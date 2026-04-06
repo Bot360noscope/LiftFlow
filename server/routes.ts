@@ -1793,39 +1793,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
   if (foodDb.length === 0) console.warn("food-db.json not found, food search will return empty results");
 
-  app.get("/api/food-search", (req, res) => {
+  function searchLocalFoodDb(q: string) {
+    const terms = q.toLowerCase().split(/\s+/);
+    const scored = foodDb
+      .filter(f => {
+        const ln = f.n.toLowerCase();
+        return terms.every(t => ln.includes(t));
+      })
+      .map(f => {
+        const ln = f.n.toLowerCase();
+        const startsWithBonus = ln.startsWith(q) ? 100 : terms[0] && ln.startsWith(terms[0]) ? 50 : 0;
+        const exactBonus = ln === q ? 200 : 0;
+        const lengthPenalty = f.n.length;
+        return { food: f, score: exactBonus + startsWithBonus - lengthPenalty };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 15);
+
+    return scored.map(({ food }) => ({
+      product_name: food.n,
+      serving_size: '100g',
+      source: 'local',
+      nutriments: {
+        'energy-kcal_100g': food.cal,
+        proteins_100g: food.p,
+        carbohydrates_100g: food.c,
+        fat_100g: food.f,
+      },
+    }));
+  }
+
+  async function fetchUSDAFoods(q: string): Promise<any[] | null> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
     try {
-      const q = (req.query.q as string || '').trim().toLowerCase();
+      const usdaUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=40&dataType=Branded,Foundation,SR%20Legacy&api_key=DEMO_KEY`;
+      const usdaRes = await fetch(usdaUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!usdaRes.ok) {
+        console.log(`[FoodSearch] USDA HTTP ${usdaRes.status}`);
+        return null;
+      }
+      const usdaData = await usdaRes.json() as any;
+      const raw = usdaData.foods || [];
+      const filtered = raw
+        .map((f: any) => {
+          const nutrients: Record<string, number> = {};
+          (f.foodNutrients || []).forEach((fn: any) => {
+            if (fn.nutrientName === 'Energy' && fn.unitName === 'KCAL') nutrients.cal = fn.value;
+            if (fn.nutrientName === 'Protein') nutrients.protein = fn.value;
+            if (fn.nutrientName === 'Carbohydrate, by difference') nutrients.carbs = fn.value;
+            if (fn.nutrientName === 'Total lipid (fat)') nutrients.fat = fn.value;
+          });
+          if (!nutrients.cal || nutrients.cal <= 0) return null;
+
+          const brand = f.brandName ? ` (${f.brandName})` : '';
+          const name = f.description || f.lowercaseDescription || '';
+          if (!name) return null;
+
+          const displayName = name.length > 60 ? name.slice(0, 57) + '...' : name;
+
+          let servingSize = '100g';
+          let servingGrams = 100;
+          if (f.servingSize && f.servingSize > 0) {
+            servingGrams = Math.round(f.servingSize);
+            const rawUnit = (f.servingSizeUnit || 'g').toUpperCase();
+            const unitMap: Record<string, string> = { 'GRM': 'g', 'G': 'g', 'MLT': 'ml', 'ML': 'ml', 'OZA': 'oz', 'ONZ': 'oz' };
+            const displayUnit = unitMap[rawUnit] || rawUnit.toLowerCase();
+            const household = f.householdServingFullText;
+            if (household) {
+              servingSize = `${household} (${servingGrams}${displayUnit})`;
+            } else {
+              servingSize = `${servingGrams}${displayUnit}`;
+            }
+          }
+
+          return {
+            product_name: `${displayName}${brand}`,
+            serving_size: servingSize,
+            serving_grams: servingGrams,
+            source: 'usda',
+            nutriments: {
+              'energy-kcal_100g': Math.round(nutrients.cal || 0),
+              proteins_100g: Math.round((nutrients.protein || 0) * 10) / 10,
+              carbohydrates_100g: Math.round((nutrients.carbs || 0) * 10) / 10,
+              fat_100g: Math.round((nutrients.fat || 0) * 10) / 10,
+            },
+          };
+        })
+        .filter(Boolean)
+        .slice(0, 25);
+      console.log(`[FoodSearch] USDA: ${raw.length} raw, ${filtered.length} filtered for "${q}"`);
+      return filtered.length > 0 ? filtered : null;
+    } catch (err: any) {
+      clearTimeout(timeout);
+      console.log(`[FoodSearch] USDA error: ${err?.message || err}`);
+      return null;
+    }
+  }
+
+  app.get("/api/food-search", async (req, res) => {
+    try {
+      const q = (req.query.q as string || '').trim();
       if (!q) return res.json({ products: [] });
 
-      const terms = q.split(/\s+/);
-      const scored = foodDb
-        .filter(f => {
-          const ln = f.n.toLowerCase();
-          return terms.every(t => ln.includes(t));
-        })
-        .map(f => {
-          const ln = f.n.toLowerCase();
-          const startsWithBonus = ln.startsWith(q) ? 100 : terms[0] && ln.startsWith(terms[0]) ? 50 : 0;
-          const exactBonus = ln === q ? 200 : 0;
-          const lengthPenalty = f.n.length;
-          return { food: f, score: exactBonus + startsWithBonus - lengthPenalty };
-        })
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 25);
+      const usdaResults = await fetchUSDAFoods(q);
+      if (usdaResults) {
+        return res.json({ products: usdaResults });
+      }
 
-      const products = scored.map(({ food }) => ({
-        product_name: food.n,
-        serving_size: '100g',
-        nutriments: {
-          'energy-kcal_100g': food.cal,
-          proteins_100g: food.p,
-          carbohydrates_100g: food.c,
-          fat_100g: food.f,
-        },
-      }));
-
-      res.json({ products });
+      const localResults = searchLocalFoodDb(q);
+      res.json({ products: localResults });
     } catch (e: any) {
       console.error("Food search error:", e);
       res.json({ products: [] });
