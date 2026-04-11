@@ -1913,10 +1913,8 @@ function ProgramDetailScreenInner() {
     prevUploadStatusRef.current = next;
   }, [uploads, isCoach]);
 
-  const positionRestoredRef = useRef(false);
-
   useEffect(() => {
-    if (!positionRestoredRef.current || !id) return;
+    if (!hasRestoredPositionRef.current || !id) return;
     AsyncStorage.setItem(programPositionKey(id), JSON.stringify({ week: activeWeek, day: activeDay })).catch(() => {});
   }, [activeWeek, activeDay]);
 
@@ -1971,10 +1969,9 @@ function ProgramDetailScreenInner() {
               }
             } catch {}
           }
-          hasRestoredPositionRef.current = true;
           lastSavedProgramRef.current = p;
           setProgram(p);
-          setTimeout(() => { positionRestoredRef.current = true; }, 100);
+          hasRestoredPositionRef.current = true;
         }
         const shared = !!p?.clientId;
         setIsShared(shared);
