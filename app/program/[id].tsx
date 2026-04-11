@@ -1913,8 +1913,10 @@ function ProgramDetailScreenInner() {
     prevUploadStatusRef.current = next;
   }, [uploads, isCoach]);
 
+  const positionRestoredRef = useRef(false);
+
   useEffect(() => {
-    if (!hasRestoredPositionRef.current || !id) return;
+    if (!positionRestoredRef.current || !id) return;
     AsyncStorage.setItem(programPositionKey(id), JSON.stringify({ week: activeWeek, day: activeDay })).catch(() => {});
   }, [activeWeek, activeDay]);
 
@@ -1972,6 +1974,7 @@ function ProgramDetailScreenInner() {
           hasRestoredPositionRef.current = true;
           lastSavedProgramRef.current = p;
           setProgram(p);
+          setTimeout(() => { positionRestoredRef.current = true; }, 100);
         }
         const shared = !!p?.clientId;
         setIsShared(shared);
