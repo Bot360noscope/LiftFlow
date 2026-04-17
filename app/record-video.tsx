@@ -156,9 +156,7 @@ export default function RecordVideoScreen() {
     }, 1000);
 
     try {
-      const recordOptions: any = {
-        maxDuration: 120,
-      };
+      const recordOptions: any = {};
       if (Platform.OS === 'ios') {
         recordOptions.mute = true;
       }

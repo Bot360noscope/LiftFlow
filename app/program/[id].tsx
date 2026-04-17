@@ -1,5 +1,5 @@
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Linking, ActivityIndicator, Modal, Alert, PanResponder, KeyboardAvoidingView } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Linking, ActivityIndicator, Modal, Alert, PanResponder } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { confirmAction, showAlert } from "@/lib/confirm";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -2817,10 +2817,10 @@ function ProgramDetailScreenInner() {
         </View>
       )}
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         contentContainerStyle={{ paddingBottom: insets.bottom + ((!isCoach && isShared) ? 90 : (hasChanges || saveError) ? 80 : 20) + (uploads.length > 0 ? 72 : 0), paddingHorizontal: 16, paddingTop: 8 }}
       >
         {isNutrition ? (
@@ -2851,14 +2851,19 @@ function ProgramDetailScreenInner() {
                 </Text>
               </View>
             ) : (
-              exercises.map((ex, idx) => (
+              exercises.map((ex, idx) => {
+                const prevExercises = (prevWeekDay as WorkoutDay)?.exercises || [];
+                const prevWeekExercise = ex.name
+                  ? (prevExercises.find(p => p.name && p.name.toLowerCase() === ex.name!.toLowerCase()) || prevExercises[idx] || null)
+                  : (prevExercises[idx] || null);
+                return (
                 <Animated.View key={ex.id} entering={FadeInDown.delay(idx * 40).duration(250)}>
                   {(!isCoach && isShared) ? (
                     <ClientExerciseCard
                       exercise={ex}
                       index={idx}
                       onUpdate={(updates) => updateExercise(ex.id, updates)}
-                      prevWeekExercise={(prevWeekDay as WorkoutDay)?.exercises[idx] || null}
+                      prevWeekExercise={prevWeekExercise}
                       programId={program.id}
                       coachId={program.coachId}
                       profileId={profileId}
@@ -2872,7 +2877,7 @@ function ProgramDetailScreenInner() {
                       isShared={isShared}
                       onUpdate={(updates) => updateExercise(ex.id, updates)}
                       onDelete={() => deleteExercise(ex.id)}
-                      prevWeekExercise={(prevWeekDay as WorkoutDay)?.exercises[idx] || null}
+                      prevWeekExercise={prevWeekExercise}
                       programId={program.id}
                       coachId={program.coachId}
                       profileId={profileId}
@@ -2885,7 +2890,8 @@ function ProgramDetailScreenInner() {
                     />
                   )}
                 </Animated.View>
-              ))
+                );
+              })
             )}
 
             {(isCoach || !isShared) && (
@@ -2897,7 +2903,6 @@ function ProgramDetailScreenInner() {
           </>
         )}
       </ScrollView>
-      </KeyboardAvoidingView>
 
       {(!isCoach && isShared) && (
         <View style={[styles.finishWorkoutBar, { paddingBottom: insets.bottom + 10, backgroundColor: 'rgba(15,15,15,0.97)', borderTopColor: colors.border }]}>
