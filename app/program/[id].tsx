@@ -928,6 +928,58 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
         onSelect={(item) => { if (searchMealId) addFoodToMeal(searchMealId, item); }}
         colors={colors}
       />
+
+      <Modal visible={!!unitSetup} transparent animationType="fade" onRequestClose={() => setUnitSetup(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <Ionicons name="resize" size={36} color={colors.primary} />
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Define a Unit</Text>
+            <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
+              {unitSetup ? `${unitSetup.grams}g equals 1 of what?` : ''}
+            </Text>
+            <Text style={[styles.modalPrompt, { color: colors.text }]}>Unit name (e.g. cup, piece, slice):</Text>
+            <TextInput
+              style={[styles.modalInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+              value={unitSetupName}
+              onChangeText={setUnitSetupName}
+              placeholder="cup"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              onSubmitEditing={() => {
+                if (!unitSetup || !unitSetupName.trim()) return;
+                const name = unitSetupName.trim();
+                updateFoodItem(unitSetup.mealId, unitSetup.itemId, { unit: name, unitGrams: unitSetup.grams });
+                setEditValue('1');
+                setEditingInUnits(true);
+                setUnitSetup(null);
+                setUnitSetupName('');
+              }}
+            />
+            <View style={styles.modalButtons}>
+              <Pressable style={[styles.modalCancelBtn, { backgroundColor: colors.surfaceLight }]} onPress={() => { setUnitSetup(null); setUnitSetupName(''); }}>
+                <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalDeleteBtn, { backgroundColor: colors.primary }, !unitSetupName.trim() && styles.modalDeleteBtnDisabled]}
+                disabled={!unitSetupName.trim()}
+                onPress={() => {
+                  if (!unitSetup || !unitSetupName.trim()) return;
+                  const name = unitSetupName.trim();
+                  updateFoodItem(unitSetup.mealId, unitSetup.itemId, { unit: name, unitGrams: unitSetup.grams });
+                  setEditValue('1');
+                  setEditingInUnits(true);
+                  setUnitSetup(null);
+                  setUnitSetupName('');
+                }}
+              >
+                <Text style={styles.modalDeleteText}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -2941,58 +2993,6 @@ function ProgramDetailScreenInner() {
       )}
       </>
       )}
-
-      <Modal visible={!!unitSetup} transparent animationType="fade" onRequestClose={() => setUnitSetup(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-            <Ionicons name="resize" size={36} color={colors.primary} />
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Define a Unit</Text>
-            <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
-              {unitSetup ? `${unitSetup.grams}g equals 1 of what?` : ''}
-            </Text>
-            <Text style={[styles.modalPrompt, { color: colors.text }]}>Unit name (e.g. cup, piece, slice):</Text>
-            <TextInput
-              style={[styles.modalInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
-              value={unitSetupName}
-              onChangeText={setUnitSetupName}
-              placeholder="cup"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoFocus
-              onSubmitEditing={() => {
-                if (!unitSetup || !unitSetupName.trim()) return;
-                const name = unitSetupName.trim();
-                updateFoodItem(unitSetup.mealId, unitSetup.itemId, { unit: name, unitGrams: unitSetup.grams });
-                setEditValue('1');
-                setEditingInUnits(true);
-                setUnitSetup(null);
-                setUnitSetupName('');
-              }}
-            />
-            <View style={styles.modalButtons}>
-              <Pressable style={[styles.modalCancelBtn, { backgroundColor: colors.surfaceLight }]} onPress={() => { setUnitSetup(null); setUnitSetupName(''); }}>
-                <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalDeleteBtn, { backgroundColor: colors.primary }, !unitSetupName.trim() && styles.modalDeleteBtnDisabled]}
-                disabled={!unitSetupName.trim()}
-                onPress={() => {
-                  if (!unitSetup || !unitSetupName.trim()) return;
-                  const name = unitSetupName.trim();
-                  updateFoodItem(unitSetup.mealId, unitSetup.itemId, { unit: name, unitGrams: unitSetup.grams });
-                  setEditValue('1');
-                  setEditingInUnits(true);
-                  setUnitSetup(null);
-                  setUnitSetupName('');
-                }}
-              >
-                <Text style={styles.modalDeleteText}>Save</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       <Modal visible={showDeleteModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
