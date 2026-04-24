@@ -813,7 +813,11 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                       }
                     }}>
                       <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
-                        {item.portion ? (item.unit ? `${item.unit}` : `${item.portion}g`) : 'Tap for portion'}
+                        {item.portion
+                          ? (item.unit && item.unitGrams
+                              ? `${Math.round(((parseInt(item.portion) || 0) / item.unitGrams) * 10) / 10} ${item.unit} (${item.portion}g)`
+                              : `${item.portion}g`)
+                          : 'Tap for portion'}
                       </Text>
                     </Pressable>
                   )}
