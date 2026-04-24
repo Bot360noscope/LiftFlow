@@ -960,6 +960,43 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
             <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
               Tell us what 1 unit looks like, e.g. "1 cup = 240g".
             </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              style={{ alignSelf: 'stretch', marginTop: 12, marginBottom: 4, marginHorizontal: -4 }}
+              contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingHorizontal: 4 }}
+            >
+              {[
+                { name: 'cup', grams: '240' },
+                { name: 'tbsp', grams: '15' },
+                { name: 'tsp', grams: '5' },
+                { name: 'piece', grams: '50' },
+                { name: 'slice', grams: '30' },
+                { name: 'oz', grams: '28' },
+              ].map(chip => {
+                const active = unitSetupName.trim().toLowerCase() === chip.name && unitSetupGrams === chip.grams;
+                return (
+                  <Pressable
+                    key={chip.name}
+                    testID={`unit-chip-${chip.name}`}
+                    onPress={() => { setUnitSetupName(chip.name); setUnitSetupGrams(chip.grams); }}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 7,
+                      borderRadius: 16,
+                      borderWidth: 1,
+                      borderColor: active ? colors.primary : `${colors.primary}33`,
+                      backgroundColor: active ? colors.primary : `${colors.primary}14`,
+                    }}
+                  >
+                    <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 12, color: active ? '#fff' : colors.primary }}>
+                      {chip.name} · {chip.grams}g
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
             <Text style={[styles.modalPrompt, { color: colors.text }]}>Unit name</Text>
             <TextInput
               style={[styles.modalInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
