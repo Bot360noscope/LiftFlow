@@ -293,8 +293,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const { Resend } = await import("resend");
         const resend = new Resend(process.env.RESEND_API_KEY);
+        const fromEmail = process.env.RESEND_FROM_EMAIL || "LiftFlow <onboarding@resend.dev>";
         await resend.emails.send({
-          from: "LiftFlow <onboarding@resend.dev>",
+          from: fromEmail,
           to: email.toLowerCase().trim(),
           subject: "Your LiftFlow Password Reset Code",
           html: `
