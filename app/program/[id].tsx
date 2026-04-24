@@ -691,6 +691,20 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
           carbs: Math.round((item.c100 || 0) * ratio),
           fat: Math.round((item.f100 || 0) * ratio),
         });
+      } else if (item) {
+        const oldPortion = parseInt(item.portion) || 0;
+        if (oldPortion > 0 && grams !== oldPortion) {
+          const ratio = grams / oldPortion;
+          updateFoodItem(mealId, itemId, {
+            portion: String(grams),
+            calories: Math.round((item.calories || 0) * ratio),
+            protein: Math.round((item.protein || 0) * ratio),
+            carbs: Math.round((item.carbs || 0) * ratio),
+            fat: Math.round((item.fat || 0) * ratio),
+          });
+        } else {
+          updateFoodItem(mealId, itemId, { portion: String(grams) });
+        }
       } else {
         updateFoodItem(mealId, itemId, { portion: String(grams) });
       }
@@ -1154,7 +1168,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                     updates.protein = Math.round((item.p100 || 0) * ratio);
                     updates.carbs = Math.round((item.c100 || 0) * ratio);
                     updates.fat = Math.round((item.f100 || 0) * ratio);
-                  } else if (unitSetup.mode === 'edit' && item) {
+                  } else if (item) {
                     const oldPortion = parseInt(item.portion) || 0;
                     if (oldPortion > 0 && newPortion !== oldPortion) {
                       const ratio = newPortion / oldPortion;
