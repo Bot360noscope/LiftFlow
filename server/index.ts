@@ -37,8 +37,15 @@ function setupCors(app: express.Application) {
 
     const isRenderDomain = origin?.includes("onrender.com");
     const isReplitDomain = origin?.includes("replit");
+    const isLiftFlow = origin?.includes("lift-flow.com");
 
-    if (origin && (origins.has(origin) || isLocalhost || isRenderDomain || isReplitDomain)) {
+    if (process.env.ALLOWED_ORIGINS) {
+      process.env.ALLOWED_ORIGINS.split(",").forEach((d: string) => {
+        origins.add(d.trim());
+      });
+    }
+
+    if (origin && (origins.has(origin) || isLocalhost || isRenderDomain || isReplitDomain || isLiftFlow)) {
       res.header("Access-Control-Allow-Origin", origin);
       res.header(
         "Access-Control-Allow-Methods",
