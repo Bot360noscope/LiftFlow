@@ -596,9 +596,17 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
   const [editingInUnits, setEditingInUnits] = useState(false);
   const editingInUnitsRef = useRef(false);
   const editValueRef = useRef('');
-  const [unitSetup, setUnitSetup] = useState<{ mealId: string; itemId: string; grams: number } | null>(null);
+  const [unitSetup, setUnitSetup] = useState<{ mealId: string; itemId: string; grams: number; mode: 'create' | 'edit' } | null>(null);
   const [unitSetupName, setUnitSetupName] = useState('');
   const [unitSetupGrams, setUnitSetupGrams] = useState('');
+  const portionLongPressFiredRef = useRef(false);
+  const closeUnitSetup = () => {
+    setEditingItem(null);
+    setEditingInUnits(false);
+    setUnitSetup(null);
+    setUnitSetupName('');
+    setUnitSetupGrams('');
+  };
 
   useEffect(() => { editingInUnitsRef.current = editingInUnits; }, [editingInUnits]);
   useEffect(() => { editValueRef.current = editValue; }, [editValue]);
@@ -787,7 +795,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                             }
                           } else {
                             const grams = Math.max(1, parseInt(editValue) || 100);
-                            setUnitSetup({ mealId: meal.id, itemId: item.id, grams });
+                            setUnitSetup({ mealId: meal.id, itemId: item.id, grams, mode: 'create' });
                             setUnitSetupName('');
                             setUnitSetupGrams(String(grams));
                           }
@@ -820,25 +828,58 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                       </Pressable>
                     </View>
                   ) : (
-                    <Pressable onPress={() => {
-                      if (!(canEdit || meal.name === 'Extras')) return;
-                      if (item.unit && item.unitGrams) {
-                        const units = Math.round((parseInt(item.portion) || 0) / item.unitGrams * 10) / 10;
-                        setEditingInUnits(true);
-                        startEdit(meal.id, item.id, 'portion', String(units));
-                      } else {
-                        setEditingInUnits(false);
-                        startEdit(meal.id, item.id, 'portion', item.portion);
-                      }
-                    }}>
-                      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
-                        {item.portion
-                          ? (item.unit && item.unitGrams
-                              ? `${Math.round(((parseInt(item.portion) || 0) / item.unitGrams) * 10) / 10} ${item.unit} (${item.portion}g)`
-                              : `${item.portion}g`)
-                          : 'Tap for portion'}
-                      </Text>
-                    </Pressable>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 }}>
+                      <Pressable
+                        onPress={() => {
+                          if (portionLongPressFiredRef.current) {
+                            portionLongPressFiredRef.current = false;
+                            return;
+                          }
+                          if (!(canEdit || meal.name === 'Extras')) return;
+                          if (item.unit && item.unitGrams) {
+                            const units = Math.round((parseInt(item.portion) || 0) / item.unitGrams * 10) / 10;
+                            setEditingInUnits(true);
+                            startEdit(meal.id, item.id, 'portion', String(units));
+                          } else {
+                            setEditingInUnits(false);
+                            startEdit(meal.id, item.id, 'portion', item.portion);
+                          }
+                        }}
+                        onLongPress={() => {
+                          if (!(canEdit || meal.name === 'Extras')) return;
+                          if (item.unit && item.unitGrams) {
+                            portionLongPressFiredRef.current = true;
+                            setEditingItem(null);
+                            setEditingInUnits(false);
+                            setUnitSetup({ mealId: meal.id, itemId: item.id, grams: parseInt(item.portion) || item.unitGrams, mode: 'edit' });
+                            setUnitSetupName(item.unit);
+                            setUnitSetupGrams(String(item.unitGrams));
+                          }
+                        }}
+                      >
+                        <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>
+                          {item.portion
+                            ? (item.unit && item.unitGrams
+                                ? `${Math.round(((parseInt(item.portion) || 0) / item.unitGrams) * 10) / 10} ${item.unit} (${item.portion}g)`
+                                : `${item.portion}g`)
+                            : 'Tap for portion'}
+                        </Text>
+                      </Pressable>
+                      {(canEdit || meal.name === 'Extras') && item.unit && item.unitGrams ? (
+                        <Pressable
+                          testID={`edit-unit-${item.id}`}
+                          onPress={() => {
+                            setUnitSetup({ mealId: meal.id, itemId: item.id, grams: parseInt(item.portion) || (item.unitGrams || 1), mode: 'edit' });
+                            setUnitSetupName(item.unit || '');
+                            setUnitSetupGrams(String(item.unitGrams || ''));
+                          }}
+                          hitSlop={6}
+                          style={{ padding: 2 }}
+                        >
+                          <Ionicons name="pencil" size={11} color={colors.textMuted} />
+                        </Pressable>
+                      ) : null}
+                    </View>
                   )}
                 </View>
                 <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
@@ -952,13 +993,15 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
         colors={colors}
       />
 
-      <Modal visible={!!unitSetup} transparent animationType="fade" onRequestClose={() => { setUnitSetup(null); setUnitSetupName(''); setUnitSetupGrams(''); }}>
+      <Modal visible={!!unitSetup} transparent animationType="fade" onRequestClose={closeUnitSetup}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
             <Ionicons name="resize" size={36} color={colors.primary} />
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Define a Unit</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{unitSetup?.mode === 'edit' ? 'Edit Unit' : 'Define a Unit'}</Text>
             <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
-              Tell us what 1 unit looks like, e.g. "1 cup = 240g".
+              {unitSetup?.mode === 'edit'
+                ? 'Update the unit name or grams per unit. Macros will recompute.'
+                : 'Tell us what 1 unit looks like, e.g. "1 cup = 240g".'}
             </Text>
             <ScrollView
               horizontal
@@ -1017,8 +1060,21 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
               placeholderTextColor={colors.textMuted}
               keyboardType="decimal-pad"
             />
+            {unitSetup?.mode === 'edit' ? (
+              <Pressable
+                testID="unit-modal-remove"
+                onPress={() => {
+                  if (!unitSetup) return;
+                  updateFoodItem(unitSetup.mealId, unitSetup.itemId, { unit: undefined, unitGrams: undefined });
+                  closeUnitSetup();
+                }}
+                style={{ alignSelf: 'stretch', marginTop: 12, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: `${colors.primary}55`, alignItems: 'center' }}
+              >
+                <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.primary }}>Remove unit</Text>
+              </Pressable>
+            ) : null}
             <View style={styles.modalButtons}>
-              <Pressable style={[styles.modalCancelBtn, { backgroundColor: colors.surfaceLight }]} onPress={() => { setUnitSetup(null); setUnitSetupName(''); setUnitSetupGrams(''); }}>
+              <Pressable style={[styles.modalCancelBtn, { backgroundColor: colors.surfaceLight }]} onPress={closeUnitSetup}>
                 <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
               </Pressable>
               <Pressable
@@ -1032,20 +1088,31 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                   const name = unitSetupName.trim();
                   const meal = day.meals.find(m => m.id === unitSetup.mealId);
                   const item = meal?.items.find(i => i.id === unitSetup.itemId);
-                  const updates: Partial<NutritionItem> = { unit: name, unitGrams: gramsPerUnit, portion: String(gramsPerUnit) };
+                  let newPortion = gramsPerUnit;
+                  if (unitSetup.mode === 'edit' && item) {
+                    const oldUnitGrams = item.unitGrams || gramsPerUnit;
+                    const currentUnits = oldUnitGrams > 0 ? (parseInt(item.portion) || 0) / oldUnitGrams : 1;
+                    newPortion = Math.max(1, Math.round(currentUnits * gramsPerUnit));
+                  }
+                  const updates: Partial<NutritionItem> = { unit: name, unitGrams: gramsPerUnit, portion: String(newPortion) };
                   if (item?.cal100 != null) {
-                    const ratio = gramsPerUnit / 100;
+                    const ratio = newPortion / 100;
                     updates.calories = Math.round((item.cal100 || 0) * ratio);
                     updates.protein = Math.round((item.p100 || 0) * ratio);
                     updates.carbs = Math.round((item.c100 || 0) * ratio);
                     updates.fat = Math.round((item.f100 || 0) * ratio);
+                  } else if (unitSetup.mode === 'edit' && item) {
+                    const oldPortion = parseInt(item.portion) || 0;
+                    if (oldPortion > 0 && newPortion !== oldPortion) {
+                      const ratio = newPortion / oldPortion;
+                      updates.calories = Math.round((item.calories || 0) * ratio);
+                      updates.protein = Math.round((item.protein || 0) * ratio);
+                      updates.carbs = Math.round((item.carbs || 0) * ratio);
+                      updates.fat = Math.round((item.fat || 0) * ratio);
+                    }
                   }
                   updateFoodItem(unitSetup.mealId, unitSetup.itemId, updates);
-                  setEditingItem(null);
-                  setEditingInUnits(false);
-                  setUnitSetup(null);
-                  setUnitSetupName('');
-                  setUnitSetupGrams('');
+                  closeUnitSetup();
                 }}
               >
                 <Text style={styles.modalDeleteText}>Save</Text>
