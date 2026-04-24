@@ -122,7 +122,7 @@ function AppContent() {
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <OfflineBanner />
       <RootLayoutNav />
       <UploadBanner />
@@ -143,7 +143,7 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.dark.background }}>
           <KeyboardProvider>
             <ThemeProvider>
               <ForceUpdate>
