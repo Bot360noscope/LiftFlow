@@ -143,7 +143,7 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.dark.background }}>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0F0F0F' }}>
           <KeyboardProvider>
             <ThemeProvider>
               <ForceUpdate>
