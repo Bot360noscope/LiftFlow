@@ -25,6 +25,29 @@ function programPositionKey(programId: string) {
   return `liftflow_prog_pos_${programId}`;
 }
 
+const RECENT_CUSTOM_UNITS_KEY = 'liftflow_recent_custom_units';
+const MAX_RECENT_CUSTOM_UNITS = 6;
+const BUILTIN_UNIT_NAMES = new Set(['cup', 'tbsp', 'tsp', 'piece', 'slice', 'oz']);
+
+type RecentCustomUnit = { name: string; grams: number };
+
+function sanitizeRecentUnits(raw: unknown): RecentCustomUnit[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: RecentCustomUnit[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const name = typeof (entry as any).name === 'string' ? (entry as any).name.trim().toLowerCase() : '';
+    const grams = Number((entry as any).grams);
+    if (!name || !(grams > 0)) continue;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    out.push({ name, grams });
+    if (out.length >= MAX_RECENT_CUSTOM_UNITS) break;
+  }
+  return out;
+}
+
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
@@ -600,6 +623,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
   const [unitSetup, setUnitSetup] = useState<{ mealId: string; itemId: string; grams: number; mode: 'create' | 'edit' } | null>(null);
   const [unitSetupName, setUnitSetupName] = useState('');
   const [unitSetupGrams, setUnitSetupGrams] = useState('');
+  const [recentCustomUnits, setRecentCustomUnits] = useState<RecentCustomUnit[]>([]);
   const portionLongPressFiredRef = useRef(false);
   const closeUnitSetup = () => {
     setEditingItem(null);
@@ -608,6 +632,33 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
     setUnitSetupName('');
     setUnitSetupGrams('');
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    AsyncStorage.getItem(RECENT_CUSTOM_UNITS_KEY).then(stored => {
+      if (cancelled || !stored) return;
+      try {
+        setRecentCustomUnits(sanitizeRecentUnits(JSON.parse(stored)));
+      } catch {}
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const rememberCustomUnit = useCallback((rawName: string, grams: number) => {
+    const name = rawName.trim().toLowerCase();
+    if (!name || !(grams > 0)) return;
+    if (BUILTIN_UNIT_NAMES.has(name)) return;
+    setRecentCustomUnits(prev => {
+      const next: RecentCustomUnit[] = [{ name, grams }];
+      for (const entry of prev) {
+        if (entry.name === name) continue;
+        next.push(entry);
+        if (next.length >= MAX_RECENT_CUSTOM_UNITS) break;
+      }
+      AsyncStorage.setItem(RECENT_CUSTOM_UNITS_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, []);
 
   useEffect(() => { editingInUnitsRef.current = editingInUnits; }, [editingInUnits]);
   useEffect(() => { editValueRef.current = editValue; }, [editValue]);
@@ -1014,7 +1065,11 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
               {(() => {
                 const setupMeal = unitSetup ? day.meals.find(m => m.id === unitSetup.mealId) : null;
                 const setupItem = setupMeal && unitSetup ? setupMeal.items.find(i => i.id === unitSetup.itemId) : null;
-                return getUnitChipsForFood(setupItem?.name);
+                const builtinChips = getUnitChipsForFood(setupItem?.name);
+                const customChips = recentCustomUnits
+                  .filter(u => !BUILTIN_UNIT_NAMES.has(u.name))
+                  .map(u => ({ name: u.name, grams: String(u.grams) }));
+                return [...builtinChips, ...customChips];
               })().map(chip => {
                 const active = unitSetupName.trim().toLowerCase() === chip.name && unitSetupGrams === chip.grams;
                 return (
@@ -1110,6 +1165,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                     }
                   }
                   updateFoodItem(unitSetup.mealId, unitSetup.itemId, updates);
+                  rememberCustomUnit(name, gramsPerUnit);
                   closeUnitSetup();
                 }}
               >
