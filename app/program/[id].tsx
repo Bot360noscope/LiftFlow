@@ -789,6 +789,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                             const grams = Math.max(1, parseInt(editValue) || 100);
                             setUnitSetup({ mealId: meal.id, itemId: item.id, grams });
                             setUnitSetupName('');
+                            setUnitSetupGrams(String(grams));
                           }
                         }}
                         style={{ backgroundColor: 'rgba(232,81,47,0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}
@@ -797,6 +798,23 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                           {editingInUnits ? 'units' : 'g'}
                         </Text>
                       </Pressable>
+                      {item.unit && item.unitGrams ? (
+                        <Pressable
+                          onPress={() => {
+                            const ug = item.unitGrams || 1;
+                            const grams = editingInUnits
+                              ? Math.round((parseFloat(editValue) || 0) * ug)
+                              : Math.max(0, parseInt(editValue) || 0);
+                            updateFoodItem(meal.id, item.id, { unit: undefined, unitGrams: undefined });
+                            setEditingInUnits(false);
+                            setEditValue(String(grams));
+                          }}
+                          hitSlop={4}
+                          style={{ paddingHorizontal: 4, paddingVertical: 2 }}
+                        >
+                          <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+                        </Pressable>
+                      ) : null}
                       <Pressable onPress={commitEdit} style={{ backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, marginLeft: 2 }}>
                         <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: '#fff' }}>OK</Text>
                       </Pressable>
