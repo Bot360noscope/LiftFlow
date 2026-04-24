@@ -978,18 +978,19 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
               onChangeText={setUnitSetupGrams}
               placeholder="e.g. 240"
               placeholderTextColor={colors.textMuted}
-              keyboardType="number-pad"
+              keyboardType="decimal-pad"
             />
             <View style={styles.modalButtons}>
               <Pressable style={[styles.modalCancelBtn, { backgroundColor: colors.surfaceLight }]} onPress={() => { setUnitSetup(null); setUnitSetupName(''); setUnitSetupGrams(''); }}>
                 <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={[styles.modalDeleteBtn, { backgroundColor: colors.primary }, (!unitSetupName.trim() || !(parseInt(unitSetupGrams) > 0)) && styles.modalDeleteBtnDisabled]}
-                disabled={!unitSetupName.trim() || !(parseInt(unitSetupGrams) > 0)}
+                style={[styles.modalDeleteBtn, { backgroundColor: colors.primary }, (!unitSetupName.trim() || !(parseFloat(unitSetupGrams) > 0)) && styles.modalDeleteBtnDisabled]}
+                disabled={!unitSetupName.trim() || !(parseFloat(unitSetupGrams) > 0)}
                 onPress={() => {
                   if (!unitSetup || !unitSetupName.trim()) return;
-                  const gramsPerUnit = Math.max(1, parseInt(unitSetupGrams) || 0);
+                  const parsed = parseFloat(unitSetupGrams);
+                  const gramsPerUnit = Math.max(1, Math.round((parsed > 0 ? parsed : 0) * 10) / 10);
                   if (gramsPerUnit <= 0) return;
                   const name = unitSetupName.trim();
                   const meal = day.meals.find(m => m.id === unitSetup.mealId);
