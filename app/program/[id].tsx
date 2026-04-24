@@ -19,6 +19,7 @@ import { uploadVideo, getVideoUrl, getDirectVideoUrl, markVideoViewed } from "@/
 import { trimResult } from "@/lib/trim-result";
 import { useUploads } from "@/lib/upload-context";
 import { getApiUrl } from "@/lib/query-client";
+import { getUnitChipsForFood } from "@/lib/food-unit-weights";
 
 function programPositionKey(programId: string) {
   return `liftflow_prog_pos_${programId}`;
@@ -1010,14 +1011,11 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
               style={{ alignSelf: 'stretch', marginTop: 12, marginBottom: 4, marginHorizontal: -4 }}
               contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingHorizontal: 4 }}
             >
-              {[
-                { name: 'cup', grams: '240' },
-                { name: 'tbsp', grams: '15' },
-                { name: 'tsp', grams: '5' },
-                { name: 'piece', grams: '50' },
-                { name: 'slice', grams: '30' },
-                { name: 'oz', grams: '28' },
-              ].map(chip => {
+              {(() => {
+                const setupMeal = unitSetup ? day.meals.find(m => m.id === unitSetup.mealId) : null;
+                const setupItem = setupMeal && unitSetup ? setupMeal.items.find(i => i.id === unitSetup.itemId) : null;
+                return getUnitChipsForFood(setupItem?.name);
+              })().map(chip => {
                 const active = unitSetupName.trim().toLowerCase() === chip.name && unitSetupGrams === chip.grams;
                 return (
                   <Pressable
