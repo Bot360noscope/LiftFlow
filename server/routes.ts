@@ -1824,12 +1824,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }));
   }
 
+  function scoreRelevance(name: string, query: string): number {
+    const n = name.toLowerCase();
+    const q = query.toLowerCase().trim();
+    const words = q.split(/\s+/);
+    if (n === q) return 100;
+    if (n.startsWith(q + ',') || n.startsWith(q + ' ')) return 90;
+    const allWords = words.every(w => n.includes(w));
+    const wordCount = words.filter(w => n.includes(w)).length;
+    if (allWords) return 70 + (wordCount / words.length) * 10;
+    return (wordCount / words.length) * 50;
+  }
+
+  function cleanFoodName(description: string, brandName?: string): string {
+    let name = description || '';
+    // Convert "Chicken, broilers, breast, cooked" style to cleaner format
+    const parts = name.split(',').map(p => p.trim());
+    if (parts.length > 2) {
+      // Rejoin with first two parts as main name, rest as qualifier
+      const main = parts.slice(0, 2).join(', ');
+      const qualifier = parts.slice(2).join(', ');
+      name = qualifier ? `${main} (${qualifier})` : main;
+    }
+    if (name.length > 65) name = name.slice(0, 62) + '...';
+    if (brandName) name += ` (${brandName})`;
+    return name;
+  }
+
   async function fetchUSDAFoods(q: string): Promise<any[] | null> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
     try {
       const usdaKey = process.env.USDA_API_KEY || 'DEMO_KEY';
-      const usdaUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=40&dataType=Branded,Foundation,SR%20Legacy&api_key=${usdaKey}`;
+      // Fetch Foundation + SR Legacy first (clean, non-branded data), plus Branded
+      const usdaUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=50&dataType=Foundation,SR%20Legacy,Branded&api_key=${usdaKey}`;
       const usdaRes = await fetch(usdaUrl, { signal: controller.signal });
       clearTimeout(timeout);
       if (!usdaRes.ok) {
@@ -1849,11 +1877,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           if (!nutrients.cal || nutrients.cal <= 0) return null;
 
-          const brand = f.brandName ? ` (${f.brandName})` : '';
-          const name = f.description || f.lowercaseDescription || '';
-          if (!name) return null;
+          const rawName = f.description || f.lowercaseDescription || '';
+          if (!rawName) return null;
 
-          const displayName = name.length > 60 ? name.slice(0, 57) + '...' : name;
+          const displayName = cleanFoodName(rawName, f.brandName);
 
           let servingSize = '100g';
           let servingGrams = 100;
@@ -1871,16 +1898,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           const dataType = f.dataType || '';
-          let priority = 3;
-          if (dataType === 'Foundation' || dataType === 'SR Legacy') priority = 1;
-          else if (dataType === 'Survey (FNDDS)') priority = 2;
+          let typeBonus = 0;
+          if (dataType === 'Foundation') typeBonus = 35;
+          else if (dataType === 'SR Legacy') typeBonus = 25;
+          else if (dataType === 'Survey (FNDDS)') typeBonus = 10;
+
+          const relevance = scoreRelevance(rawName, q);
 
           return {
-            product_name: `${displayName}${brand}`,
+            product_name: displayName,
             serving_size: servingSize,
             serving_grams: servingGrams,
             source: 'usda',
-            _priority: priority,
+            _score: relevance + typeBonus,
             nutriments: {
               'energy-kcal_100g': Math.round(nutrients.cal || 0),
               proteins_100g: Math.round((nutrients.protein || 0) * 10) / 10,
@@ -1890,9 +1920,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         })
         .filter(Boolean)
-        .sort((a: any, b: any) => a._priority - b._priority)
-        .map((item: any) => { delete item._priority; return item; })
-        .slice(0, 25);
+        .sort((a: any, b: any) => b._score - a._score)
+        .map((item: any) => { delete item._score; return item; })
+        .slice(0, 20);
       console.log(`[FoodSearch] USDA: ${raw.length} raw, ${filtered.length} filtered for "${q}"`);
       return filtered.length > 0 ? filtered : null;
     } catch (err: any) {
