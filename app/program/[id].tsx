@@ -389,11 +389,11 @@ function FoodSearchModal({ visible, onClose, onSelect, colors }: { visible: bool
     const c100 = n.carbohydrates_100g || n.carbohydrates || 0;
     const f100 = n.fat_100g || n.fat || 0;
 
-    const servingSize = product.serving_size || '100g';
     const servingGrams = product.serving_grams || 100;
-    const isUnit = servingSize && !/^\d+\s*g$/i.test(servingSize) && servingGrams !== 100;
+    const unitLabel: string | undefined = product.unit_label || undefined;
+    const hasUnit = !!unitLabel && servingGrams > 0;
 
-    const useGrams = isUnit ? servingGrams : 100;
+    const useGrams = hasUnit ? servingGrams : 100;
     const ratio = useGrams / 100;
 
     onSelect({
@@ -408,8 +408,8 @@ function FoodSearchModal({ visible, onClose, onSelect, colors }: { visible: bool
       p100: Math.round(p100),
       c100: Math.round(c100),
       f100: Math.round(f100),
-      unit: isUnit ? servingSize : undefined,
-      unitGrams: isUnit ? Math.round(servingGrams) : undefined,
+      unit: hasUnit ? unitLabel : undefined,
+      unitGrams: hasUnit ? Math.round(servingGrams) : undefined,
     });
     onClose();
     setQuery('');
@@ -598,6 +598,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
   const editValueRef = useRef('');
   const [unitSetup, setUnitSetup] = useState<{ mealId: string; itemId: string; grams: number } | null>(null);
   const [unitSetupName, setUnitSetupName] = useState('');
+  const [unitSetupGrams, setUnitSetupGrams] = useState('');
 
   useEffect(() => { editingInUnitsRef.current = editingInUnits; }, [editingInUnits]);
   useEffect(() => { editValueRef.current = editValue; }, [editValue]);
@@ -933,49 +934,62 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
         colors={colors}
       />
 
-      <Modal visible={!!unitSetup} transparent animationType="fade" onRequestClose={() => setUnitSetup(null)}>
+      <Modal visible={!!unitSetup} transparent animationType="fade" onRequestClose={() => { setUnitSetup(null); setUnitSetupName(''); setUnitSetupGrams(''); }}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
             <Ionicons name="resize" size={36} color={colors.primary} />
             <Text style={[styles.modalTitle, { color: colors.text }]}>Define a Unit</Text>
             <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
-              {unitSetup ? `${unitSetup.grams}g equals 1 of what?` : ''}
+              Tell us what 1 unit looks like, e.g. "1 cup = 240g".
             </Text>
-            <Text style={[styles.modalPrompt, { color: colors.text }]}>Unit name (e.g. cup, piece, slice):</Text>
+            <Text style={[styles.modalPrompt, { color: colors.text }]}>Unit name</Text>
             <TextInput
               style={[styles.modalInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
               value={unitSetupName}
               onChangeText={setUnitSetupName}
-              placeholder="cup"
+              placeholder="cup, piece, slice…"
               placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
               autoFocus
-              onSubmitEditing={() => {
-                if (!unitSetup || !unitSetupName.trim()) return;
-                const name = unitSetupName.trim();
-                updateFoodItem(unitSetup.mealId, unitSetup.itemId, { unit: name, unitGrams: unitSetup.grams });
-                setEditValue('1');
-                setEditingInUnits(true);
-                setUnitSetup(null);
-                setUnitSetupName('');
-              }}
+            />
+            <Text style={[styles.modalPrompt, { color: colors.text }]}>Grams per 1 unit</Text>
+            <TextInput
+              style={[styles.modalInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+              value={unitSetupGrams}
+              onChangeText={setUnitSetupGrams}
+              placeholder="e.g. 240"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="number-pad"
             />
             <View style={styles.modalButtons}>
-              <Pressable style={[styles.modalCancelBtn, { backgroundColor: colors.surfaceLight }]} onPress={() => { setUnitSetup(null); setUnitSetupName(''); }}>
+              <Pressable style={[styles.modalCancelBtn, { backgroundColor: colors.surfaceLight }]} onPress={() => { setUnitSetup(null); setUnitSetupName(''); setUnitSetupGrams(''); }}>
                 <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={[styles.modalDeleteBtn, { backgroundColor: colors.primary }, !unitSetupName.trim() && styles.modalDeleteBtnDisabled]}
-                disabled={!unitSetupName.trim()}
+                style={[styles.modalDeleteBtn, { backgroundColor: colors.primary }, (!unitSetupName.trim() || !(parseInt(unitSetupGrams) > 0)) && styles.modalDeleteBtnDisabled]}
+                disabled={!unitSetupName.trim() || !(parseInt(unitSetupGrams) > 0)}
                 onPress={() => {
                   if (!unitSetup || !unitSetupName.trim()) return;
+                  const gramsPerUnit = Math.max(1, parseInt(unitSetupGrams) || 0);
+                  if (gramsPerUnit <= 0) return;
                   const name = unitSetupName.trim();
-                  updateFoodItem(unitSetup.mealId, unitSetup.itemId, { unit: name, unitGrams: unitSetup.grams });
-                  setEditValue('1');
-                  setEditingInUnits(true);
+                  const meal = day.meals.find(m => m.id === unitSetup.mealId);
+                  const item = meal?.items.find(i => i.id === unitSetup.itemId);
+                  const updates: Partial<NutritionItem> = { unit: name, unitGrams: gramsPerUnit, portion: String(gramsPerUnit) };
+                  if (item?.cal100 != null) {
+                    const ratio = gramsPerUnit / 100;
+                    updates.calories = Math.round((item.cal100 || 0) * ratio);
+                    updates.protein = Math.round((item.p100 || 0) * ratio);
+                    updates.carbs = Math.round((item.c100 || 0) * ratio);
+                    updates.fat = Math.round((item.f100 || 0) * ratio);
+                  }
+                  updateFoodItem(unitSetup.mealId, unitSetup.itemId, updates);
+                  setEditingItem(null);
+                  setEditingInUnits(false);
                   setUnitSetup(null);
                   setUnitSetupName('');
+                  setUnitSetupGrams('');
                 }}
               >
                 <Text style={styles.modalDeleteText}>Save</Text>

@@ -1884,6 +1884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           let servingSize = '100g';
           let servingGrams = 100;
+          let unitLabel: string | null = null;
           if (f.servingSize && f.servingSize > 0) {
             servingGrams = Math.round(f.servingSize);
             const rawUnit = (f.servingSizeUnit || 'g').toUpperCase();
@@ -1892,6 +1893,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const household = f.householdServingFullText;
             if (household) {
               servingSize = `${household} (${servingGrams}${displayUnit})`;
+              const cleaned = String(household)
+                .trim()
+                .replace(/^[\d./\s]+/, '')
+                .replace(/\s*\([^)]*\)\s*/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+              if (cleaned.length > 0 && cleaned.length <= 30) {
+                unitLabel = cleaned.toLowerCase();
+              }
             } else {
               servingSize = `${servingGrams}${displayUnit}`;
             }
@@ -1909,6 +1919,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             product_name: displayName,
             serving_size: servingSize,
             serving_grams: servingGrams,
+            unit_label: unitLabel,
             source: 'usda',
             _score: relevance + typeBonus,
             nutriments: {
