@@ -596,6 +596,8 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
   const [editingInUnits, setEditingInUnits] = useState(false);
   const editingInUnitsRef = useRef(false);
   const editValueRef = useRef('');
+  const [unitSetup, setUnitSetup] = useState<{ mealId: string; itemId: string; grams: number } | null>(null);
+  const [unitSetupName, setUnitSetupName] = useState('');
 
   useEffect(() => { editingInUnitsRef.current = editingInUnits; }, [editingInUnits]);
   useEffect(() => { editValueRef.current = editValue; }, [editValue]);
@@ -770,9 +772,9 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                         keyboardType={editingInUnits ? 'decimal-pad' : 'number-pad'}
                         autoFocus
                       />
-                      {item.unit && item.unitGrams ? (
-                        <Pressable
-                          onPress={() => {
+                      <Pressable
+                        onPress={() => {
+                          if (item.unit && item.unitGrams) {
                             if (editingInUnits) {
                               const units = parseFloat(editValue) || 1;
                               setEditValue(String(Math.round(units * (item.unitGrams || 100))));
@@ -782,16 +784,18 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                               setEditValue(String(Math.round((grams / (item.unitGrams || 100)) * 10) / 10));
                               setEditingInUnits(true);
                             }
-                          }}
-                          style={{ backgroundColor: 'rgba(232,81,47,0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}
-                        >
-                          <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: colors.primary }}>
-                            {editingInUnits ? 'units' : 'g'}
-                          </Text>
-                        </Pressable>
-                      ) : (
-                        <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>g</Text>
-                      )}
+                          } else {
+                            const grams = Math.max(1, parseInt(editValue) || 100);
+                            setUnitSetup({ mealId: meal.id, itemId: item.id, grams });
+                            setUnitSetupName('');
+                          }
+                        }}
+                        style={{ backgroundColor: 'rgba(232,81,47,0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}
+                      >
+                        <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: colors.primary }}>
+                          {editingInUnits ? 'units' : 'g'}
+                        </Text>
+                      </Pressable>
                       <Pressable onPress={commitEdit} style={{ backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, marginLeft: 2 }}>
                         <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: '#fff' }}>OK</Text>
                       </Pressable>
@@ -2937,6 +2941,58 @@ function ProgramDetailScreenInner() {
       )}
       </>
       )}
+
+      <Modal visible={!!unitSetup} transparent animationType="fade" onRequestClose={() => setUnitSetup(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <Ionicons name="resize" size={36} color={colors.primary} />
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Define a Unit</Text>
+            <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
+              {unitSetup ? `${unitSetup.grams}g equals 1 of what?` : ''}
+            </Text>
+            <Text style={[styles.modalPrompt, { color: colors.text }]}>Unit name (e.g. cup, piece, slice):</Text>
+            <TextInput
+              style={[styles.modalInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+              value={unitSetupName}
+              onChangeText={setUnitSetupName}
+              placeholder="cup"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              onSubmitEditing={() => {
+                if (!unitSetup || !unitSetupName.trim()) return;
+                const name = unitSetupName.trim();
+                updateFoodItem(unitSetup.mealId, unitSetup.itemId, { unit: name, unitGrams: unitSetup.grams });
+                setEditValue('1');
+                setEditingInUnits(true);
+                setUnitSetup(null);
+                setUnitSetupName('');
+              }}
+            />
+            <View style={styles.modalButtons}>
+              <Pressable style={[styles.modalCancelBtn, { backgroundColor: colors.surfaceLight }]} onPress={() => { setUnitSetup(null); setUnitSetupName(''); }}>
+                <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalDeleteBtn, { backgroundColor: colors.primary }, !unitSetupName.trim() && styles.modalDeleteBtnDisabled]}
+                disabled={!unitSetupName.trim()}
+                onPress={() => {
+                  if (!unitSetup || !unitSetupName.trim()) return;
+                  const name = unitSetupName.trim();
+                  updateFoodItem(unitSetup.mealId, unitSetup.itemId, { unit: name, unitGrams: unitSetup.grams });
+                  setEditValue('1');
+                  setEditingInUnits(true);
+                  setUnitSetup(null);
+                  setUnitSetupName('');
+                }}
+              >
+                <Text style={styles.modalDeleteText}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={showDeleteModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
