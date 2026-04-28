@@ -1110,6 +1110,77 @@ export async function searchClients(query: string): Promise<ClientInfo[]> {
   }));
 }
 
+/**
+ * Returns the calendar week number for a physio program based on weeks elapsed
+ * since the program's createdAt. Week 1 = first 7 days. Always >= 1.
+ * Returns 1 for non-physio programs (no auto-extension).
+ */
+export function getPhysioCurrentWeekNumber(program: Pick<Program, 'programType' | 'createdAt'>): number {
+  if (program.programType !== 'physio') return 1;
+  const created = new Date(program.createdAt);
+  if (isNaN(created.getTime())) return 1;
+  const ms = Date.now() - created.getTime();
+  if (ms <= 0) return 1;
+  const weeks = Math.floor(ms / (7 * 24 * 60 * 60 * 1000));
+  return Math.max(1, weeks + 1);
+}
+
+/**
+ * Returns the start/end Date for a given physio week number, based on program createdAt.
+ */
+export function getPhysioWeekRange(program: Pick<Program, 'programType' | 'createdAt'>, weekNumber: number): { start: Date; end: Date } {
+  const created = new Date(program.createdAt);
+  const start = new Date(created.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
+  const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000 - 1);
+  return { start, end };
+}
+
+/**
+ * For physio programs, auto-extend `weeks` array up to the current calendar week
+ * by duplicating the LATEST week's exercises (without completion / videos / notes).
+ * Returns the updated program (same reference if no changes were needed) and
+ * a flag indicating whether anything was added.
+ *
+ * Adherence isn't broken: each calendar week is a fresh, unchecked routine that
+ * the client either completes or doesn't.
+ */
+export function extendPhysioWeeks(program: Program, randomId: () => string): { program: Program; extended: boolean } {
+  if (program.programType !== 'physio') return { program, extended: false };
+  const target = getPhysioCurrentWeekNumber(program);
+  const weeks = (program.weeks || []) as WorkoutWeek[];
+  if (weeks.length === 0) return { program, extended: false };
+  const highest = weeks.reduce((m, w) => Math.max(m, w.weekNumber), 0);
+  if (highest >= target) return { program, extended: false };
+
+  const template = weeks.find(w => w.weekNumber === highest);
+  if (!template) return { program, extended: false };
+
+  const newWeeks: WorkoutWeek[] = [...weeks];
+  for (let n = highest + 1; n <= target; n++) {
+    const days: WorkoutDay[] = template.days.map(td => ({
+      dayNumber: td.dayNumber,
+      exercises: (td.exercises || []).map(ex => ({
+        id: randomId(),
+        name: ex.name || '',
+        repsSets: ex.repsSets || '',
+        weight: '',
+        rpe: '',
+        isCompleted: false,
+        notes: ex.notes || '',
+        clientNotes: '',
+        coachComment: '',
+        videoUrl: '',
+      })),
+    }));
+    newWeeks.push({ weekNumber: n, days });
+  }
+
+  return {
+    program: { ...program, weeks: newWeeks },
+    extended: true,
+  };
+}
+
 export function createSampleProgram(coachId: string): Omit<Program, 'id' | 'createdAt' | 'shareCode'> {
   const exercises = [
     { name: 'Squat', repsSets: '5x5', weight: '', rpe: '7' },

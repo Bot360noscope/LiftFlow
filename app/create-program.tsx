@@ -89,6 +89,7 @@ function CreateProgramScreenInner() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [weeks, setWeeks] = useState('1');
+  const effectiveWeeks = programType === 'physio' ? '1' : weeks;
   const [daysPerWeek, setDaysPerWeek] = useState('3');
   const [exercisesPerDay, setExercisesPerDay] = useState('4');
   const [mealsPerDay, setMealsPerDay] = useState('4');
@@ -113,7 +114,7 @@ function CreateProgramScreenInner() {
     if (!title.trim()) return;
     setSaving(true);
 
-    const numWeeks = parseInt(weeks) || 1;
+    const numWeeks = parseInt(effectiveWeeks) || 1;
     const numDays = parseInt(daysPerWeek) || 3;
 
     let programWeeks: WorkoutWeek[] | NutritionWeek[];
@@ -167,7 +168,7 @@ function CreateProgramScreenInner() {
   const infoText = programType === 'nutrition'
     ? `Creates a ${weeks}-week meal plan with ${daysPerWeek} days/week and ${mealsPerDay} meals/day.${selectedClientName ? ` Assigned to ${selectedClientName}.` : ''} You can add foods and set macros after creation.`
     : programType === 'physio'
-      ? `Creates a ${weeks}-week rehab plan with ${daysPerWeek} days/week and ${exercisesPerDay} exercises/day.${selectedClientName ? ` Assigned to ${selectedClientName}.` : ''} You can set exercises, resistance, and pain tracking after creation.`
+      ? `Creates a recurring weekly routine with ${daysPerWeek} days/week and ${exercisesPerDay} exercises/day. The same routine repeats every week automatically — edit it any time and changes apply going forward.${selectedClientName ? ` Assigned to ${selectedClientName}.` : ''}`
       : isCoach
         ? `Creates a ${weeks}-week program with ${daysPerWeek} days/week and ${exercisesPerDay} exercises/day.${selectedClientName ? ` Assigned to ${selectedClientName}.` : ''} You can edit exercises after creation.`
         : `This creates a ${weeks}-week program with ${daysPerWeek} training days per week and ${exercisesPerDay} exercises per day. You can fill in exercises, track weights, and log your progress.`;
@@ -230,7 +231,9 @@ function CreateProgramScreenInner() {
         />
 
         <View style={styles.row}>
-          <Counter label="Weeks" value={weeks} onChange={setWeeks} min={1} max={16} />
+          {programType !== 'physio' && (
+            <Counter label="Weeks" value={weeks} onChange={setWeeks} min={1} max={16} />
+          )}
           <Counter label="Days/Wk" value={daysPerWeek} onChange={setDaysPerWeek} min={1} max={7} />
           {programType === 'nutrition' ? (
             <Counter label="Meals" value={mealsPerDay} onChange={setMealsPerDay} min={1} max={8} />
