@@ -129,9 +129,13 @@ export default function TabLayout() {
         name="chat"
         options={{
           title: "Chat",
-          href: null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <View>
+              <Ionicons name={focused ? "chatbubble" : "chatbubble-outline"} size={size} color={color} />
+              {hasUnreadChat ? (
+                <View style={{ position: 'absolute', top: -2, right: -4, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary }} />
+              ) : null}
+            </View>
           ),
         }}
       />
