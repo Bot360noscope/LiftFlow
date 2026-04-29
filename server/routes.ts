@@ -1824,16 +1824,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }));
   }
 
+  // Words that indicate a processed / prepared / packaged variation rather
+  // than the canonical raw food. Penalise these so that searching for a
+  // basic ingredient (e.g. "chicken breast") surfaces the plain SR Legacy
+  // entry first instead of "Chicken breast tenders, breaded" or
+  // "Chicken breast, deli (rotisserie seasoned, prepackaged)".
+  const PROCESSED_KEYWORDS = [
+    'breaded', 'deli', 'prepackaged', 'rotisserie', 'seasoned',
+    'sliced', 'roll', 'tenders', 'tender', 'nugget', 'nuggets',
+    'patty', 'patties', 'fat-free', 'mesquite', 'bbq', 'glazed',
+    'smoked', 'cured', 'oven-roasted', 'oven roasted', 'microwaved',
+    'honey', 'teriyaki', 'buffalo', 'crispy', 'frozen meal',
+    'tv dinner', 'lunchables', 'lunchable',
+  ];
+
   function scoreRelevance(name: string, query: string): number {
     const n = name.toLowerCase();
     const q = query.toLowerCase().trim();
     const words = q.split(/\s+/);
-    if (n === q) return 100;
-    if (n.startsWith(q + ',') || n.startsWith(q + ' ')) return 90;
-    const allWords = words.every(w => n.includes(w));
-    const wordCount = words.filter(w => n.includes(w)).length;
-    if (allWords) return 70 + (wordCount / words.length) * 10;
-    return (wordCount / words.length) * 50;
+
+    let score: number;
+    if (n === q) score = 100;
+    else if (n.startsWith(q + ',') || n.startsWith(q + ' ') || n.startsWith(q + '(')) score = 80;
+    else {
+      const allWords = words.every(w => n.includes(w));
+      const wordCount = words.filter(w => n.includes(w)).length;
+      if (allWords) score = 60 + (wordCount / words.length) * 10;
+      else score = (wordCount / words.length) * 40;
+    }
+
+    // Penalise processed / prepared / packaged variations.
+    let processedHits = 0;
+    for (const kw of PROCESSED_KEYWORDS) {
+      if (n.includes(kw)) processedHits++;
+    }
+    score -= Math.min(processedHits * 25, 60);
+
+    // Reward the plain canonical entries (raw, "meat only") so they
+    // outrank cooked/seasoned variations of the same food.
+    if (/\braw\b/.test(n)) score += 15;
+    if (n.includes('meat only')) score += 10;
+
+    return score;
   }
 
   function cleanFoodName(description: string, brandName?: string): string {
@@ -1846,7 +1878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const qualifier = parts.slice(2).join(', ');
       name = qualifier ? `${main} (${qualifier})` : main;
     }
-    if (name.length > 65) name = name.slice(0, 62) + '...';
+    if (name.length > 80) name = name.slice(0, 77) + '...';
     if (brandName) name += ` (${brandName})`;
     return name;
   }
