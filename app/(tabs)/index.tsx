@@ -17,6 +17,7 @@ import {
   getDashboard, getLatestPR,
   deleteNotification, removeCachedNotification,
   getCachedProfile, getCachedPrograms, getCachedPRs, getCachedClients, getCachedNotifications, getCachedLatestMessages,
+  getActiveMealItems,
   type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification, type LatestMessages,
   type NutritionWeek, type NutritionDay,
 } from "@/lib/storage";
@@ -115,7 +116,7 @@ function ProgramCard({ program, colors }: { program: Program; colors: any }) {
         const nd = day as any;
         if (nd.meals) {
           for (const meal of nd.meals) {
-            for (const item of (meal.items || [])) {
+            for (const item of getActiveMealItems(meal)) {
               totalItems++;
               if (item.checked) completedItems++;
               macros.calories += item.calories || 0;
@@ -191,7 +192,7 @@ function getDayExercises(day: any): any[] {
 }
 function getDayNutritionItems(day: any): any[] {
   if (!day.meals) return [];
-  return day.meals.flatMap((m: any) => m.items || []);
+  return day.meals.flatMap((m: any) => getActiveMealItems(m));
 }
 function isDayComplete(day: any, isNutrition: boolean): boolean {
   if (isNutrition) {
@@ -335,8 +336,8 @@ function DietCompactCard({ program, colors }: { program: Program; colors: any })
     if (!activeWeek) return 1;
     for (const day of activeWeek.days) {
       const d = day as NutritionDay;
-      const hasItems = d.meals?.some(m => m.items.length > 0);
-      const allChecked = d.meals?.every(m => m.items.length > 0 && m.items.every(i => i.checked));
+      const hasItems = d.meals?.some(m => getActiveMealItems(m).length > 0);
+      const allChecked = d.meals?.every(m => { const ai = getActiveMealItems(m); return ai.length > 0 && ai.every(i => i.checked); });
       if (hasItems && !allChecked) return d.dayNumber;
     }
     return activeWeek.days.length > 0 ? activeWeek.days[0].dayNumber : 1;
@@ -347,7 +348,7 @@ function DietCompactCard({ program, colors }: { program: Program; colors: any })
     if (!todayDay?.meals) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
     let cal = 0, p = 0, c = 0, f = 0;
     for (const meal of todayDay.meals) {
-      for (const item of meal.items) {
+      for (const item of getActiveMealItems(meal)) {
         cal += item.calories || 0;
         p += item.protein || 0;
         c += item.carbs || 0;

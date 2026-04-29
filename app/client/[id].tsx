@@ -11,7 +11,7 @@ import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import {
   getPrograms, getClients, removeClient, invalidateProgramsCache, getCachedPrograms,
-  getNotifications,
+  getNotifications, getActiveMealItems,
   type Program, type ClientInfo,
 } from "@/lib/storage";
 import { getAvatarUrl } from "@/lib/api";
@@ -69,7 +69,7 @@ function ProgramCard({ program }: { program: Program }) {
       if (isNutrition) {
         const nd = day as any;
         for (const meal of (nd.meals || [])) {
-          for (const item of (meal.items || [])) {
+          for (const item of getActiveMealItems(meal)) {
             totalExercises++; if (item.checked) completedExercises++;
             macros.calories += item.calories || 0;
             macros.protein += item.protein || 0;

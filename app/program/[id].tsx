@@ -14,7 +14,7 @@ import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import * as Crypto from "expo-crypto";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getProgram, updateProgram, deleteProgram, getProfile, getCachedProfile, getClients, addNotification, markNotificationsReadByProgram, assignProgramToClient, getRecurringWeekNumber, getRecurringWeekRange, extendRecurringWeeks, isRecurringProgramType, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type NutritionWeek, type NutritionDay, type NutritionItem, type Meal, type UserProfile, type ClientInfo, type ProgramType } from "@/lib/storage";
+import { getProgram, updateProgram, deleteProgram, getProfile, getCachedProfile, getClients, addNotification, markNotificationsReadByProgram, assignProgramToClient, getRecurringWeekNumber, getRecurringWeekRange, extendRecurringWeeks, isRecurringProgramType, getActiveMealItems, applyToActiveMealItems, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type NutritionWeek, type NutritionDay, type NutritionItem, type Meal, type MealAlternative, type UserProfile, type ClientInfo, type ProgramType } from "@/lib/storage";
 import { uploadVideo, getVideoUrl, getDirectVideoUrl, markVideoViewed } from "@/lib/api";
 import { trimResult } from "@/lib/trim-result";
 import { useUploads } from "@/lib/upload-context";
@@ -555,7 +555,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
   const totals = useMemo(() => {
     let cal = 0, p = 0, c = 0, f = 0;
     for (const meal of day.meals) {
-      for (const item of meal.items) {
+      for (const item of getActiveMealItems(meal)) {
         cal += item.calories || 0;
         p += item.protein || 0;
         c += item.carbs || 0;
@@ -568,7 +568,9 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
   const addFoodToMeal = (mealId: string, food: NutritionItem) => {
     const updated = {
       ...day,
-      meals: day.meals.map(m => m.id === mealId ? { ...m, items: [...m.items, food] } : m),
+      meals: day.meals.map(m => m.id === mealId
+        ? applyToActiveMealItems(m, items => [...items, food])
+        : m),
     };
     onUpdate(updated);
   };
@@ -576,7 +578,9 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
   const removeFoodFromMeal = (mealId: string, itemId: string) => {
     const updated = {
       ...day,
-      meals: day.meals.map(m => m.id === mealId ? { ...m, items: m.items.filter(i => i.id !== itemId) } : m),
+      meals: day.meals.map(m => m.id === mealId
+        ? applyToActiveMealItems(m, items => items.filter(i => i.id !== itemId))
+        : m),
     };
     onUpdate(updated);
   };
@@ -584,10 +588,9 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
   const toggleFoodChecked = (mealId: string, itemId: string) => {
     const updated = {
       ...day,
-      meals: day.meals.map(m => m.id === mealId ? {
-        ...m,
-        items: m.items.map(i => i.id === itemId ? { ...i, checked: !i.checked } : i),
-      } : m),
+      meals: day.meals.map(m => m.id === mealId
+        ? applyToActiveMealItems(m, items => items.map(i => i.id === itemId ? { ...i, checked: !i.checked } : i))
+        : m),
     };
     onUpdate(updated);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -596,13 +599,80 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
   const updateFoodItem = (mealId: string, itemId: string, updates: Partial<NutritionItem>) => {
     const updated = {
       ...day,
-      meals: day.meals.map(m => m.id === mealId ? {
-        ...m,
-        items: m.items.map(i => i.id === itemId ? { ...i, ...updates } : i),
-      } : m),
+      meals: day.meals.map(m => m.id === mealId
+        ? applyToActiveMealItems(m, items => items.map(i => i.id === itemId ? { ...i, ...updates } : i))
+        : m),
     };
     onUpdate(updated);
   };
+
+  const setActiveOption = (mealId: string, altId: string | null) => {
+    onUpdate({
+      ...day,
+      meals: day.meals.map(m => m.id === mealId ? { ...m, selectedAlternativeId: altId } : m),
+    });
+    Haptics.selectionAsync().catch(() => {});
+  };
+
+  const addAlternative = (mealId: string) => {
+    const newAlt: MealAlternative = { id: Crypto.randomUUID(), items: [] };
+    onUpdate({
+      ...day,
+      meals: day.meals.map(m => m.id === mealId
+        ? { ...m, alternatives: [...(m.alternatives || []), newAlt], selectedAlternativeId: newAlt.id }
+        : m),
+    });
+  };
+
+  const removeAlternative = (mealId: string, altId: string | null) => {
+    confirmAction("Remove Option", "Delete this option and all its foods?", () => {
+      onUpdate({
+        ...day,
+        meals: day.meals.map(m => {
+          if (m.id !== mealId) return m;
+          if (altId === null) {
+            // Removing primary: promote first alternative to primary
+            const alts = m.alternatives || [];
+            if (alts.length === 0) return m;
+            const [first, ...rest] = alts;
+            return {
+              ...m,
+              items: first.items,
+              primaryLabel: first.label,
+              alternatives: rest,
+              selectedAlternativeId: m.selectedAlternativeId === first.id ? null : m.selectedAlternativeId,
+            };
+          }
+          const alts = (m.alternatives || []).filter(a => a.id !== altId);
+          return {
+            ...m,
+            alternatives: alts,
+            selectedAlternativeId: m.selectedAlternativeId === altId ? null : m.selectedAlternativeId,
+          };
+        }),
+      });
+    }, "Delete");
+  };
+
+  const renameOption = (mealId: string, altId: string | null, label: string) => {
+    const trimmed = label.trim();
+    onUpdate({
+      ...day,
+      meals: day.meals.map(m => {
+        if (m.id !== mealId) return m;
+        if (altId === null) {
+          return { ...m, primaryLabel: trimmed || undefined };
+        }
+        return {
+          ...m,
+          alternatives: (m.alternatives || []).map(a => a.id === altId ? { ...a, label: trimmed || undefined } : a),
+        };
+      }),
+    });
+  };
+
+  const [editingOptionLabel, setEditingOptionLabel] = useState<{ mealId: string; altId: string | null } | null>(null);
+  const [optionLabelValue, setOptionLabelValue] = useState('');
 
   const addManualFood = (mealId: string) => {
     const newItem: NutritionItem = {
@@ -672,7 +742,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
 
     if (field === 'portion') {
       const meal = day.meals.find(m => m.id === mealId);
-      const item = meal?.items.find(i => i.id === itemId);
+      const item = meal ? getActiveMealItems(meal).find(i => i.id === itemId) : undefined;
 
       let grams: number;
       if (currentInUnits && item?.unitGrams) {
@@ -764,13 +834,19 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
       </View>
 
       {day.meals.map(meal => {
-        const mealCal = meal.items.reduce((s, i) => s + (i.calories || 0), 0);
-        const mealP = meal.items.reduce((s, i) => s + (i.protein || 0), 0);
-        const allChecked = meal.items.length > 0 && meal.items.every(i => i.checked);
+        const activeItems = getActiveMealItems(meal);
+        const mealCal = activeItems.reduce((s, i) => s + (i.calories || 0), 0);
+        const mealP = activeItems.reduce((s, i) => s + (i.protein || 0), 0);
+        const allChecked = activeItems.length > 0 && activeItems.every(i => i.checked);
+        const altsCount = meal.alternatives?.length ?? 0;
+        const hasAlternatives = altsCount > 0;
+        const activeAltId = meal.selectedAlternativeId ?? null;
+        const isExtras = meal.name === 'Extras';
+        const supportsAlternatives = !isExtras;
 
         return (
-          <View key={meal.id} style={{ backgroundColor: colors.backgroundCard, borderRadius: 12, borderWidth: 1, borderColor: meal.name === 'Extras' ? '#FF9500' + '44' : allChecked ? `${colors.success}44` : colors.border, overflow: 'hidden' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: meal.items.length > 0 ? 1 : 0, borderBottomColor: colors.border }}>
+          <View key={meal.id} style={{ backgroundColor: colors.backgroundCard, borderRadius: 12, borderWidth: 1, borderColor: isExtras ? '#FF9500' + '44' : allChecked ? `${colors.success}44` : colors.border, overflow: 'hidden' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: activeItems.length > 0 || hasAlternatives ? 1 : 0, borderBottomColor: colors.border }}>
               <View style={{ flex: 1 }}>
                 {canEdit && editingMealName === meal.id ? (
                   <TextInput
@@ -794,19 +870,19 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                     </View>
                   </Pressable>
                 )}
-                {meal.items.length > 0 && (
+                {activeItems.length > 0 && (
                   <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted }}>{mealCal} cal · {mealP}g protein</Text>
                 )}
               </View>
-              {(canEdit || meal.name === 'Extras') && (
+              {(canEdit || isExtras) && (
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <Pressable onPress={() => setSearchMealId(meal.id)} hitSlop={6}>
-                    <Ionicons name="search" size={18} color={meal.name === 'Extras' ? '#FF9500' : colors.primary} />
+                    <Ionicons name="search" size={18} color={isExtras ? '#FF9500' : colors.primary} />
                   </Pressable>
                   <Pressable onPress={() => addManualFood(meal.id)} hitSlop={6}>
-                    <Ionicons name="add-circle-outline" size={18} color={meal.name === 'Extras' ? '#FF9500' : colors.accent} />
+                    <Ionicons name="add-circle-outline" size={18} color={isExtras ? '#FF9500' : colors.accent} />
                   </Pressable>
-                  {(canEdit || meal.name === 'Extras') && (
+                  {(canEdit || isExtras) && (
                     <Pressable onPress={() => removeMeal(meal.id)} hitSlop={6}>
                       <Ionicons name="trash-outline" size={16} color={colors.textMuted} />
                     </Pressable>
@@ -815,7 +891,90 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
               )}
             </View>
 
-            {meal.items.map(item => (
+            {/* Option chip selector — visible when meal has 2+ options */}
+            {supportsAlternatives && hasAlternatives && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: activeItems.length > 0 ? 1 : 0, borderBottomColor: colors.border, backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                {[{ id: null as string | null, label: meal.primaryLabel || 'Option A', items: meal.items || [] },
+                  ...((meal.alternatives || []).map((a, i) => ({ id: a.id, label: a.label || `Option ${String.fromCharCode(66 + i)}`, items: a.items || [] })))
+                ].map((opt, idx) => {
+                  const isActive = (opt.id ?? null) === activeAltId;
+                  const optAllChecked = opt.items.length > 0 && opt.items.every(i => i.checked);
+                  const isEditingLabel = canEdit && editingOptionLabel?.mealId === meal.id && (editingOptionLabel?.altId ?? null) === (opt.id ?? null);
+                  return (
+                    <View key={String(opt.id ?? 'primary')} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      {isEditingLabel ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.backgroundCard, borderRadius: 999, borderWidth: 1, borderColor: colors.primary, paddingHorizontal: 8, paddingVertical: 4 }}>
+                          <TextInput
+                            value={optionLabelValue}
+                            onChangeText={setOptionLabelValue}
+                            onBlur={() => {
+                              renameOption(meal.id, opt.id ?? null, optionLabelValue);
+                              setEditingOptionLabel(null);
+                            }}
+                            onSubmitEditing={() => {
+                              renameOption(meal.id, opt.id ?? null, optionLabelValue);
+                              setEditingOptionLabel(null);
+                            }}
+                            autoFocus
+                            selectTextOnFocus
+                            style={{ fontFamily: 'Rubik_500Medium', fontSize: 11, color: colors.text, padding: 0, minWidth: 60 }}
+                            placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+                            placeholderTextColor={colors.textMuted}
+                          />
+                        </View>
+                      ) : (
+                        <Pressable
+                          onPress={() => setActiveOption(meal.id, opt.id ?? null)}
+                          onLongPress={() => {
+                            if (!canEdit) return;
+                            setOptionLabelValue(opt.label);
+                            setEditingOptionLabel({ mealId: meal.id, altId: opt.id ?? null });
+                          }}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 4,
+                            paddingHorizontal: 10,
+                            paddingVertical: 5,
+                            borderRadius: 999,
+                            borderWidth: 1,
+                            borderColor: isActive ? colors.primary : colors.border,
+                            backgroundColor: isActive ? colors.primary + '22' : 'transparent',
+                          }}
+                        >
+                          {optAllChecked && opt.items.length > 0 && (
+                            <Ionicons name="checkmark-circle" size={11} color={colors.success} />
+                          )}
+                          <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 11, color: isActive ? colors.primary : colors.textMuted }}>
+                            {opt.label}
+                          </Text>
+                          {canEdit && (
+                            <Pressable
+                              onPress={(e) => { e.stopPropagation?.(); removeAlternative(meal.id, opt.id ?? null); }}
+                              hitSlop={6}
+                              style={{ marginLeft: 2 }}
+                            >
+                              <Ionicons name="close" size={11} color={colors.textMuted} />
+                            </Pressable>
+                          )}
+                        </Pressable>
+                      )}
+                    </View>
+                  );
+                })}
+                {canEdit && (
+                  <Pressable
+                    onPress={() => addAlternative(meal.id)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }}
+                  >
+                    <Ionicons name="add" size={12} color={colors.accent} />
+                    <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 11, color: colors.accent }}>Option</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
+
+            {activeItems.map(item => (
               <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' }}>
                 <Pressable onPress={() => !canEdit && toggleFoodChecked(meal.id, item.id)} hitSlop={6} style={{ marginRight: 8 }}>
                   <Ionicons name={item.checked ? "checkmark-circle" : "ellipse-outline"} size={18} color={item.checked ? colors.success : colors.textMuted} style={canEdit ? { opacity: 0.4 } : undefined} />
@@ -983,12 +1142,23 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
               </View>
             ))}
 
-            {meal.items.length === 0 && (
+            {activeItems.length === 0 && (
               <View style={{ padding: 16, alignItems: 'center' }}>
                 <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 12, color: colors.textMuted }}>
                   {canEdit ? 'Tap + or search to add foods' : 'No foods added yet'}
                 </Text>
               </View>
+            )}
+
+            {/* Coach: "+ Option" button when meal has only one option (start adding alternatives) */}
+            {canEdit && supportsAlternatives && !hasAlternatives && (
+              <Pressable
+                onPress={() => addAlternative(meal.id)}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.border }}
+              >
+                <Ionicons name="add-circle-outline" size={13} color={colors.accent} />
+                <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 11, color: colors.accent }}>Add alternative option</Text>
+              </Pressable>
             )}
           </View>
         );
@@ -1154,7 +1324,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                   if (gramsPerUnit <= 0) return;
                   const name = unitSetupName.trim();
                   const meal = day.meals.find(m => m.id === unitSetup.mealId);
-                  const item = meal?.items.find(i => i.id === unitSetup.itemId);
+                  const item = meal ? getActiveMealItems(meal).find(i => i.id === unitSetup.itemId) : undefined;
                   let newPortion = gramsPerUnit;
                   if (unitSetup.mode === 'edit' && item) {
                     const oldUnitGrams = item.unitGrams || gramsPerUnit;
@@ -2454,7 +2624,14 @@ function ProgramDetailScreenInner() {
             ? templateDay.meals.map(m => ({
                 id: Crypto.randomUUID(),
                 name: m.name,
+                primaryLabel: m.primaryLabel,
                 items: m.items.map(item => ({ ...item, id: Crypto.randomUUID(), checked: false })),
+                alternatives: (m.alternatives || []).map(a => ({
+                  id: Crypto.randomUUID(),
+                  label: a.label,
+                  items: (a.items || []).map(item => ({ ...item, id: Crypto.randomUUID(), checked: false })),
+                })),
+                selectedAlternativeId: null,
               }))
             : [{ id: Crypto.randomUUID(), name: 'Breakfast', items: [] }, { id: Crypto.randomUUID(), name: 'Lunch', items: [] }, { id: Crypto.randomUUID(), name: 'Dinner', items: [] }],
         });
@@ -2590,8 +2767,9 @@ function ProgramDetailScreenInner() {
     if (isNutrition && activeWeek > 1 && prevWeekDay) {
       const nutDay = currentNutritionDay;
       const prevNut = prevWeekDay as NutritionDay;
-      const currentHasItems = nutDay?.meals?.some(m => m.items.length > 0) ?? false;
-      if (nutDay && prevNut?.meals?.length > 0 && prevNut.meals.some(m => m.items.length > 0) && !currentHasItems) {
+      const currentHasItems = nutDay?.meals?.some(m => (m.items.length > 0) || ((m.alternatives || []).some(a => a.items.length > 0))) ?? false;
+      const prevHasItems = prevNut.meals.some(m => (m.items.length > 0) || ((m.alternatives || []).some(a => a.items.length > 0)));
+      if (nutDay && prevNut?.meals?.length > 0 && prevHasItems && !currentHasItems) {
         const copiedMeals = prevNut.meals.map(meal => ({
           ...meal,
           id: Crypto.randomUUID(),
@@ -2600,6 +2778,16 @@ function ProgramDetailScreenInner() {
             id: Crypto.randomUUID(),
             checked: false,
           })),
+          alternatives: (meal.alternatives || []).map(a => ({
+            id: Crypto.randomUUID(),
+            label: a.label,
+            items: (a.items || []).map(item => ({
+              ...item,
+              id: Crypto.randomUUID(),
+              checked: false,
+            })),
+          })),
+          selectedAlternativeId: null,
         }));
         const updatedWeeks = (program.weeks as NutritionWeek[]).map(week => {
           if (week.weekNumber !== activeWeek) return week;
@@ -2689,7 +2877,7 @@ function ProgramDetailScreenInner() {
     if (isNutrition) {
       for (const day of (currentWeek as NutritionWeek).days) {
         for (const meal of day.meals) {
-          for (const item of meal.items) {
+          for (const item of getActiveMealItems(meal)) {
             total++;
             if (item.checked) completed++;
           }
@@ -2707,10 +2895,10 @@ function ProgramDetailScreenInner() {
   })();
 
   const dayTotal = isNutrition
-    ? (currentNutritionDay?.meals.reduce((s, m) => s + m.items.length, 0) || 0)
+    ? (currentNutritionDay?.meals.reduce((s, m) => s + getActiveMealItems(m).length, 0) || 0)
     : exercises.length;
   const dayCompleted = isNutrition
-    ? (currentNutritionDay?.meals.reduce((s, m) => s + m.items.filter(i => i.checked).length, 0) || 0)
+    ? (currentNutritionDay?.meals.reduce((s, m) => s + getActiveMealItems(m).filter(i => i.checked).length, 0) || 0)
     : exercises.filter(ex => ex.isCompleted).length;
   const dayPct = dayTotal > 0 ? Math.round((dayCompleted / dayTotal) * 100) : 0;
 
@@ -3066,7 +3254,7 @@ function ProgramDetailScreenInner() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayScrollContent}>
           {(currentWeek?.days || []).map(day => {
             const allDone = isNutrition
-              ? ((day as NutritionDay).meals?.length > 0 && (day as NutritionDay).meals.every(m => m.items.length > 0 && m.items.every(i => i.checked)))
+              ? ((day as NutritionDay).meals?.length > 0 && (day as NutritionDay).meals.every(m => { const ai = getActiveMealItems(m); return ai.length > 0 && ai.every(i => i.checked); }))
               : (((day as WorkoutDay).exercises || []).length > 0 && ((day as WorkoutDay).exercises || []).every(e => e.isCompleted));
             return (
             <View key={day.dayNumber} style={{ flexDirection: 'row', alignItems: 'center' }}>

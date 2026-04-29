@@ -13,7 +13,7 @@ import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { ProgressSkeleton } from "@/components/SkeletonLoader";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { getBestPR, getLatestPR, getDashboard, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, invalidateProgramsCache, type Program, type ClientInfo } from "@/lib/storage";
+import { getBestPR, getLatestPR, getDashboard, getCachedPRs, getCachedProfile, getCachedPrograms, getCachedClients, invalidateProgramsCache, getActiveMealItems, type Program, type ClientInfo } from "@/lib/storage";
 
 function calcDots(totalKg: number, bwKg: number): number {
   if (bwKg < 40 || bwKg > 210) return 0;
@@ -112,7 +112,7 @@ function getOverallAdherence(programs: Program[]): { pct: number; done: number; 
     for (const week of (prog.weeks || [])) {
       const hasActivity = week.days.some(d => {
         if (isNut) {
-          const items = (d as any).meals?.flatMap((m: any) => m.items || []) || [];
+          const items = (d as any).meals?.flatMap((m: any) => getActiveMealItems(m)) || [];
           return items.some((i: any) => i.checked);
         }
         return ((d as any).exercises || []).some((e: any) => e.isCompleted || e.clientNotes || e.videoUrl);
@@ -124,7 +124,7 @@ function getOverallAdherence(programs: Program[]): { pct: number; done: number; 
       if (week.weekNumber > maxActiveWeek) continue;
       for (const day of week.days) {
         if (isNut) {
-          const items = (day as any).meals?.flatMap((m: any) => m.items || []) || [];
+          const items = (day as any).meals?.flatMap((m: any) => getActiveMealItems(m)) || [];
           total += items.length;
           done += items.filter((i: any) => i.checked).length;
         } else {

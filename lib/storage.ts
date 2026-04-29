@@ -53,10 +53,47 @@ export interface NutritionItem {
   unitGrams?: number;
 }
 
+export interface MealAlternative {
+  id: string;
+  label?: string;
+  items: NutritionItem[];
+}
+
 export interface Meal {
   id: string;
   name: string;
   items: NutritionItem[];
+  /** Optional label for the primary option when alternatives exist (defaults to "Option A"). */
+  primaryLabel?: string;
+  /** Additional meal options the client can choose between. The selected one's items count toward macros. */
+  alternatives?: MealAlternative[];
+  /** id of the currently-selected alternative; null/undefined means the primary `items` is selected. */
+  selectedAlternativeId?: string | null;
+}
+
+/** Returns the items for the currently-selected option of a meal (primary if no alternative is selected). */
+export function getActiveMealItems(meal: Meal): NutritionItem[] {
+  const altId = meal.selectedAlternativeId;
+  if (!altId || !meal.alternatives || meal.alternatives.length === 0) return meal.items || [];
+  const alt = meal.alternatives.find(a => a.id === altId);
+  return alt ? (alt.items || []) : (meal.items || []);
+}
+
+/** Applies a transform to the items of the currently-selected option, returning a new Meal. */
+export function applyToActiveMealItems(
+  meal: Meal,
+  fn: (items: NutritionItem[]) => NutritionItem[]
+): Meal {
+  const altId = meal.selectedAlternativeId;
+  if (!altId || !meal.alternatives || meal.alternatives.length === 0) {
+    return { ...meal, items: fn(meal.items || []) };
+  }
+  return {
+    ...meal,
+    alternatives: meal.alternatives.map(a =>
+      a.id === altId ? { ...a, items: fn(a.items || []) } : a
+    ),
+  };
 }
 
 export interface NutritionDay {
@@ -1181,11 +1218,23 @@ export function extendRecurringWeeks(program: Program, randomId: () => string): 
         meals: (td.meals || []).map(m => ({
           id: randomId(),
           name: m.name || '',
+          primaryLabel: m.primaryLabel,
           items: (m.items || []).map(it => ({
             ...it,
             id: randomId(),
             checked: false,
           })),
+          alternatives: (m.alternatives || []).map(a => ({
+            id: randomId(),
+            label: a.label,
+            items: (a.items || []).map(it => ({
+              ...it,
+              id: randomId(),
+              checked: false,
+            })),
+          })),
+          // New week starts fresh: client re-picks which option they want each week.
+          selectedAlternativeId: null,
         })),
       }));
       newWeeks.push({ weekNumber: n, days });

@@ -11,7 +11,7 @@ import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import NetworkError from "@/components/NetworkError";
 import { ProgramsSkeleton } from "@/components/SkeletonLoader";
-import { getPrograms, deleteProgram, getProfile, getDashboard, getCachedPrograms, getCachedProfile, invalidateProgramsCache, type Program } from "@/lib/storage";
+import { getPrograms, deleteProgram, getProfile, getDashboard, getCachedPrograms, getCachedProfile, invalidateProgramsCache, getActiveMealItems, type Program } from "@/lib/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 function ProgramsScreenInner() {
@@ -159,7 +159,7 @@ function ProgramsScreenInner() {
               if (isNut) {
                 const nd = day as any;
                 for (const meal of (nd.meals || [])) {
-                  for (const item of (meal.items || [])) { totalExercises++; if (item.checked) completedExercises++; }
+                  for (const item of getActiveMealItems(meal)) { totalExercises++; if (item.checked) completedExercises++; }
                 }
               } else {
                 const wd = day as any;
