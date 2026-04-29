@@ -96,6 +96,74 @@ export function applyToActiveMealItems(
   };
 }
 
+/**
+ * Daily macro average of items the client has actually checked off (eaten),
+ * over the most recent `weeksBack` program weeks. The "active" week is the
+ * latest week that contains any checked item; if nothing has been checked
+ * yet, all returned values are 0 and `daysCounted === 0`.
+ *
+ * Average is over days that had at least one checked item (so days the
+ * client didn't track aren't counted as 0). This represents the typical
+ * intake on tracked days, which matches what the wheel is meant to show.
+ */
+export function getNutritionEatenAverage(
+  program: { weeks: any[]; programType?: string | null },
+  weeksBack: number = 2
+): { calories: number; protein: number; carbs: number; fat: number; daysCounted: number } {
+  const empty = { calories: 0, protein: 0, carbs: 0, fat: 0, daysCounted: 0 };
+  if (program.programType !== 'nutrition') return empty;
+
+  let activeWeek = 0;
+  for (const week of program.weeks) {
+    const hasActivity = (week.days || []).some((d: any) => {
+      const meals = d.meals || [];
+      return meals.some((m: any) => getActiveMealItems(m).some((i: any) => i.checked));
+    });
+    if (hasActivity && week.weekNumber > activeWeek) activeWeek = week.weekNumber;
+  }
+  if (activeWeek === 0) return empty;
+
+  const startWeek = Math.max(1, activeWeek - (weeksBack - 1));
+
+  let cal = 0, p = 0, c = 0, f = 0;
+  let daysWithChecks = 0;
+
+  for (const week of program.weeks) {
+    if (week.weekNumber < startWeek || week.weekNumber > activeWeek) continue;
+    for (const day of (week.days || [])) {
+      const meals = day.meals || [];
+      let dayCal = 0, dayP = 0, dayC = 0, dayF = 0;
+      let hasAnyCheck = false;
+      for (const meal of meals) {
+        for (const item of getActiveMealItems(meal)) {
+          if (!item.checked) continue;
+          hasAnyCheck = true;
+          dayCal += item.calories || 0;
+          dayP += item.protein || 0;
+          dayC += item.carbs || 0;
+          dayF += item.fat || 0;
+        }
+      }
+      if (hasAnyCheck) {
+        cal += dayCal;
+        p += dayP;
+        c += dayC;
+        f += dayF;
+        daysWithChecks++;
+      }
+    }
+  }
+
+  if (daysWithChecks === 0) return empty;
+  return {
+    calories: Math.round(cal / daysWithChecks),
+    protein: Math.round(p / daysWithChecks),
+    carbs: Math.round(c / daysWithChecks),
+    fat: Math.round(f / daysWithChecks),
+    daysCounted: daysWithChecks,
+  };
+}
+
 export interface NutritionDay {
   dayNumber: number;
   targetCalories?: number;

@@ -11,7 +11,7 @@ import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import {
   getPrograms, getClients, removeClient, invalidateProgramsCache, getCachedPrograms,
-  getNotifications, getActiveMealItems,
+  getNotifications, getActiveMealItems, getNutritionEatenAverage,
   type Program, type ClientInfo,
 } from "@/lib/storage";
 import { getAvatarUrl } from "@/lib/api";
@@ -63,7 +63,6 @@ function ProgramCard({ program }: { program: Program }) {
   const tagLabel = isNutrition ? 'Diet' : isPhysio ? 'Physio' : 'Workout';
   let totalExercises = 0;
   let completedExercises = 0;
-  const macros = { calories: 0, protein: 0, carbs: 0, fat: 0 };
   for (const week of program.weeks) {
     for (const day of week.days) {
       if (isNutrition) {
@@ -71,10 +70,6 @@ function ProgramCard({ program }: { program: Program }) {
         for (const meal of (nd.meals || [])) {
           for (const item of getActiveMealItems(meal)) {
             totalExercises++; if (item.checked) completedExercises++;
-            macros.calories += item.calories || 0;
-            macros.protein += item.protein || 0;
-            macros.carbs += item.carbs || 0;
-            macros.fat += item.fat || 0;
           }
         }
       } else {
@@ -83,13 +78,7 @@ function ProgramCard({ program }: { program: Program }) {
       }
     }
   }
-  const totalDays = program.weeks.reduce((s, w) => s + w.days.length, 0);
-  if (isNutrition && totalDays > 0) {
-    macros.calories = Math.round(macros.calories / totalDays);
-    macros.protein = Math.round(macros.protein / totalDays);
-    macros.carbs = Math.round(macros.carbs / totalDays);
-    macros.fat = Math.round(macros.fat / totalDays);
-  }
+  const macros = isNutrition ? getNutritionEatenAverage(program, 2) : { calories: 0, protein: 0, carbs: 0, fat: 0, daysCounted: 0 };
   const progress = totalExercises > 0 ? Math.round((completedExercises / totalExercises) * 100) : 0;
   const dateStr = new Date(program.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -119,7 +108,9 @@ function ProgramCard({ program }: { program: Program }) {
               <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: colors.gold || '#FFB800' }}>Carbs {macros.carbs}g</Text>
               <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: '#FF8A65' }}>Fat {macros.fat}g</Text>
             </View>
-            <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 9, color: colors.textMuted }}>Avg per day</Text>
+            <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 9, color: colors.textMuted }}>
+              {macros.daysCounted > 0 ? `Avg eaten · last ${macros.daysCounted === 1 ? 'day' : `${macros.daysCounted} days`}` : 'No tracking yet'}
+            </Text>
           </View>
         </View>
       ) : (

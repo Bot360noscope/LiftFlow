@@ -18,6 +18,7 @@ import {
   deleteNotification, removeCachedNotification,
   getCachedProfile, getCachedPrograms, getCachedPRs, getCachedClients, getCachedNotifications, getCachedLatestMessages,
   getActiveMealItems,
+  getNutritionEatenAverage,
   type Program, type LiftPR, type UserProfile, type ClientInfo, type AppNotification, type LatestMessages,
   type NutritionWeek, type NutritionDay,
 } from "@/lib/storage";
@@ -109,7 +110,6 @@ function ProgramCard({ program, colors }: { program: Program; colors: any }) {
   const tagLabel = isNutrition ? 'Diet' : isPhysio ? 'Physio' : 'Workout';
   let totalItems = 0;
   let completedItems = 0;
-  const macros = { calories: 0, protein: 0, carbs: 0, fat: 0 };
   for (const week of program.weeks) {
     for (const day of week.days) {
       if (isNutrition) {
@@ -119,10 +119,6 @@ function ProgramCard({ program, colors }: { program: Program; colors: any }) {
             for (const item of getActiveMealItems(meal)) {
               totalItems++;
               if (item.checked) completedItems++;
-              macros.calories += item.calories || 0;
-              macros.protein += item.protein || 0;
-              macros.carbs += item.carbs || 0;
-              macros.fat += item.fat || 0;
             }
           }
         }
@@ -136,13 +132,7 @@ function ProgramCard({ program, colors }: { program: Program; colors: any }) {
       }
     }
   }
-  const totalDays = program.weeks.reduce((s, w) => s + w.days.length, 0);
-  if (isNutrition && totalDays > 0) {
-    macros.calories = Math.round(macros.calories / totalDays);
-    macros.protein = Math.round(macros.protein / totalDays);
-    macros.carbs = Math.round(macros.carbs / totalDays);
-    macros.fat = Math.round(macros.fat / totalDays);
-  }
+  const macros = isNutrition ? getNutritionEatenAverage(program, 2) : { calories: 0, protein: 0, carbs: 0, fat: 0, daysCounted: 0 };
   const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
   return (
@@ -170,7 +160,9 @@ function ProgramCard({ program, colors }: { program: Program; colors: any }) {
               <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: colors.gold || '#FFB800' }}>Carbs {macros.carbs}g</Text>
               <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 10, color: '#FF8A65' }}>Fat {macros.fat}g</Text>
             </View>
-            <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 9, color: colors.textMuted }}>Avg per day</Text>
+            <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 9, color: colors.textMuted }}>
+              {macros.daysCounted > 0 ? `Avg eaten · last ${macros.daysCounted === 1 ? 'day' : `${macros.daysCounted} days`}` : 'No tracking yet'}
+            </Text>
           </View>
         </View>
       ) : (
@@ -343,20 +335,7 @@ function DietCompactCard({ program, colors }: { program: Program; colors: any })
     return activeWeek.days.length > 0 ? activeWeek.days[0].dayNumber : 1;
   }, [activeWeek]);
 
-  const todayDay = activeWeek?.days.find(d => d.dayNumber === todayDayNum) as NutritionDay | undefined;
-  const macros = useMemo(() => {
-    if (!todayDay?.meals) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
-    let cal = 0, p = 0, c = 0, f = 0;
-    for (const meal of todayDay.meals) {
-      for (const item of getActiveMealItems(meal)) {
-        cal += item.calories || 0;
-        p += item.protein || 0;
-        c += item.carbs || 0;
-        f += item.fat || 0;
-      }
-    }
-    return { calories: cal, protein: Math.round(p), carbs: Math.round(c), fat: Math.round(f) };
-  }, [todayDay]);
+  const macros = useMemo(() => getNutritionEatenAverage(program, 2), [program]);
 
   return (
     <Pressable
