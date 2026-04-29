@@ -89,7 +89,8 @@ function CreateProgramScreenInner() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [weeks, setWeeks] = useState('1');
-  const effectiveWeeks = programType === 'physio' ? '1' : weeks;
+  const isRecurring = programType === 'physio' || programType === 'nutrition';
+  const effectiveWeeks = isRecurring ? '1' : weeks;
   const [daysPerWeek, setDaysPerWeek] = useState('3');
   const [exercisesPerDay, setExercisesPerDay] = useState('4');
   const [mealsPerDay, setMealsPerDay] = useState('4');
@@ -166,7 +167,7 @@ function CreateProgramScreenInner() {
   };
 
   const infoText = programType === 'nutrition'
-    ? `Creates a ${weeks}-week meal plan with ${daysPerWeek} days/week and ${mealsPerDay} meals/day.${selectedClientName ? ` Assigned to ${selectedClientName}.` : ''} You can add foods and set macros after creation.`
+    ? `Creates a recurring weekly meal plan with ${daysPerWeek} days/week and ${mealsPerDay} meals/day. The same plan repeats every week automatically — edit it any time and changes apply going forward.${selectedClientName ? ` Assigned to ${selectedClientName}.` : ''}`
     : programType === 'physio'
       ? `Creates a recurring weekly routine with ${daysPerWeek} days/week and ${exercisesPerDay} exercises/day. The same routine repeats every week automatically — edit it any time and changes apply going forward.${selectedClientName ? ` Assigned to ${selectedClientName}.` : ''}`
       : isCoach

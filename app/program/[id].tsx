@@ -14,7 +14,7 @@ import Colors from "@/constants/colors";
 import { useTheme } from "@/lib/theme-context";
 import * as Crypto from "expo-crypto";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getProgram, updateProgram, deleteProgram, getProfile, getCachedProfile, getClients, addNotification, markNotificationsReadByProgram, assignProgramToClient, getPhysioCurrentWeekNumber, getPhysioWeekRange, extendPhysioWeeks, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type NutritionWeek, type NutritionDay, type NutritionItem, type Meal, type UserProfile, type ClientInfo, type ProgramType } from "@/lib/storage";
+import { getProgram, updateProgram, deleteProgram, getProfile, getCachedProfile, getClients, addNotification, markNotificationsReadByProgram, assignProgramToClient, getRecurringWeekNumber, getRecurringWeekRange, extendRecurringWeeks, isRecurringProgramType, type Program, type Exercise, type WorkoutWeek, type WorkoutDay, type NutritionWeek, type NutritionDay, type NutritionItem, type Meal, type UserProfile, type ClientInfo, type ProgramType } from "@/lib/storage";
 import { uploadVideo, getVideoUrl, getDirectVideoUrl, markVideoViewed } from "@/lib/api";
 import { trimResult } from "@/lib/trim-result";
 import { useUploads } from "@/lib/upload-context";
@@ -2187,10 +2187,10 @@ function ProgramDetailScreenInner() {
     if (id) {
       Promise.all([getProgram(id), getProfile(), AsyncStorage.getItem(programPositionKey(id)).catch(() => null)]).catch(() => [null, null, null] as const).then(async ([p, prof, savedPos]) => {
         if (p) {
-          // Physio: auto-extend weeks to current calendar week. The latest week
-          // is the editable "routine"; older weeks are read-only history.
-          if ((p.programType || 'workout') === 'physio') {
-            const ext = extendPhysioWeeks(p, () => Crypto.randomUUID());
+          // Physio & Nutrition: auto-extend weeks to current calendar week.
+          // The latest week is the editable "routine"; older weeks are history.
+          if (isRecurringProgramType(p.programType)) {
+            const ext = extendRecurringWeeks(p, () => Crypto.randomUUID());
             if (ext.extended) {
               p = ext.program;
               // Persist the auto-extension so coach edits target the right week.
@@ -2244,9 +2244,10 @@ function ProgramDetailScreenInner() {
                 setActiveDay(dayExists ? day : 1);
               }
             } catch {}
-          } else if ((p.programType || 'workout') === 'physio') {
-            // Default for physio: jump to the current calendar week (the live routine).
-            const cur = getPhysioCurrentWeekNumber(p);
+          } else if (isRecurringProgramType(p.programType)) {
+            // Default for recurring programs (physio/nutrition): jump to the
+            // current calendar week (the live routine).
+            const cur = getRecurringWeekNumber(p);
             if (p.weeks.some(w => w.weekNumber === cur)) {
               setActiveWeek(cur);
             }
@@ -2541,32 +2542,34 @@ function ProgramDetailScreenInner() {
   };
 
   const isPhysioProgram = programType === 'physio';
-  // Physio: the publish-weeks workflow doesn't apply (no draft weeks). Treat all weeks as published.
-  const publishedWeeks = isPhysioProgram
+  const isRecurringProgram = isRecurringProgramType(programType);
+  // Recurring (physio/nutrition): the publish-weeks workflow doesn't apply
+  // (no draft weeks). Treat all weeks as published.
+  const publishedWeeks = isRecurringProgram
     ? (program?.weeks.length ?? 0)
     : (program?.publishedWeeks ?? (isShared ? 0 : (program?.weeks.length ?? 0)));
-  const isDraftWeek = !isPhysioProgram && isShared && (isCoach || false) && activeWeek > publishedWeeks;
+  const isDraftWeek = !isRecurringProgram && isShared && (isCoach || false) && activeWeek > publishedWeeks;
 
   const visibleWeeks = useMemo(() => {
     if (!program) return [];
-    if (isPhysioProgram) return program.weeks;
+    if (isRecurringProgram) return program.weeks;
     if (isCoach || !isShared) return program.weeks;
     const pw = program.publishedWeeks ?? (isShared ? 0 : program.weeks.length);
     return program.weeks.filter(w => w.weekNumber <= pw);
-  }, [program, isCoach, isShared, isPhysioProgram]);
+  }, [program, isCoach, isShared, isRecurringProgram]);
 
-  const physioCurrentWeek = useMemo(() => {
-    return program && isPhysioProgram ? getPhysioCurrentWeekNumber(program) : 1;
-  }, [program, isPhysioProgram]);
+  const recurringCurrentWeek = useMemo(() => {
+    return program && isRecurringProgram ? getRecurringWeekNumber(program) : 1;
+  }, [program, isRecurringProgram]);
 
-  const formatPhysioWeekLabel = useCallback((weekNumber: number): string => {
+  const formatRecurringWeekLabel = useCallback((weekNumber: number): string => {
     if (!program) return `W${weekNumber}`;
-    if (weekNumber === physioCurrentWeek) return 'This Week';
-    if (weekNumber === physioCurrentWeek - 1) return 'Last Week';
-    if (weekNumber > physioCurrentWeek) return `+${weekNumber - physioCurrentWeek}w`;
-    const { start } = getPhysioWeekRange(program, weekNumber);
+    if (weekNumber === recurringCurrentWeek) return 'This Week';
+    if (weekNumber === recurringCurrentWeek - 1) return 'Last Week';
+    if (weekNumber > recurringCurrentWeek) return `+${weekNumber - recurringCurrentWeek}w`;
+    const { start } = getRecurringWeekRange(program, weekNumber);
     return start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }, [program, physioCurrentWeek]);
+  }, [program, recurringCurrentWeek]);
 
   const currentWeek = program?.weeks.find(w => w.weekNumber === activeWeek);
   const currentDay = currentWeek?.days.find(d => d.dayNumber === activeDay);
@@ -2981,16 +2984,16 @@ function ProgramDetailScreenInner() {
       <View style={[styles.weekSelector, { borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekScrollContent}>
           {visibleWeeks.map(week => {
-            const weekIsDraft = !isPhysioProgram && isShared && week.weekNumber > publishedWeeks;
-            const weekIsCurrent = isPhysioProgram && week.weekNumber === physioCurrentWeek;
-            const chipLabel = isPhysioProgram ? formatPhysioWeekLabel(week.weekNumber) : `W${week.weekNumber}`;
+            const weekIsDraft = !isRecurringProgram && isShared && week.weekNumber > publishedWeeks;
+            const weekIsCurrent = isRecurringProgram && week.weekNumber === recurringCurrentWeek;
+            const chipLabel = isRecurringProgram ? formatRecurringWeekLabel(week.weekNumber) : `W${week.weekNumber}`;
             return (
               <View key={week.weekNumber} style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Pressable
                   style={[styles.weekChip, { backgroundColor: colors.backgroundCard, borderColor: weekIsDraft ? colors.warning : weekIsCurrent ? colors.primary : colors.border }, activeWeek === week.weekNumber && [styles.weekChipActive, { backgroundColor: weekIsDraft ? colors.warning : colors.primary, borderColor: weekIsDraft ? colors.warning : colors.primary }]]}
                   onPress={() => { Haptics.selectionAsync(); setActiveWeek(week.weekNumber); setActiveDay(1); }}
                   onLongPress={() => {
-                    if (!isPhysioProgram && (isCoach || !isShared) && !planLocked) {
+                    if (!isRecurringProgram && (isCoach || !isShared) && !planLocked) {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                       deleteWeek(week.weekNumber);
                     }
@@ -3000,7 +3003,7 @@ function ProgramDetailScreenInner() {
                     {chipLabel}
                   </Text>
                 </Pressable>
-                {!isPhysioProgram && Platform.OS === 'web' && (isCoach || !isShared) && !planLocked && program.weeks.length > 1 && (
+                {!isRecurringProgram && Platform.OS === 'web' && (isCoach || !isShared) && !planLocked && program.weeks.length > 1 && (
                   <Pressable
                     style={styles.chipDeleteBtn}
                     onPress={() => deleteWeek(week.weekNumber)}
@@ -3012,7 +3015,7 @@ function ProgramDetailScreenInner() {
               </View>
             );
           })}
-          {!isPhysioProgram && (isCoach || !isShared) && (
+          {!isRecurringProgram && (isCoach || !isShared) && (
             <Pressable style={[styles.addWeekChip, { borderColor: colors.primary }]} onPress={addWeek} accessibilityLabel="Add week" accessibilityRole="button">
               <Ionicons name="add" size={16} color={colors.primary} />
             </Pressable>
@@ -3025,7 +3028,7 @@ function ProgramDetailScreenInner() {
               <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.warning }}>Draft</Text>
             </View>
           )}
-          {!isPhysioProgram && isShared && isCoach && program.weeks.length > publishedWeeks && (
+          {!isRecurringProgram && isShared && isCoach && program.weeks.length > publishedWeeks && (
             <Pressable
               onPress={publishWeeks}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 8, backgroundColor: 'rgba(52,199,89,0.12)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}
@@ -3034,7 +3037,7 @@ function ProgramDetailScreenInner() {
               <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.success }}>Publish</Text>
             </Pressable>
           )}
-          {isPhysioProgram && isCoach && (
+          {isRecurringProgram && isCoach && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 8 }}>
               <Ionicons name="repeat" size={11} color={colors.textSecondary} />
               <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 11, color: colors.textSecondary }}>Recurring routine</Text>

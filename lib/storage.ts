@@ -1115,8 +1115,12 @@ export async function searchClients(query: string): Promise<ClientInfo[]> {
  * since the program's createdAt. Week 1 = first 7 days. Always >= 1.
  * Returns 1 for non-physio programs (no auto-extension).
  */
-export function getPhysioCurrentWeekNumber(program: Pick<Program, 'programType' | 'createdAt'>): number {
-  if (program.programType !== 'physio') return 1;
+export function isRecurringProgramType(programType: ProgramType | undefined): boolean {
+  return programType === 'physio' || programType === 'nutrition';
+}
+
+export function getRecurringWeekNumber(program: Pick<Program, 'programType' | 'createdAt'>): number {
+  if (!isRecurringProgramType(program.programType)) return 1;
   const created = new Date(program.createdAt);
   if (isNaN(created.getTime())) return 1;
   const ms = Date.now() - created.getTime();
@@ -1125,29 +1129,38 @@ export function getPhysioCurrentWeekNumber(program: Pick<Program, 'programType' 
   return Math.max(1, weeks + 1);
 }
 
+/** @deprecated Use getRecurringWeekNumber */
+export const getPhysioCurrentWeekNumber = getRecurringWeekNumber;
+
 /**
- * Returns the start/end Date for a given physio week number, based on program createdAt.
+ * Returns the start/end Date for a given recurring-program week number, based on program createdAt.
  */
-export function getPhysioWeekRange(program: Pick<Program, 'programType' | 'createdAt'>, weekNumber: number): { start: Date; end: Date } {
+export function getRecurringWeekRange(program: Pick<Program, 'programType' | 'createdAt'>, weekNumber: number): { start: Date; end: Date } {
   const created = new Date(program.createdAt);
   const start = new Date(created.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
   const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000 - 1);
   return { start, end };
 }
 
+/** @deprecated Use getRecurringWeekRange */
+export const getPhysioWeekRange = getRecurringWeekRange;
+
 /**
- * For physio programs, auto-extend `weeks` array up to the current calendar week
- * by duplicating the LATEST week's exercises (without completion / videos / notes).
- * Returns the updated program (same reference if no changes were needed) and
- * a flag indicating whether anything was added.
+ * For physio AND nutrition programs, auto-extend `weeks` array up to the current
+ * calendar week by duplicating the LATEST week as a fresh, unchecked routine.
  *
- * Adherence isn't broken: each calendar week is a fresh, unchecked routine that
- * the client either completes or doesn't.
+ * - Physio: copies exercises (name, repsSets, notes); clears weight, rpe,
+ *   isCompleted, clientNotes, coachComment, videoUrl.
+ * - Nutrition: copies meals (name, items with macros) and per-day macro targets;
+ *   clears each item's `checked` flag.
+ *
+ * Adherence isn't broken: each calendar week is a fresh routine that the client
+ * either completes or doesn't.
  */
-export function extendPhysioWeeks(program: Program, randomId: () => string): { program: Program; extended: boolean } {
-  if (program.programType !== 'physio') return { program, extended: false };
-  const target = getPhysioCurrentWeekNumber(program);
-  const weeks = (program.weeks || []) as WorkoutWeek[];
+export function extendRecurringWeeks(program: Program, randomId: () => string): { program: Program; extended: boolean } {
+  if (!isRecurringProgramType(program.programType)) return { program, extended: false };
+  const target = getRecurringWeekNumber(program);
+  const weeks = (program.weeks || []) as (WorkoutWeek | NutritionWeek)[];
   if (weeks.length === 0) return { program, extended: false };
   const highest = weeks.reduce((m, w) => Math.max(m, w.weekNumber), 0);
   if (highest >= target) return { program, extended: false };
@@ -1155,9 +1168,36 @@ export function extendPhysioWeeks(program: Program, randomId: () => string): { p
   const template = weeks.find(w => w.weekNumber === highest);
   if (!template) return { program, extended: false };
 
-  const newWeeks: WorkoutWeek[] = [...weeks];
+  if (program.programType === 'nutrition') {
+    const tpl = template as NutritionWeek;
+    const newWeeks: NutritionWeek[] = [...(weeks as NutritionWeek[])];
+    for (let n = highest + 1; n <= target; n++) {
+      const days: NutritionDay[] = tpl.days.map(td => ({
+        dayNumber: td.dayNumber,
+        targetCalories: td.targetCalories,
+        targetProtein: td.targetProtein,
+        targetCarbs: td.targetCarbs,
+        targetFat: td.targetFat,
+        meals: (td.meals || []).map(m => ({
+          id: randomId(),
+          name: m.name || '',
+          items: (m.items || []).map(it => ({
+            ...it,
+            id: randomId(),
+            checked: false,
+          })),
+        })),
+      }));
+      newWeeks.push({ weekNumber: n, days });
+    }
+    return { program: { ...program, weeks: newWeeks }, extended: true };
+  }
+
+  // physio
+  const tpl = template as WorkoutWeek;
+  const newWeeks: WorkoutWeek[] = [...(weeks as WorkoutWeek[])];
   for (let n = highest + 1; n <= target; n++) {
-    const days: WorkoutDay[] = template.days.map(td => ({
+    const days: WorkoutDay[] = tpl.days.map(td => ({
       dayNumber: td.dayNumber,
       exercises: (td.exercises || []).map(ex => ({
         id: randomId(),
@@ -1174,12 +1214,11 @@ export function extendPhysioWeeks(program: Program, randomId: () => string): { p
     }));
     newWeeks.push({ weekNumber: n, days });
   }
-
-  return {
-    program: { ...program, weeks: newWeeks },
-    extended: true,
-  };
+  return { program: { ...program, weeks: newWeeks }, extended: true };
 }
+
+/** @deprecated Use extendRecurringWeeks */
+export const extendPhysioWeeks = extendRecurringWeeks;
 
 export function createSampleProgram(coachId: string): Omit<Program, 'id' | 'createdAt' | 'shareCode'> {
   const exercises = [
