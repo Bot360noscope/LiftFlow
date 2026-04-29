@@ -590,6 +590,25 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
     onUpdate(updated);
   };
 
+  const moveFoodItem = (mealId: string, itemId: string, direction: 'up' | 'down') => {
+    const updated = {
+      ...day,
+      meals: day.meals.map(m => m.id === mealId
+        ? applyToActiveMealItems(m, items => {
+            const idx = items.findIndex(i => i.id === itemId);
+            if (idx < 0) return items;
+            const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+            if (newIdx < 0 || newIdx >= items.length) return items;
+            const arr = [...items];
+            [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+            return arr;
+          })
+        : m),
+    };
+    onUpdate(updated);
+    Haptics.selectionAsync().catch(() => {});
+  };
+
   const toggleFoodChecked = (mealId: string, itemId: string) => {
     const updated = {
       ...day,
@@ -1105,7 +1124,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
               </View>
             )}
 
-            {activeItems.map(item => (
+            {activeItems.map((item, idx) => (
               <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' }}>
                 <Pressable onPress={() => !canEdit && toggleFoodChecked(meal.id, item.id)} hitSlop={6} style={{ marginRight: 8 }}>
                   <Ionicons name={item.checked ? "checkmark-circle" : "ellipse-outline"} size={18} color={item.checked ? colors.success : colors.textMuted} style={canEdit ? { opacity: 0.4 } : undefined} />
@@ -1264,6 +1283,26 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                       </Pressable>
                     );
                   })}
+                  {canEdit && (
+                    <>
+                      <Pressable
+                        onPress={() => moveFoodItem(meal.id, item.id, 'up')}
+                        disabled={idx === 0}
+                        hitSlop={6}
+                        style={{ opacity: idx === 0 ? 0.25 : 1 }}
+                      >
+                        <Ionicons name="chevron-up" size={14} color={colors.textMuted} />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => moveFoodItem(meal.id, item.id, 'down')}
+                        disabled={idx === activeItems.length - 1}
+                        hitSlop={6}
+                        style={{ opacity: idx === activeItems.length - 1 ? 0.25 : 1 }}
+                      >
+                        <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
+                      </Pressable>
+                    </>
+                  )}
                   {(canEdit || meal.name === 'Extras') && (
                     <Pressable onPress={() => removeFoodFromMeal(meal.id, item.id)} hitSlop={6}>
                       <Ionicons name="close" size={14} color={colors.textMuted} />
@@ -1981,13 +2020,16 @@ function computeRpeSuggestion(prevExercise: Exercise | null | undefined): string
   return `${suggested}${unit ? unit : ''}`;
 }
 
-function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, prevWeekExercise, programId, coachId, profileId, initialExpanded, planLocked, isExpanded: isExpandedProp, onToggle, suggestionsEnabled, programType = 'workout' }: {
+function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, onMove, canMoveUp, canMoveDown, prevWeekExercise, programId, coachId, profileId, initialExpanded, planLocked, isExpanded: isExpandedProp, onToggle, suggestionsEnabled, programType = 'workout' }: {
   exercise: Exercise;
   index: number;
   isCoach: boolean;
   isShared: boolean;
   onUpdate: (updates: Partial<Exercise>) => void;
   onDelete: () => void;
+  onMove?: (direction: 'up' | 'down') => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
   prevWeekExercise?: Exercise | null;
   programId: string;
   coachId: string;
@@ -2158,6 +2200,26 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
             >
               <Ionicons name={expanded ? "chevron-up" : "ellipsis-horizontal"} size={16} color={colors.textMuted} />
             </Pressable>
+          )}
+          {onMove && (
+            <>
+              <Pressable
+                onPress={() => onMove('up')}
+                disabled={!canMoveUp}
+                hitSlop={6}
+                style={{ opacity: canMoveUp ? 1 : 0.25 }}
+              >
+                <Ionicons name="chevron-up" size={16} color={colors.textMuted} />
+              </Pressable>
+              <Pressable
+                onPress={() => onMove('down')}
+                disabled={!canMoveDown}
+                hitSlop={6}
+                style={{ opacity: canMoveDown ? 1 : 0.25 }}
+              >
+                <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+              </Pressable>
+            </>
           )}
           <Pressable
             onPress={() => confirmAction("Delete Exercise", `Remove "${exercise.name || 'this exercise'}"?`, onDelete, "Delete")}
@@ -2396,6 +2458,26 @@ function ExerciseRow({ exercise, index, isCoach, isShared, onUpdate, onDelete, p
           </View>
         </View>
         <View style={styles.exerciseHeaderRight}>
+          {canEditAll && onMove && (
+            <>
+              <Pressable
+                style={styles.exerciseWebDeleteBtn}
+                onPress={(e) => { e.stopPropagation(); onMove('up'); }}
+                disabled={!canMoveUp}
+                hitSlop={4}
+              >
+                <Ionicons name="chevron-up" size={14} color={canMoveUp ? colors.textMuted : colors.textGhost} />
+              </Pressable>
+              <Pressable
+                style={styles.exerciseWebDeleteBtn}
+                onPress={(e) => { e.stopPropagation(); onMove('down'); }}
+                disabled={!canMoveDown}
+                hitSlop={4}
+              >
+                <Ionicons name="chevron-down" size={14} color={canMoveDown ? colors.textMuted : colors.textGhost} />
+              </Pressable>
+            </>
+          )}
           {Platform.OS === 'web' && canEditAll && (
             <Pressable
               style={styles.exerciseWebDeleteBtn}
@@ -3334,6 +3416,32 @@ function ProgramDetailScreenInner() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [activeWeek, activeDay, planLocked]);
 
+  const moveExercise = useCallback((exerciseId: string, direction: 'up' | 'down') => {
+    setProgram(prev => {
+      if (!prev || planLocked) return prev;
+      const updatedWeeks = prev.weeks.map(week => {
+        if (week.weekNumber !== activeWeek) return week;
+        return {
+          ...week,
+          days: week.days.map(day => {
+            if (day.dayNumber !== activeDay) return day;
+            if (!('exercises' in day)) return day;
+            const idx = day.exercises.findIndex(e => e.id === exerciseId);
+            if (idx < 0) return day;
+            const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+            if (newIdx < 0 || newIdx >= day.exercises.length) return day;
+            const arr = [...day.exercises];
+            [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+            return { ...day, exercises: arr };
+          }),
+        };
+      });
+      return { ...prev, weeks: updatedWeeks };
+    });
+    setHasChanges(true);
+    Haptics.selectionAsync().catch(() => {});
+  }, [activeWeek, activeDay, planLocked]);
+
   const deleteWeek = useCallback((weekNumber: number) => {
     if (!program || planLocked) return;
     if (program.weeks.length <= 1) {
@@ -3742,6 +3850,9 @@ function ProgramDetailScreenInner() {
                       isShared={isShared}
                       onUpdate={(updates) => updateExercise(ex.id, updates)}
                       onDelete={() => deleteExercise(ex.id)}
+                      onMove={(direction) => moveExercise(ex.id, direction)}
+                      canMoveUp={idx > 0}
+                      canMoveDown={idx < exercises.length - 1}
                       prevWeekExercise={prevWeekExercise}
                       programId={program.id}
                       coachId={program.coachId}
