@@ -538,7 +538,7 @@ function MacroBar({ label, value, color, colorsTheme }: { label: string; value: 
   );
 }
 
-function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId, programId, programTitle }: {
+function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId, programId, programTitle, program, onProgramMutate, activeWeek, activeDay }: {
   day: NutritionDay;
   canEdit: boolean;
   onUpdate: (updated: NutritionDay) => void;
@@ -547,7 +547,12 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
   coachId?: string;
   programId?: string;
   programTitle?: string;
+  program?: Program;
+  onProgramMutate?: (mutator: (p: Program) => Program) => void;
+  activeWeek?: number;
+  activeDay?: number;
 }) {
+  const canCopyAcrossDays = canEdit && !!program && !!onProgramMutate && activeWeek != null && activeDay != null;
   const [searchMealId, setSearchMealId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<{ mealId: string; itemId: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -821,6 +826,108 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
     }, "Delete");
   };
 
+  // ─── Copy meal / day ─────────────────────────────────────────────────────
+  const [copyTarget, setCopyTarget] = useState<
+    | { kind: 'meal'; sourceMealId: string; sourceMealName: string }
+    | { kind: 'day' }
+    | null
+  >(null);
+
+  const cloneItemsFresh = (items: NutritionItem[] = []): NutritionItem[] =>
+    items.map(it => ({ ...it, id: Crypto.randomUUID(), checked: false }));
+
+  const cloneMealContents = (src: Meal) => ({
+    items: cloneItemsFresh(src.items || []),
+    alternatives: (src.alternatives || []).map(a => ({
+      id: Crypto.randomUUID(),
+      label: a.label,
+      items: cloneItemsFresh(a.items || []),
+    })),
+    primaryLabel: src.primaryLabel,
+    selectedAlternativeId: null as string | null,
+  });
+
+  const mealHasAnyItems = (m: Meal) =>
+    (m.items?.length || 0) > 0 || (m.alternatives || []).some(a => (a.items?.length || 0) > 0);
+
+  const performCopyMeal = (sourceMealId: string, targetWeekNum: number, targetDayNum: number, targetMealId: string) => {
+    if (!program || !onProgramMutate) return;
+    const src = day.meals.find(m => m.id === sourceMealId);
+    if (!src) return;
+    const cloned = cloneMealContents(src);
+    onProgramMutate(p => ({
+      ...p,
+      weeks: p.weeks.map(w => {
+        if (w.weekNumber !== targetWeekNum) return w;
+        return {
+          ...w,
+          days: (w.days as NutritionDay[]).map(d => {
+            if (d.dayNumber !== targetDayNum) return d;
+            return {
+              ...d,
+              meals: d.meals.map(m => m.id === targetMealId ? { ...m, ...cloned } : m),
+            };
+          }),
+        } as any;
+      }),
+    }));
+    setCopyTarget(null);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  };
+
+  const performCopyDay = (targetWeekNum: number, targetDayNum: number) => {
+    if (!program || !onProgramMutate) return;
+    const newMeals: Meal[] = day.meals.map(m => ({
+      id: Crypto.randomUUID(),
+      name: m.name,
+      ...cloneMealContents(m),
+    }));
+    onProgramMutate(p => ({
+      ...p,
+      weeks: p.weeks.map(w => {
+        if (w.weekNumber !== targetWeekNum) return w;
+        return {
+          ...w,
+          days: (w.days as NutritionDay[]).map(d => {
+            if (d.dayNumber !== targetDayNum) return d;
+            return { ...d, meals: newMeals };
+          }),
+        } as any;
+      }),
+    }));
+    setCopyTarget(null);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  };
+
+  const tryCopyMealToTarget = (sourceMealId: string, sourceMealName: string, targetWeekNum: number, targetDayNum: number, targetMeal: Meal) => {
+    const doCopy = () => performCopyMeal(sourceMealId, targetWeekNum, targetDayNum, targetMeal.id);
+    if (mealHasAnyItems(targetMeal)) {
+      confirmAction(
+        'Replace foods?',
+        `${targetMeal.name} (W${targetWeekNum} D${targetDayNum}) already has foods. Replace them with foods from ${sourceMealName}?`,
+        doCopy,
+        'Replace'
+      );
+    } else {
+      doCopy();
+    }
+  };
+
+  const tryCopyDayToTarget = (targetWeekNum: number, targetDayNum: number, targetDay: NutritionDay) => {
+    const doCopy = () => performCopyDay(targetWeekNum, targetDayNum);
+    const targetHasAny = (targetDay.meals || []).some(mealHasAnyItems);
+    if (targetHasAny) {
+      confirmAction(
+        'Replace day?',
+        `Week ${targetWeekNum} Day ${targetDayNum} already has foods. Replace them with this day's plan?`,
+        doCopy,
+        'Replace'
+      );
+    } else {
+      doCopy();
+    }
+  };
+
   return (
     <View style={{ gap: 12 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-around', backgroundColor: colors.backgroundCard, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 8, borderWidth: 1, borderColor: colors.border }}>
@@ -882,6 +989,11 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
                   <Pressable onPress={() => addManualFood(meal.id)} hitSlop={6}>
                     <Ionicons name="add-circle-outline" size={18} color={isExtras ? '#FF9500' : colors.accent} />
                   </Pressable>
+                  {canCopyAcrossDays && !isExtras && mealHasAnyItems(meal) && (
+                    <Pressable onPress={() => setCopyTarget({ kind: 'meal', sourceMealId: meal.id, sourceMealName: meal.name })} hitSlop={6}>
+                      <Ionicons name="copy-outline" size={16} color={colors.textMuted} />
+                    </Pressable>
+                  )}
                   {(canEdit || isExtras) && (
                     <Pressable onPress={() => removeMeal(meal.id)} hitSlop={6}>
                       <Ionicons name="trash-outline" size={16} color={colors.textMuted} />
@@ -1193,6 +1305,15 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
           <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.primary }}>Add Meal</Text>
         </Pressable>
       )}
+      {canCopyAcrossDays && !showMealPresets && day.meals.some(mealHasAnyItems) && (
+        <Pressable
+          onPress={() => setCopyTarget({ kind: 'day' })}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }}
+        >
+          <Ionicons name="copy-outline" size={15} color={colors.textMuted} />
+          <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.textMuted }}>Copy this day to…</Text>
+        </Pressable>
+      )}
       {canEdit && showMealPresets && (
         <View style={{ backgroundColor: colors.backgroundCard, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 12, gap: 8 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
@@ -1228,6 +1349,127 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
         onSelect={(item) => { if (searchMealId) addFoodToMeal(searchMealId, item); }}
         colors={colors}
       />
+
+      {/* Copy meal / day picker */}
+      <Modal visible={!!copyTarget} transparent animationType="fade" onRequestClose={() => setCopyTarget(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border, paddingHorizontal: 16, paddingVertical: 20, alignItems: 'stretch', maxWidth: 380, width: '100%' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <Ionicons name="copy-outline" size={20} color={colors.primary} />
+              <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 17, color: colors.text, flex: 1 }}>
+                {copyTarget?.kind === 'meal' ? `Copy "${copyTarget.sourceMealName}" foods` : "Copy this day's meals"}
+              </Text>
+              <Pressable onPress={() => setCopyTarget(null)} hitSlop={6}>
+                <Ionicons name="close" size={20} color={colors.textMuted} />
+              </Pressable>
+            </View>
+            <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 12, color: colors.textSecondary, marginBottom: 12 }}>
+              {copyTarget?.kind === 'meal'
+                ? 'Pick which meal should receive these foods. Existing foods in that meal will be replaced.'
+                : 'Pick which day should be overwritten with this day\'s plan.'}
+            </Text>
+            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+              {(program?.weeks as NutritionWeek[] | undefined || []).map(w => (
+                <View key={w.weekNumber} style={{ marginBottom: 10 }}>
+                  <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, paddingHorizontal: 2 }}>
+                    Week {w.weekNumber}
+                  </Text>
+                  {w.days.map(d => {
+                    const isSourceDay = w.weekNumber === activeWeek && d.dayNumber === activeDay;
+
+                    if (copyTarget?.kind === 'day') {
+                      const targetHasAny = (d.meals || []).some(mealHasAnyItems);
+                      return (
+                        <Pressable
+                          key={`d-${d.dayNumber}`}
+                          disabled={isSourceDay}
+                          onPress={() => tryCopyDayToTarget(w.weekNumber, d.dayNumber, d as NutritionDay)}
+                          style={{
+                            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                            paddingVertical: 12, paddingHorizontal: 12, borderRadius: 10,
+                            borderWidth: 1, borderColor: colors.border, marginBottom: 6,
+                            backgroundColor: isSourceDay ? colors.border + '22' : 'transparent',
+                            opacity: isSourceDay ? 0.5 : 1,
+                          }}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.text }}>
+                              Day {d.dayNumber}{isSourceDay ? ' · this day' : ''}
+                            </Text>
+                            {!isSourceDay && targetHasAny && (
+                              <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: '#FF9500', marginTop: 2 }}>
+                                Has foods — will be replaced
+                              </Text>
+                            )}
+                          </View>
+                          {!isSourceDay && (
+                            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                          )}
+                        </Pressable>
+                      );
+                    }
+
+                    return (
+                      <View key={`d-${d.dayNumber}`} style={{ marginBottom: 8 }}>
+                        <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 11, color: colors.textMuted, marginBottom: 4, paddingHorizontal: 4 }}>
+                          Day {d.dayNumber}
+                        </Text>
+                        {(d.meals || []).map(m => {
+                          const isSourceMeal = isSourceDay && m.id === (copyTarget?.kind === 'meal' ? copyTarget.sourceMealId : '');
+                          const hasItems = mealHasAnyItems(m);
+                          return (
+                            <Pressable
+                              key={m.id}
+                              disabled={isSourceMeal}
+                              onPress={() => {
+                                if (copyTarget?.kind !== 'meal') return;
+                                tryCopyMealToTarget(
+                                  copyTarget.sourceMealId,
+                                  copyTarget.sourceMealName,
+                                  w.weekNumber,
+                                  d.dayNumber,
+                                  m,
+                                );
+                              }}
+                              style={{
+                                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                                paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10,
+                                borderWidth: 1, borderColor: colors.border, marginBottom: 4,
+                                backgroundColor: isSourceMeal ? colors.border + '22' : 'transparent',
+                                opacity: isSourceMeal ? 0.5 : 1,
+                              }}
+                            >
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.text }}>
+                                  {m.name}{isSourceMeal ? ' · source' : ''}
+                                </Text>
+                                {!isSourceMeal && hasItems && (
+                                  <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: '#FF9500', marginTop: 2 }}>
+                                    Has foods — will be replaced
+                                  </Text>
+                                )}
+                              </View>
+                              {!isSourceMeal && (
+                                <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
+                              )}
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
+            </ScrollView>
+            <Pressable
+              onPress={() => setCopyTarget(null)}
+              style={{ marginTop: 12, alignItems: 'center', paddingVertical: 12, borderRadius: 10, backgroundColor: colors.surfaceLight || colors.border + '33' }}
+            >
+              <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: colors.text }}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={!!unitSetup} transparent animationType="fade" onRequestClose={closeUnitSetup}>
         <View style={styles.modalOverlay}>
@@ -3333,6 +3575,13 @@ function ProgramDetailScreenInner() {
               coachId={program.coachId}
               programId={program.id}
               programTitle={program.title}
+              program={program}
+              onProgramMutate={(mutator) => {
+                setProgram(prev => prev ? mutator(prev) : prev);
+                setHasChanges(true);
+              }}
+              activeWeek={activeWeek}
+              activeDay={activeDay}
             />
           ) : (
             <View style={styles.emptyDay}>
