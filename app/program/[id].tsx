@@ -829,7 +829,7 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
   // ─── Copy meal / day ─────────────────────────────────────────────────────
   const [copyTarget, setCopyTarget] = useState<
     | { kind: 'meal'; sourceMealId: string; sourceMealName: string }
-    | { kind: 'day' }
+    | { kind: 'day'; step: 'select-meals' | 'select-target'; selectedMealIds: string[] }
     | null
   >(null);
 
@@ -875,13 +875,14 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
   };
 
-  const performCopyDay = (targetWeekNum: number, targetDayNum: number) => {
+  const sameMealName = (a: string, b: string) =>
+    (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();
+
+  const performCopyDay = (targetWeekNum: number, targetDayNum: number, selectedMealIds: string[]) => {
     if (!program || !onProgramMutate) return;
-    const newMeals: Meal[] = day.meals.map(m => ({
-      id: Crypto.randomUUID(),
-      name: m.name,
-      ...cloneMealContents(m),
-    }));
+    const selectedSet = new Set(selectedMealIds);
+    const sourceMeals = day.meals.filter(m => selectedSet.has(m.id));
+    if (sourceMeals.length === 0) return;
     onProgramMutate(p => ({
       ...p,
       weeks: p.weeks.map(w => {
@@ -890,7 +891,17 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
           ...w,
           days: (w.days as NutritionDay[]).map(d => {
             if (d.dayNumber !== targetDayNum) return d;
-            return { ...d, meals: newMeals };
+            const merged: Meal[] = [...d.meals];
+            for (const src of sourceMeals) {
+              const cloned = cloneMealContents(src);
+              const idx = merged.findIndex(m => sameMealName(m.name, src.name));
+              if (idx >= 0) {
+                merged[idx] = { ...merged[idx], ...cloned };
+              } else {
+                merged.push({ id: Crypto.randomUUID(), name: src.name, ...cloned });
+              }
+            }
+            return { ...d, meals: merged };
           }),
         } as any;
       }),
@@ -913,13 +924,21 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
     }
   };
 
-  const tryCopyDayToTarget = (targetWeekNum: number, targetDayNum: number, targetDay: NutritionDay) => {
-    const doCopy = () => performCopyDay(targetWeekNum, targetDayNum);
-    const targetHasAny = (targetDay.meals || []).some(mealHasAnyItems);
-    if (targetHasAny) {
+  const willReplaceForDay = (targetDay: NutritionDay, selectedMealIds: string[]) => {
+    const selectedSet = new Set(selectedMealIds);
+    const sourceMeals = day.meals.filter(m => selectedSet.has(m.id));
+    return sourceMeals.some(src => {
+      const match = (targetDay.meals || []).find(m => sameMealName(m.name, src.name));
+      return !!match && mealHasAnyItems(match);
+    });
+  };
+
+  const tryCopyDayToTarget = (targetWeekNum: number, targetDayNum: number, targetDay: NutritionDay, selectedMealIds: string[]) => {
+    const doCopy = () => performCopyDay(targetWeekNum, targetDayNum, selectedMealIds);
+    if (willReplaceForDay(targetDay, selectedMealIds)) {
       confirmAction(
-        'Replace day?',
-        `Week ${targetWeekNum} Day ${targetDayNum} already has foods. Replace them with this day's plan?`,
+        'Replace foods?',
+        `Week ${targetWeekNum} Day ${targetDayNum} already has some of these meals. Their foods will be replaced.`,
         doCopy,
         'Replace'
       );
@@ -1307,11 +1326,15 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
       )}
       {canCopyAcrossDays && !showMealPresets && day.meals.some(mealHasAnyItems) && (
         <Pressable
-          onPress={() => setCopyTarget({ kind: 'day' })}
+          onPress={() => setCopyTarget({
+            kind: 'day',
+            step: 'select-meals',
+            selectedMealIds: day.meals.filter(mealHasAnyItems).map(m => m.id),
+          })}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }}
         >
           <Ionicons name="copy-outline" size={15} color={colors.textMuted} />
-          <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.textMuted }}>Copy this day to…</Text>
+          <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.textMuted }}>Copy meals to another day…</Text>
         </Pressable>
       )}
       {canEdit && showMealPresets && (
@@ -1357,7 +1380,11 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <Ionicons name="copy-outline" size={20} color={colors.primary} />
               <Text style={{ fontFamily: 'Rubik_700Bold', fontSize: 17, color: colors.text, flex: 1 }}>
-                {copyTarget?.kind === 'meal' ? `Copy "${copyTarget.sourceMealName}" foods` : "Copy this day's meals"}
+                {copyTarget?.kind === 'meal'
+                  ? `Copy "${copyTarget.sourceMealName}" foods`
+                  : copyTarget?.kind === 'day' && copyTarget.step === 'select-meals'
+                    ? 'Choose meals to copy'
+                    : 'Choose target day'}
               </Text>
               <Pressable onPress={() => setCopyTarget(null)} hitSlop={6}>
                 <Ionicons name="close" size={20} color={colors.textMuted} />
@@ -1366,107 +1393,197 @@ function NutritionDayView({ day, canEdit, onUpdate, colors, prevWeekDay, coachId
             <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 12, color: colors.textSecondary, marginBottom: 12 }}>
               {copyTarget?.kind === 'meal'
                 ? 'Pick which meal should receive these foods. Existing foods in that meal will be replaced.'
-                : 'Pick which day should be overwritten with this day\'s plan.'}
+                : copyTarget?.kind === 'day' && copyTarget.step === 'select-meals'
+                  ? 'Tap to include or exclude each meal. Only the selected meals will be copied.'
+                  : "Pick the day to receive the selected meals. Meals are matched by name — same-name meals get their foods replaced, new ones are added."}
             </Text>
-            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
-              {(program?.weeks as NutritionWeek[] | undefined || []).map(w => (
-                <View key={w.weekNumber} style={{ marginBottom: 10 }}>
-                  <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, paddingHorizontal: 2 }}>
-                    Week {w.weekNumber}
-                  </Text>
-                  {w.days.map(d => {
-                    const isSourceDay = w.weekNumber === activeWeek && d.dayNumber === activeDay;
 
-                    if (copyTarget?.kind === 'day') {
-                      const targetHasAny = (d.meals || []).some(mealHasAnyItems);
-                      return (
-                        <Pressable
-                          key={`d-${d.dayNumber}`}
-                          disabled={isSourceDay}
-                          onPress={() => tryCopyDayToTarget(w.weekNumber, d.dayNumber, d as NutritionDay)}
-                          style={{
-                            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                            paddingVertical: 12, paddingHorizontal: 12, borderRadius: 10,
-                            borderWidth: 1, borderColor: colors.border, marginBottom: 6,
-                            backgroundColor: isSourceDay ? colors.border + '22' : 'transparent',
-                            opacity: isSourceDay ? 0.5 : 1,
-                          }}
-                        >
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.text }}>
-                              Day {d.dayNumber}{isSourceDay ? ' · this day' : ''}
-                            </Text>
-                            {!isSourceDay && targetHasAny && (
-                              <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: '#FF9500', marginTop: 2 }}>
-                                Has foods — will be replaced
-                              </Text>
-                            )}
-                          </View>
-                          {!isSourceDay && (
-                            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                          )}
-                        </Pressable>
-                      );
-                    }
-
+            {/* Step 1 of day-copy: meal picker with checkboxes */}
+            {copyTarget?.kind === 'day' && copyTarget.step === 'select-meals' && (
+              <>
+                <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                  {day.meals.map(m => {
+                    const hasItems = mealHasAnyItems(m);
+                    const checked = copyTarget.selectedMealIds.includes(m.id);
+                    const itemCount = (m.items?.length || 0) + (m.alternatives || []).reduce((a, alt) => a + (alt.items?.length || 0), 0);
                     return (
-                      <View key={`d-${d.dayNumber}`} style={{ marginBottom: 8 }}>
-                        <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 11, color: colors.textMuted, marginBottom: 4, paddingHorizontal: 4 }}>
-                          Day {d.dayNumber}
-                        </Text>
-                        {(d.meals || []).map(m => {
-                          const isSourceMeal = isSourceDay && m.id === (copyTarget?.kind === 'meal' ? copyTarget.sourceMealId : '');
-                          const hasItems = mealHasAnyItems(m);
+                      <Pressable
+                        key={m.id}
+                        disabled={!hasItems}
+                        onPress={() => {
+                          setCopyTarget(prev => {
+                            if (!prev || prev.kind !== 'day') return prev;
+                            const next = checked
+                              ? prev.selectedMealIds.filter(id => id !== m.id)
+                              : [...prev.selectedMealIds, m.id];
+                            return { ...prev, selectedMealIds: next };
+                          });
+                        }}
+                        style={{
+                          flexDirection: 'row', alignItems: 'center', gap: 10,
+                          paddingVertical: 12, paddingHorizontal: 12, borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: checked ? colors.primary + '88' : colors.border,
+                          marginBottom: 6,
+                          backgroundColor: checked ? colors.primary + '14' : 'transparent',
+                          opacity: hasItems ? 1 : 0.4,
+                        }}
+                      >
+                        <Ionicons
+                          name={!hasItems ? 'remove-circle-outline' : (checked ? 'checkbox' : 'square-outline')}
+                          size={20}
+                          color={checked ? colors.primary : colors.textMuted}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.text }}>
+                            {m.name}
+                          </Text>
+                          <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
+                            {hasItems ? `${itemCount} food${itemCount === 1 ? '' : 's'}` : 'Empty — nothing to copy'}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                  <Pressable
+                    onPress={() => setCopyTarget(null)}
+                    style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 10, backgroundColor: colors.surfaceLight || colors.border + '33' }}
+                  >
+                    <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: colors.text }}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    disabled={copyTarget.selectedMealIds.length === 0}
+                    onPress={() => setCopyTarget(prev => prev && prev.kind === 'day' ? { ...prev, step: 'select-target' } : prev)}
+                    style={{
+                      flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 10,
+                      backgroundColor: copyTarget.selectedMealIds.length === 0 ? colors.border + '55' : colors.primary,
+                      opacity: copyTarget.selectedMealIds.length === 0 ? 0.6 : 1,
+                    }}
+                  >
+                    <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: '#FFFFFF' }}>
+                      Continue ({copyTarget.selectedMealIds.length})
+                    </Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+
+            {/* Step 2 of day-copy + meal-copy mode: target picker */}
+            {(copyTarget?.kind === 'meal' || (copyTarget?.kind === 'day' && copyTarget.step === 'select-target')) && (
+              <>
+                <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+                  {(program?.weeks as NutritionWeek[] | undefined || []).map(w => (
+                    <View key={w.weekNumber} style={{ marginBottom: 10 }}>
+                      <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 11, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, paddingHorizontal: 2 }}>
+                        Week {w.weekNumber}
+                      </Text>
+                      {w.days.map(d => {
+                        const isSourceDay = w.weekNumber === activeWeek && d.dayNumber === activeDay;
+
+                        if (copyTarget?.kind === 'day') {
+                          const willReplace = !isSourceDay && willReplaceForDay(d as NutritionDay, copyTarget.selectedMealIds);
                           return (
                             <Pressable
-                              key={m.id}
-                              disabled={isSourceMeal}
-                              onPress={() => {
-                                if (copyTarget?.kind !== 'meal') return;
-                                tryCopyMealToTarget(
-                                  copyTarget.sourceMealId,
-                                  copyTarget.sourceMealName,
-                                  w.weekNumber,
-                                  d.dayNumber,
-                                  m,
-                                );
-                              }}
+                              key={`d-${d.dayNumber}`}
+                              disabled={isSourceDay}
+                              onPress={() => tryCopyDayToTarget(w.weekNumber, d.dayNumber, d as NutritionDay, copyTarget.selectedMealIds)}
                               style={{
                                 flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                                paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10,
-                                borderWidth: 1, borderColor: colors.border, marginBottom: 4,
-                                backgroundColor: isSourceMeal ? colors.border + '22' : 'transparent',
-                                opacity: isSourceMeal ? 0.5 : 1,
+                                paddingVertical: 12, paddingHorizontal: 12, borderRadius: 10,
+                                borderWidth: 1, borderColor: colors.border, marginBottom: 6,
+                                backgroundColor: isSourceDay ? colors.border + '22' : 'transparent',
+                                opacity: isSourceDay ? 0.5 : 1,
                               }}
                             >
                               <View style={{ flex: 1 }}>
                                 <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.text }}>
-                                  {m.name}{isSourceMeal ? ' · source' : ''}
+                                  Day {d.dayNumber}{isSourceDay ? ' · this day' : ''}
                                 </Text>
-                                {!isSourceMeal && hasItems && (
+                                {willReplace && (
                                   <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: '#FF9500', marginTop: 2 }}>
-                                    Has foods — will be replaced
+                                    Some meals will be replaced
                                   </Text>
                                 )}
                               </View>
-                              {!isSourceMeal && (
-                                <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
+                              {!isSourceDay && (
+                                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                               )}
                             </Pressable>
                           );
-                        })}
-                      </View>
-                    );
-                  })}
+                        }
+
+                        return (
+                          <View key={`d-${d.dayNumber}`} style={{ marginBottom: 8 }}>
+                            <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 11, color: colors.textMuted, marginBottom: 4, paddingHorizontal: 4 }}>
+                              Day {d.dayNumber}
+                            </Text>
+                            {(d.meals || []).map(m => {
+                              const isSourceMeal = isSourceDay && m.id === (copyTarget?.kind === 'meal' ? copyTarget.sourceMealId : '');
+                              const hasItems = mealHasAnyItems(m);
+                              return (
+                                <Pressable
+                                  key={m.id}
+                                  disabled={isSourceMeal}
+                                  onPress={() => {
+                                    if (copyTarget?.kind !== 'meal') return;
+                                    tryCopyMealToTarget(
+                                      copyTarget.sourceMealId,
+                                      copyTarget.sourceMealName,
+                                      w.weekNumber,
+                                      d.dayNumber,
+                                      m,
+                                    );
+                                  }}
+                                  style={{
+                                    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                                    paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10,
+                                    borderWidth: 1, borderColor: colors.border, marginBottom: 4,
+                                    backgroundColor: isSourceMeal ? colors.border + '22' : 'transparent',
+                                    opacity: isSourceMeal ? 0.5 : 1,
+                                  }}
+                                >
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={{ fontFamily: 'Rubik_500Medium', fontSize: 13, color: colors.text }}>
+                                      {m.name}{isSourceMeal ? ' · source' : ''}
+                                    </Text>
+                                    {!isSourceMeal && hasItems && (
+                                      <Text style={{ fontFamily: 'Rubik_400Regular', fontSize: 11, color: '#FF9500', marginTop: 2 }}>
+                                        Has foods — will be replaced
+                                      </Text>
+                                    )}
+                                  </View>
+                                  {!isSourceMeal && (
+                                    <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
+                                  )}
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  ))}
+                </ScrollView>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                  {copyTarget?.kind === 'day' && (
+                    <Pressable
+                      onPress={() => setCopyTarget(prev => prev && prev.kind === 'day' ? { ...prev, step: 'select-meals' } : prev)}
+                      style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 10, backgroundColor: colors.surfaceLight || colors.border + '33' }}
+                    >
+                      <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: colors.text }}>Back</Text>
+                    </Pressable>
+                  )}
+                  <Pressable
+                    onPress={() => setCopyTarget(null)}
+                    style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 10, backgroundColor: colors.surfaceLight || colors.border + '33' }}
+                  >
+                    <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: colors.text }}>Cancel</Text>
+                  </Pressable>
                 </View>
-              ))}
-            </ScrollView>
-            <Pressable
-              onPress={() => setCopyTarget(null)}
-              style={{ marginTop: 12, alignItems: 'center', paddingVertical: 12, borderRadius: 10, backgroundColor: colors.surfaceLight || colors.border + '33' }}
-            >
-              <Text style={{ fontFamily: 'Rubik_600SemiBold', fontSize: 14, color: colors.text }}>Cancel</Text>
-            </Pressable>
+              </>
+            )}
           </View>
         </View>
       </Modal>
